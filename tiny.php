@@ -2,7 +2,7 @@
 
 /**
  * Tiny: PHP Framework
- * https://github.com/ranaroussi
+ * https://github.com/ranaroussi/tiny
  *
  * Copyright 2013-2024 Ran Aroussi (@aroussi)
  *
