@@ -1,0 +1,17 @@
+.env
+.env.local
+.env.dev
+.env.stage
+.env.prod
+.env.php
+node_modules
+pnpm-lock.yaml
+Icon
+/vendor
+/composer.lock
+/cache
+.vscode
+.idea
+*.p8
+.DS_Store
+docker-compose.yml
