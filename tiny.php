@@ -23,11 +23,6 @@
 /* -------------------------------------- */
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/ext/utils.php';
-require_once __DIR__ . '/ext/cache.php';
-require_once __DIR__ . '/ext/controller.php';
-require_once __DIR__ . '/ext/flash.php';
-require_once __DIR__ . '/ext/model.php';
-require_once __DIR__ . '/ext/response.php';
 /* -------------------------------------- */
 session_name('tiny');
 session_start();
@@ -304,6 +299,8 @@ class tiny
      */
     public static function cache(string $engine = 'apcu'): TinyCache
     {
+        require_once __DIR__ . '/ext/cache.php';
+
         if (self::$cache === null) {
             $config = self::$config->memcached ?? [];
             $host = $config['host'] ?? 'localhost';
@@ -443,6 +440,7 @@ class tiny
             self::$router->worker[] = $file;
         }
 
+        require_once __DIR__ . '/ext/controller.php';
         require_once $filePath;
 
         try {
@@ -550,6 +548,7 @@ class tiny
      */
     public static function response(): TinyResponse
     {
+        require_once __DIR__ . '/ext/response.php';
         static $response = null;
         return $response ??= new TinyResponse();
     }
@@ -607,6 +606,8 @@ class tiny
      */
     public static function model(string $model): object
     {
+        require_once __DIR__ . '/ext/model.php';
+
         static $models = [];
         if (!isset($models[$model])) {
             require_once self::$config->app_path . '/models/' . $model . '.php';
