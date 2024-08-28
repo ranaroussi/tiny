@@ -22,7 +22,7 @@ Tiny is a lightweight PHP framework designed to provide a simple and efficient w
 1. Clone the repository or download the Tiny framework files.
 
 ```php
-$ git clone https://github.com/ranaroussi/tiny-php.git
+$ git clone https://github.com/ranaroussi/tiny.git
 ```
 
 3. From inside the project directory, execute the following command to create the project:
