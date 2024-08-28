@@ -85,21 +85,32 @@ class TinyModel
      */
     private function validateField(string $item, $value, string $type): void
     {
-        if (!preg_match('/^(\[)?(\w+)(\((\d+)\))?\]?$/', $type, $matches)) {
-            $this->validationErrors[$item] = "Invalid type definition for `$item`";
-            return;
+        $types = explode('|', $type);
+        $isValid = false;
+
+        foreach ($types as $singleType) {
+            if (!preg_match('/^(\[)?(\w+)(\((\d+)\))?\]?$/', trim($singleType), $matches)) {
+                $this->validationErrors[$item] = "Invalid type definition for `$item`";
+                return;
+            }
+
+            $isOptional = $matches[1] === '[';
+            $dataType = $matches[2];
+            $length = $matches[4] ?? null;
+
+            if ($isOptional && $value === null) {
+                $isValid = true;
+                break;
+            }
+
+            if ($this->validateType($item, $value, $dataType, $length)) {
+                $isValid = true;
+                break;
+            }
         }
 
-        $isOptional = $matches[1] === '[';
-        $dataType = $matches[2];
-        $length = $matches[4] ?? null;
-
-        if ($isOptional && $value === null) {
-            return;
-        }
-
-        if (!$this->validateType($item, $value, $dataType, $length)) {
-            $this->validationErrors[$item] = "`$item` is not of data type `$dataType`" . ($length ? " or exceeds length $length" : '');
+        if (!$isValid) {
+            $this->validationErrors[$item] = "`$item` does not match any of the allowed types: $type";
         }
     }
 
