@@ -182,14 +182,14 @@ class TinySSE
      *
      * Note: To terminate the stream, send "[DONE]" as the cache value.
      */
-    public function streamCacheKey(string $key, int $sleep = 1): void
+    public function streamKey(string $key, int $sleep = 1): void
     {
         /*
         // usage - reader
-        tiny::sse()->streamCacheKey('KEY', 1);
+        tiny::sse()->streamKey('KEY', 1);
 
         // usage - writer
-        tiny::sse()->pushCacheKey('KEY', 'VALUE');
+        tiny::sse()->sendKey('KEY', 'VALUE');
 
         // usage - web client
         <script>
@@ -216,7 +216,7 @@ class TinySSE
      *
      * This method takes a key and data, encodes the data if it's not already a string,
      * and stores it in the cache using the provided key. This is typically used in
-     * conjunction with streamCacheKey() to facilitate real-time updates.
+     * conjunction with streamKey() to facilitate real-time updates.
      *
      * @param string $key The cache key to store the data under
      * @param mixed $data The data to be stored. If not a string, it will be JSON encoded
@@ -228,7 +228,7 @@ class TinySSE
      * Note: This method is designed to work with the SSE streaming system,
      * allowing data to be pushed for later retrieval and streaming to clients.
      */
-    public function pushCacheKey(string $key, mixed $data): void
+    public function sendKey(string $key, mixed $data): void
     {
         $data = is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_SLASHES);
         tiny::cache()->set($key, $data);
