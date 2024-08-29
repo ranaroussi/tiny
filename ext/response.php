@@ -55,14 +55,13 @@ class TinyResponse
      * Flushes output buffer and optionally renders a view file.
      * Used for sending partial content in long-running processes.
      *
-     * @param string $file The view file to render (optional)
+     * @param string $string The string to send (optional)
      * @param bool $finish_request Whether to finish the request after flushing (default: true)
      */
-    public function flush($file = '', $finish_request = true): void
+    public function flush(string $string = '', bool $finish_request = true): void
     {
-        header('HX-Push-Url: ' . tiny::router()->permalink);
-        tiny::render($file, false);
-        tiny::flush('', $finish_request);
+        echo $string;
+        tiny::flush($finish_request);
     }
 
     /**
