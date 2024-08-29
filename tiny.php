@@ -514,31 +514,15 @@ class tiny
     }
 
     /**
-     * Returns the request object with information about the current HTTP request.
+     * Returns the response object for handling HTTP responses.
      *
-     * @return object The request object
+     * @return TinyRequest The Request object
      */
-    public static function request(): object
+    public static function request(): TinyRequest
     {
-        static $request;
-        if (!isset($request)) {
-            $request = (object) [
-                'user' => self::user(),
-                'method' => $_SERVER['REQUEST_METHOD'],
-                'headers' => getallheaders(),
-                'htmx' => self::$router->htmx,
-                'params' => (object) $_REQUEST,
-                'query' => (object) self::$router->query,  //(object) $_GET,
-                'body' => $_SERVER['REQUEST_METHOD'] === 'GET' ? new stdClass() : self::readJSONBody(false),
-                'path' => (object) [
-                    'controller' => self::$router->controller,
-                    'section' => self::$router->section,
-                    'slug' => self::$router->slug,
-                    'full' => '/' . substr(self::$router->uri, strpos(self::$router->uri, self::$router->controller)),
-                ],
-            ];
-        }
-        return $request;
+        require_once __DIR__ . '/ext/request.php';
+        static $request = null;
+        return $request ??= new TinyRequest();
     }
 
     /**
