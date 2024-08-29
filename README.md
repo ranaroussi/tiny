@@ -172,7 +172,7 @@ $results = tiny::db()->getQuery("SELECT * FROM users WHERE id = 1");
 You can also use Tiny's utility function to build queries using placeholders:
 
 ```php
-$query = tiny::query("SELECT * FROM users WHERE id = ? AND is_deleted = ?", [$userId, false]);
+$query = tiny::db()->prepare("SELECT * FROM users WHERE id = ? AND is_deleted = ?", [$userId, false]);
 $results = tiny::db()->getQuery($query);
 ```
 

@@ -37,9 +37,18 @@ interface DB
      *
      * @param string $query The SQL query to execute
      * @param array $params Optional parameters for the query
-     * @return bool True if the query was successful, false otherwise
+     * @return mixed True if the query was successful, false otherwise
      */
     public function execute(string $query);
+
+    /**
+     * Prepares a SQL query by replacing placeholders with values.
+     *
+     * @param string $query The SQL query with placeholders
+     * @param array|object $values The values to replace placeholders
+     * @return string The prepared SQL query
+     */
+    public function prepare(string $query, array|object $values = []): string;
 
     /**
      * Returns the ID of the last inserted row.
@@ -196,7 +205,6 @@ class TinyDB implements DB
         } catch (PDOException $e) {
             throw new Exception('Unable to connect to any MySQL server.');
         }
-
     }
 
     /**
@@ -280,16 +288,41 @@ class TinyDB implements DB
     }
 
     /**
+     * Prepares a SQL query by replacing placeholders with values.
+     *
+     * @param string $query The SQL query with placeholders
+     * @param array|object $values The values to replace placeholders
+     * @return string The prepared SQL query
+     */
+    public function prepare(string $query, array|object $values = []): string
+    {
+        $values = is_array($values) ? $values : [$values];
+        foreach ($values as $value) {
+            if ($value === null) {
+                $value = 'NULL';
+            } else if ($value === false || $value === 'false') {
+                $value = 'FALSE';
+            } else if ($value === true || $value === 'true') {
+                $value = 'TRUE';
+            } else {
+                $value = is_numeric($value) || in_array($value, ['TRUE', 'FALSE', 'NULL']) ? $value : "'" . trim($value) . "'";
+            }
+
+            $query = preg_replace('/\?/', $value, $query, 1);
+        }
+        return $query;
+    }
+
+    /**
      * Executes a SQL query with optional parameters.
      *
      * @param string $query The SQL query to execute
      * @param array $params Optional parameters for the query
-     * @return bool True if the query was successful, false otherwise
+     * @return mixed True if the query was successful, false otherwise
      */
-    public function execute(string $query, array $params = []): bool
+    public function execute(string $query, array $params = []): mixed
     {
-        $stmt = $this->pdo->prepare($query);
-        return $stmt->execute($params);
+        return $this->pdo->exec($this->prepare($query, $params));
     }
 
     /**
@@ -377,9 +410,7 @@ class TinyDB implements DB
         $query = "INSERT INTO $table ($columns) VALUES ($placeholders)";
 
         try {
-            $stmt = $this->pdo->prepare($query);
-            $stmt->execute(array_values($data));
-            return $stmt;
+            return $this->execute($query, $data);
         } catch (PDOException $e) {
             return $e->getMessage();
         }
@@ -411,9 +442,7 @@ class TinyDB implements DB
         }
 
         try {
-            $stmt = $this->pdo->prepare($query);
-            $stmt->execute($values);
-            return $stmt;
+            return $this->execute($query, $values);
         } catch (PDOException $e) {
             return $e->getMessage();
         }
@@ -443,8 +472,7 @@ class TinyDB implements DB
         }
 
         try {
-            $stmt = $this->pdo->prepare($query);
-            return $stmt->execute($values);
+            return $this->execute($query, $values);
         } catch (PDOException $e) {
             return $e->getMessage();
         }
@@ -472,16 +500,6 @@ class TinyDB implements DB
         return $this->pdo->query($query);
     }
 
-    /**
-     * Prepares a SQL statement for execution.
-     *
-     * @param string $query The SQL query to prepare
-     * @return PDOStatement The prepared PDOStatement object
-     */
-    public function prepare(string $query): PDOStatement
-    {
-        return $this->pdo->prepare($query);
-    }
 
     /**
      * Performs an upsert operation (insert or update on conflict).

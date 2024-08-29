@@ -321,32 +321,6 @@ class tiny
     }
 
     /**
-     * Prepares a SQL query by replacing placeholders with values.
-     *
-     * @param string $query The SQL query with placeholders
-     * @param array|mixed $values The values to replace placeholders
-     * @return string The prepared SQL query
-     */
-    public static function query($query, $values = [])
-    {
-        $values = is_array($values) ? $values : [$values];
-        foreach ($values as $value) {
-            if ($value === null) {
-                $value = 'NULL';
-            } else if ($value === false) {
-                $value = 'false';
-            } else if ($value === true) {
-                $value = 'true';
-            } else {
-                $value = is_numeric($value) ? $value : "'$value'";
-            }
-
-            $query = preg_replace('/\?/', $value, $query, 1);
-        }
-        return $query;
-    }
-
-    /**
      * Retrieves router information.
      *
      * @param string|null $key The router key to retrieve (optional)
