@@ -20,8 +20,9 @@
  *
  */
 
-
 declare(strict_types=1);
+
+const SQLITE3_OPEN_SHAREDCACHE = 0x00020000;
 
 interface DB
 {
