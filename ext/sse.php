@@ -135,6 +135,23 @@ class TinySSE
      */
     public function streamPostgres(string $channel, int $sleep = 1): void
     {
+        /*
+        -- run run this for every channel
+        CREATE OR REPLACE FUNCTION public.<NOTIFY_CHANNEL>()
+        RETURNS trigger
+        AS $function$
+        BEGIN
+            PERFORM pg_notify('<CHANNEL_NAME>', row_to_json(NEW)::text);
+            RETURN NULL;
+        END;
+        $function$
+        LANGUAGE plpgsql;
+
+        CREATE TRIGGER trigger_on_insert
+            AFTER INSERT ON <MYTABLE>
+            FOR EACH ROW
+            EXECUTE PROCEDURE <NOTIFY_CHANNEL>();
+        */
         self::start();
 
         $pdo = tiny::db()->getPdo();
