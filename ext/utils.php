@@ -622,7 +622,7 @@ trait TinyUtils
             return 'Cannot format date...';
         }
 
-        $stamp = date('U', $timestamp);
+        $stamp = (int)date('U', $timestamp);
         return match ($date_format) {
             'ago' => self::timeAgo($stamp),
             'togo' => self::timeToGo($stamp),
