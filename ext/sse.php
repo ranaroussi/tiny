@@ -182,16 +182,14 @@ class TinySSE
      *
      * Note: To terminate the stream, send "[DONE]" as the cache value.
      */
-    public function streamCache(string $key, int $sleep = 1): void
+    public function streamCacheKey(string $key, int $sleep = 1): void
     {
         /*
         // usage - reader
-        tiny::sse()->streamCache('KEY', 1);
+        tiny::sse()->streamCacheKey('KEY', 1);
 
         // usage - writer
-        $m = new Cache();
-        $m->set('KEY', 'VALUE');
-        $m->quit();
+        tiny::sse()->pushCacheKey('KEY', 'VALUE');
 
         // usage - web client
         <script>
@@ -213,6 +211,28 @@ class TinySSE
         }, $sleep);
     }
 
+    /**
+     * Pushes data to a specified cache key for Server-Sent Events (SSE).
+     *
+     * This method takes a key and data, encodes the data if it's not already a string,
+     * and stores it in the cache using the provided key. This is typically used in
+     * conjunction with streamCacheKey() to facilitate real-time updates.
+     *
+     * @param string $key The cache key to store the data under
+     * @param mixed $data The data to be stored. If not a string, it will be JSON encoded
+     * @return void
+     *
+     * @uses tiny::cache() to get the cache instance
+     * @uses json_encode() to convert non-string data to JSON
+     *
+     * Note: This method is designed to work with the SSE streaming system,
+     * allowing data to be pushed for later retrieval and streaming to clients.
+     */
+    public function pushCacheKey(string $key, mixed $data): void
+    {
+        $data = is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_SLASHES);
+        tiny::cache()->set($key, $data);
+    }
 
     /**
      * Streams data using Server-Sent Events (SSE).
