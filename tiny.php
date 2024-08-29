@@ -384,7 +384,7 @@ class tiny
     public static function helpers(array|string $helper_or_helpers): void
     {
         $helpers = is_array($helper_or_helpers) ? $helper_or_helpers : [$helper_or_helpers];
-        $helperFiles = array_map(fn ($helper) => '/helpers/' . self::trim($helper), $helpers);
+        $helperFiles = array_map(fn($helper) => '/helpers/' . self::trim($helper), $helpers);
         self::require($helperFiles, __DIR__, true);
     }
 
@@ -509,6 +509,18 @@ class tiny
         require_once __DIR__ . '/ext/response.php';
         static $response = null;
         return $response ??= new TinyResponse();
+    }
+
+    /**
+     * Returns the sse object for handling HTTP SSE.
+     *
+     * @return TinySSE The SSE object
+     */
+    public static function sse(): TinySSE
+    {
+        require_once __DIR__ . '/ext/sse.php';
+        static $sse = null;
+        return $sse ??= new TinySSE();
     }
 
     /**
@@ -669,7 +681,6 @@ class tiny
     {
         return tiny::getHomeURL(tiny::config()->static_dir . '/' . ltrim($file, '/'), $full, $scheme);
     }
-
 }
 
 // Initialize Tiny
