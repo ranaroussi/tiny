@@ -887,7 +887,28 @@ trait TinyUtils
      */
     public static function readJSONBody(bool $associative = true)
     {
-        return json_decode(file_get_contents('php://input'), $associative);
+        // $res = json_decode(file_get_contents('php://input'), $associative);
+        // static $res;
+        // if (!isset($res)) {
+        //     $res = [];
+        //     parse_str(file_get_contents('php://input'), $res);
+        //     if (!$associative) {
+        //         $res = (object)$res;
+        //     }
+        // }
+        // return $res;
+
+        static $res;
+        if ($res === null) {
+            $body = [];
+            parse_str(file_get_contents('php://input'), $body);
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                $body = array_merge($_POST, $body);
+            }
+            $res = $associative ? $body : (object) $body;
+        }
+        return $res;
+
     }
 
     /**
