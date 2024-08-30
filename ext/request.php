@@ -28,12 +28,13 @@ class TinyRequest
     public string $method;
     public array $headers;
     public bool $htmx;
-    public array $params;
     public array $query;
     public object $path;
 
     private ?array $bodyCached = null;
     private ?array $jsonCached = null;
+
+    private array $req_params;
 
     public function __construct()
     {
@@ -42,8 +43,7 @@ class TinyRequest
         $this->method = $_SERVER['REQUEST_METHOD'];
         $this->headers = getallheaders() ?: [];
         $this->htmx = $router->htmx;
-        $this->params = $_REQUEST;
-        $this->query = $router->query ?? [];
+        $this->query = $router->query;
         $this->path = $this->buildPath($router);
     }
 
@@ -55,6 +55,17 @@ class TinyRequest
             'slug' => $router->slug,
             'full' => '/' . substr($router->uri, strpos($router->uri, $router->controller) ?: 0),
         ];
+    }
+
+    public function params(string $key, mixed $fallback = null): mixed
+    {
+        static $req_params = null;
+        if ($req_params === null) {
+            foreach ($_REQUEST as $k => $v) {
+                $req_params[strtolower($k)] = trim($v .'');
+            }
+        }
+        return $req_params[strtolower($key)] ?? $fallback;
     }
 
     public function body(bool $associative = false): array|object
