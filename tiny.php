@@ -180,7 +180,7 @@ class tiny
             ];
 
             foreach (@$_GET as $key => $value) {
-                if ($value !== '') {
+                if (!empty($value)) {
                     $router['query'][$key] = $value;
                 }
             }
