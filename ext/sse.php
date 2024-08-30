@@ -30,7 +30,7 @@ class TinySSE
         'Cache-Control: no-store, no-cache, must-revalidate',
         'Connection: keep-alive',
         'Content-Type: text/event-stream',
-        'X-Accel-Buffering: no'
+        'X-Accel-Buffering: no' // ← disable buffering in nginx through headers
     ];
 
     /**
@@ -47,7 +47,8 @@ class TinySSE
      */
     public static function start(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
+
+        if (session_id() === '') {
             session_start();
         }
         session_write_close();
@@ -64,10 +65,14 @@ class TinySSE
 
         ini_set('zlib.output_compression', '0');
         ini_set('implicit_flush', '1');
+
+        // Push data to the browser every "sleep"
+        ob_implicit_flush(true);
+        ob_start();
         while (ob_get_level() > 0) {
             ob_end_flush();
         }
-        ob_implicit_flush(true);
+        ob_end_clean();
     }
 
 
@@ -88,7 +93,7 @@ class TinySSE
      */
     public function send(string $data): void
     {
-        echo "data: ", stripslashes($data), "\n\n";
+        echo "data: " . stripslashes($data) . "\n\n";
         $this->flush();
     }
 
@@ -199,11 +204,14 @@ class TinySSE
         </script>
         */
 
+        self::start();
+
         $m = tiny::cache();
         self::stream(function () use ($m, $key) {
             // to quit - send "[DONE]"
             $data = $m->get($key);
             if ($data) {
+                // error_log($data); // ← for debugging
                 $m->delete($key);
                 return $data;
             }
