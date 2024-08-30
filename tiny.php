@@ -266,9 +266,23 @@ class tiny
      */
     private static function loadMiddleware(): void
     {
-        if (PHP_SAPI !== 'cli') {
-            self::requireAll('/middleware/');
+        if (PHP_SAPI === 'cli') {
+            return;
         }
+        // do not load files starting with underscore
+        $basePath = self::$config->app_path . '/middleware/';
+        if ($handle = opendir($basePath)) {
+            $filesToInclude = [];
+            while (false !== ($file = readdir($handle))) {
+                if (@str_starts_with($file, '_') && str_ends_with($file, '.php')) {
+                    $filesToInclude[] = $file;
+                }
+            }
+            closedir($handle);
+            sort($filesToInclude);
+            self::require($filesToInclude, $basePath, true);
+        }
+
     }
 
     /**
@@ -485,6 +499,18 @@ class tiny
         if ($die) {
             exit;
         }
+    }
+
+    /**
+     * Returns the response object for handling CSRF tokens.
+     *
+     * @return TinyCSRF The CSRF object
+     */
+    public static function csrf(): TinyCSRF
+    {
+        require_once __DIR__ . '/ext/csrf.php';
+        static $csrf = null;
+        return $csrf ??= new TinyCSRF();
     }
 
     /**
