@@ -8,7 +8,6 @@ class TinyHTTP
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS => 5,
-        CURLOPT_TIMEOUT => 30,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
         CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
     ];
@@ -79,7 +78,7 @@ class TinyHTTP
         }
         curl_close($ch);
 
-        return self::formatResponse($response, $error, $info, $options['finalUrl']);
+        return self::formatResponse($response, $error, $info, $options['finalUrl'] ?? $url);
     }
 
     /**
@@ -216,10 +215,12 @@ class TinyHTTP
         - interface: string - interface to use for the request
         - finalUrl: bool - whether to use the final URL after redirects
         - ssl: array - SSL options
+        - timeout: int - timeout for the request
         */
         $curlOptions = self::DEFAULT_CURL_OPTIONS + [
             CURLOPT_URL => $url,
             CURLOPT_CUSTOMREQUEST => strtoupper($method),
+            CURLOPT_TIMEOUT => $options['timeout'] ?? $_SERVER['CURL_TIMEOUT'] ?? 30,
         ];
 
         $headers = $options['headers'] ?? [];
@@ -299,6 +300,10 @@ class TinyHTTP
                 'success' => false,
                 'error' => $error,
                 'status_code' => 0,
+                'headers' => [],
+                'body' => null,
+                'json' => [],
+                'url' => $finalUrl ?: null,
             ];
         }
 
