@@ -62,11 +62,15 @@ trait TinyUtils
             $goto = self::getHomeURL(str_replace(self::getHomeURL(), '/', $goto));
         }
 
-        match ($header) {
+        match (strtolower($header)) {
             302 => header('HTTP/1.0 302 Moved Temporarily'),
             301 => header('HTTP/1.1 301 Moved Permanently'),
             'javascript' => self::javascriptRedirect($goto),
             'htmx' => self::htmxRedirect($goto),
+            'csrf' => function() use ($goto) {
+                tiny::csrf()->showError(nextPage: true);
+                self::htmxRedirect($goto);
+            },
             default => null
         };
 

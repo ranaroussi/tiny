@@ -34,6 +34,21 @@ class TinyResponse
     }
 
     /**
+     * Sends a CSRF error response.
+     *
+     * This method triggers the display of a CSRF error message, either immediately
+     * or on the next page load, depending on the $nextPage parameter.
+     *
+     * @param string $id An identifier for the CSRF error. Defaults to 'CSRF-VALIDATION-FAILED'.
+     * @param bool $nextPage Whether to show the error on the next page load (true) or immediately (false).
+     * @return void
+     */
+    public function hasCSRFError(string $id = 'CSRF-VALIDATION-FAILED', bool $nextPage = false): void
+    {
+        tiny::csrf()->showError($id, $nextPage);
+    }
+
+    /**
      * Renders a view file with optional parameters and updates the browser's URL.
      *
      * @param string $file The view file to render

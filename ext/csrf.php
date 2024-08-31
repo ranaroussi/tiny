@@ -31,8 +31,8 @@ declare(strict_types=1);
  * tiny::csrf()->input(); // will also generate the token if not already generated
  *
  * # on submit
- * if (!tiny::csrf()->isValid($data['csrf_token'])) {
- *     tiny::csrf()->showError(); // will display a toast on next page load
+ * if (!$request->isValidCSRF()) {
+ *     $response->hasCSRFError(); // will display a toast on next page load
  *     return $response->sendJSON(['error' => 'Invalid CSRF token'], 403);
  * }
  */
@@ -43,6 +43,19 @@ class TinyCSRF
     private const TOKEN_LENGTH = 32;
 
     private ?string $token = null;
+
+    /**
+     * Returns the name of the CSRF token.
+     *
+     * This method provides access to the constant TOKEN_NAME,
+     * which is used as the key for storing and retrieving the CSRF token.
+     *
+     * @return string The name of the CSRF token.
+     */
+    public function getTokenName(): string
+    {
+        return self::TOKEN_NAME;
+    }
 
     /**
      * Generates a new CSRF token and stores it in the session.
