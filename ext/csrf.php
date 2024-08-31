@@ -32,6 +32,7 @@ declare(strict_types=1);
  *
  * # on submit
  * if (!tiny::csrf()->isValid($data['csrf_token'])) {
+ *     tiny::csrf()->showError(); // will display a toast on next page load
  *     return $response->sendJSON(['error' => 'Invalid CSRF token'], 403);
  * }
  */
