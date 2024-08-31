@@ -65,15 +65,18 @@ class TinyCSRF
      * This method checks if the submitted token matches the one stored in the session.
      * If valid, it removes the token from the session to prevent reuse.
      *
+     * @param bool $remove Whether to remove the token from the session after validation.
      * @return bool True if the token is valid, false otherwise.
      */
-    public function isValid(?string $token = null): bool
+    public function isValid(?string $token = null, bool $remove = true): bool
     {
         $token = $token ?? $_POST[self::TOKEN_NAME] ?? $_GET[self::TOKEN_NAME] ?? null;
         $storedToken = $_SESSION[self::TOKEN_NAME] ?? null;
 
-        unset($_SESSION[self::TOKEN_NAME]);
-        $this->token = null;
+        if ($remove) {
+            unset($_SESSION[self::TOKEN_NAME]);
+            $this->token = null;
+        }
 
         if (!$token || !$storedToken || !hash_equals($storedToken, $token)) {
             return false;
