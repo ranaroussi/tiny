@@ -148,7 +148,7 @@ class TinySSE
         RETURNS trigger
         AS $function$
         BEGIN
-            PERFORM pg_notify('<CHANNEL_NAME>', row_to_json(NEW)::text);
+            PERFORM pg_notify('<NOTIFY_CHANNEL>', row_to_json(NEW)::text);
             RETURN NULL;
         END;
         $function$
