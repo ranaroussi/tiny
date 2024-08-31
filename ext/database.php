@@ -408,7 +408,9 @@ class TinyDB implements DB
      */
     public function insert(string $table, array $data)
     {
-        if (isset($data['csrf_token']))
+        if (isset($data['csrf_token'])) {
+            unset($data['csrf_token']);
+        }
         $columns = implode(', ', array_keys($data));
         $placeholders = implode(', ', array_fill(0, count($data), '?'));
         $query = "INSERT INTO $table ($columns) VALUES ($placeholders)";
@@ -430,7 +432,9 @@ class TinyDB implements DB
      */
     public function update(string $table, array $data, string|array $conditions = [])
     {
-        if (isset($data['csrf_token']))
+        if (isset($data['csrf_token'])) {
+            unset($data['csrf_token']);
+        }
         $set = implode('=?, ', array_keys($data)) . '=?';
         $query = "UPDATE $table SET $set";
         $values = array_values($data);
@@ -516,7 +520,9 @@ class TinyDB implements DB
      */
     public function upsert(string $table, array $data, string $conflict): PDOStatement|bool
     {
-        if (isset($data['csrf_token']))
+        if (isset($data['csrf_token'])) {
+            unset($data['csrf_token']);
+        }
         if ($this->dbType === 'pgsql') {
             $keys = array_keys($data);
             $cols = implode(', ', $keys);

@@ -23,7 +23,6 @@ class Caddy
     {
         $url = ($_SERVER['CADDY_ADMIN_URL'] ?? '') . $path;
         $options = [
-            'url' => $url,
             'ssl' => self::getSSLConfig(),
         ];
 
@@ -31,7 +30,7 @@ class Caddy
             $options['json'] = $data;
         }
 
-        $res = tiny::requests()->$method($options);
+        $res = tiny::http()->$method($url, $options);
 
         return (object) [
             'success' => $res->status_code === 200,

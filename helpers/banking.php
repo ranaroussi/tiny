@@ -258,7 +258,9 @@ function getBankInfo(string $type, string $identifier): array
 
 function getSwiftBankInfo(string $swift): array
 {
-    $res = tiny::requests()->post('https://bank.codes/swift-code-checker/', ['swift' => $swift]);
+    $res = tiny::http()->post('https://bank.codes/swift-code-checker/', [
+        'json' => ['swift' => $swift]
+    ]);
     $text = preg_replace('/\s+/', ' ', trim(strip_tags($res->text)));
 
     preg_match('/Bank\s+(.*?)\s+Address\s+(.*?)$/i', $text, $matches);
@@ -272,7 +274,9 @@ function getSwiftBankInfo(string $swift): array
 
 function getIbanBankInfo(string $iban): array
 {
-    $res = tiny::requests()->post('https://bank.codes/iban/validate/', ['iban' => $iban]);
+    $res = tiny::http()->post('https://bank.codes/iban/validate/', [
+        'json' => ['iban' => $iban]
+    ]);
     $text = preg_replace('/\s+/', ' ', trim(strip_tags($res->text)));
 
     preg_match('/IBAN &amp; Bank Details(.*?)USE WISE TO/is', $text, $matches);
@@ -287,7 +291,9 @@ function getIbanBankInfo(string $iban): array
 
 function getRoutingBankInfo(string $routing): array
 {
-    $res = tiny::requests()->post('https://bank.codes/us-routing-number-checker/', ['routing' => $routing]);
+    $res = tiny::http()->post('https://bank.codes/us-routing-number-checker/', [
+        'json' => ['routing' => $routing]
+    ]);
     $text = preg_replace('/\s+/', ' ', trim(strip_tags($res->text)));
 
     preg_match("/Detail Information of Routing Number $routing(.*?)$/is", $text, $matches);

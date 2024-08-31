@@ -75,10 +75,9 @@ class Mixpanel
         $url = self::API_URL . "/$endpoint?ip=1";
         $data = base64_encode(json_encode($payload));
 
-        return tiny::requests()->post(
-            url: $url,
-            data: $data,
-            headers: self::headers()
-        );
+        return tiny::http()->post($url, [
+            'data' => $data,
+            'headers' => self::headers()
+        ]);
     }
 }

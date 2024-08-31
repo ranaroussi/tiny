@@ -7,7 +7,7 @@ use League\HTMLToMarkdown\HtmlConverter;
 function get_remote_url(string $url): array
 {
     try {
-        $content = tiny::requests()->get($url)->text;
+        $content = tiny::http()->get($url)->text;
     } catch (Exception $e) {
         return [
             'success' => false,

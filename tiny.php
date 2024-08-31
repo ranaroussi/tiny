@@ -514,6 +514,19 @@ class tiny
     }
 
     /**
+     * Returns the response object for handling http requests.
+     *
+     * @return TinyHTTP The HTTP object
+     */
+    public static function http(): TinyHTTP
+    {
+        require_once __DIR__ . '/ext/http.php';
+        static $http = null;
+        return $http ??= new TinyHTTP();
+    }
+
+
+    /**
      * Returns the response object for handling HTTP responses.
      *
      * @return TinyRequest The Request object

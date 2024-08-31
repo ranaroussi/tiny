@@ -56,11 +56,11 @@ class Spaces
         $files = is_array($fileOrFiles) ? $fileOrFiles : [$fileOrFiles];
         $files = array_map([self::class, 'prefixPath'], $files);
 
-        return tiny::requests()->delete(
-            'https://api.digitalocean.com/v2/cdn/endpoints/' . ($_SERVER['DO_CDN_ID'] ?? '') . '/cache',
-            ['files' => $files],
-            headers: ['Authorization: Bearer ' . ($_SERVER['DO_TOKEN'] ?? '')]
-        )->json;
+        return tiny::http()->delete(
+            'https://api.digitalocean.com/v2/cdn/endpoints/' . ($_SERVER['DO_CDN_ID'] ?? '') . '/cache', [
+            'data' => ['files' => $files],
+            'headers' => ['Authorization: Bearer ' . ($_SERVER['DO_TOKEN'] ?? '')]
+        ])->json;
     }
 
     /**

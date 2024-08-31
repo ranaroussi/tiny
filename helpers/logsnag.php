@@ -101,10 +101,9 @@ class LogSnag
 
     private static function sendRequest(string $endpoint, array $payload): object
     {
-        return tiny::requests()->post(
-            url: self::API_URL . "/$endpoint",
-            json: $payload,
-            headers: self::headers()
-        );
+        return tiny::http()->post(self::API_URL . '/'. $endpoint, [
+            'json' => $payload,
+            'headers' => self::headers()
+        ]);
     }
 }

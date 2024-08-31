@@ -103,7 +103,7 @@ class SendGrid
         }
 
         try {
-            $response = tiny::requests()->$method($url, $options);
+            $response = tiny::http()->$method($url, $options);
             return $response;
         } catch (Exception $e) {
             error_log('SendGrid API Error: ' . $e->getMessage());

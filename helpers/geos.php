@@ -1968,7 +1968,7 @@ function get_user_country($country = null)
 
     $ip = tiny::getClientRealIP();
     if ($ip != '127.0.0.1') {
-        $geo = tiny::requests()->get('https://api.ip2country.info/ip?' . $ip)->json;
+        $geo = tiny::http()->get('https://api.ip2country.info/ip?' . $ip)->json;
         if ($geo) {
             return $geo->countryCode;
         }

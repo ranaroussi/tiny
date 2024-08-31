@@ -38,7 +38,10 @@ class UserFlow
     private function sendRequest(string $endpoint, array $payload): object
     {
         $url = $this->buildUrl($endpoint);
-        return tiny::requests()->post($url, $payload, true, $this->headers);
+        return tiny::http()->post($url, [
+            'json' => $payload,
+            'headers' => $this->headers
+        ]);
     }
 
     private function buildUrl(string $path): string

@@ -34,11 +34,12 @@ function encharge_send_event(string $event, array $user, array $event_props = []
         'properties' => $event_props,
     ]);
 
-    $res = tiny::requests()->post(
+    $res = tiny::http()->post(
         $_SERVER['ENCHARGE_API_URL'] ?? ENCHARGE_API_URL,
-        $payload,
-        true,
-        ['X-Encharge-Token: ' . ($_SERVER['ENCHARGE_API_WRITE_KEY'] ?? '')]
+        [
+            'json' => $payload,
+            'headers' => ['X-Encharge-Token: ' . ($_SERVER['ENCHARGE_API_WRITE_KEY'] ?? '')]
+        ]
     );
 
     return $res->status_code >= 200 && $res->status_code < 300;

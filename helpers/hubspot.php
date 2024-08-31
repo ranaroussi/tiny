@@ -19,14 +19,14 @@ class HubSpotContact
             $url .= '?idProperty=email';
         }
 
-        $res = tiny::requests()->get($url, ['headers' => $this->headers]);
+        $res = tiny::http()->get($url, ['headers' => $this->headers]);
         return $this->formatResponse($res, 404);
     }
 
     public function update(string $hsid, array $props): object
     {
         $data = ['properties' => $props];
-        $res = tiny::requests()->patch(self::API_URL . "/$hsid", [
+        $res = tiny::http()->patch(self::API_URL . "/$hsid", [
             'json' => $data,
             'headers' => $this->headers,
         ]);
@@ -45,7 +45,7 @@ class HubSpotContact
     public function create(array $props): object
     {
         $data = ['properties' => $props];
-        $res = tiny::requests()->post(self::API_URL, [
+        $res = tiny::http()->post(self::API_URL, [
             'json' => $data,
             'headers' => $this->headers,
         ]);
@@ -66,7 +66,7 @@ class HubSpotContact
 
     public function delete(string $hsid): object
     {
-        $res = tiny::requests()->delete(self::API_URL . "/$hsid", [
+        $res = tiny::http()->delete(self::API_URL . "/$hsid", [
             'headers' => $this->headers,
         ]);
         return $this->formatResponse($res);
