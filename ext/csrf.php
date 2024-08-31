@@ -93,11 +93,21 @@ class TinyCSRF
      * to the user or logged for debugging purposes.
      *
      * @param string $id An identifier for the CSRF error. Defaults to 'CSRF-VALIDATION-FAILED'.
+     * @param bool $nextPage Whether to show the error on the next page load.
      * @return void
      */
-    public function showError(string $id = 'CSRF-VALIDATION-FAILED'): void
+    public function showError(string $id = 'CSRF-VALIDATION-FAILED', bool $nextPage = false): void
     {
-        tiny::data()->CSRFError = $id;
+        if ($nextPage) {
+            tiny::flash('toast')->set([
+                'level' => 'error',
+                'title' => 'Request check failed',
+                'message' => 'Your request included an invalid or missing CSRF token. Please refresh the page and try again.',
+                'id' => $id,
+            ]);
+        } else {
+            tiny::data()->CSRFError = $id;
+        }
     }
 
     /**
