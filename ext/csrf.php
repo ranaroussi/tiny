@@ -31,7 +31,7 @@ declare(strict_types=1);
  * tiny::csrf()->input(); // will also generate the token if not already generated
  *
  * # on submit
- * if (!tiny::csrf()->isValid()) {
+ * if (!tiny::csrf()->isValid($data['csrf_token'])) {
  *     return $response->sendJSON(['error' => 'Invalid CSRF token'], 403);
  * }
  */
@@ -66,20 +66,35 @@ class TinyCSRF
      *
      * @return bool True if the token is valid, false otherwise.
      */
-    public function isValid(): bool
+    public function isValid(?string $token = null): bool
     {
-        $token = $_POST[self::TOKEN_NAME] ?? $_GET[self::TOKEN_NAME] ?? null;
+        $token = $token ?? $_POST[self::TOKEN_NAME] ?? $_GET[self::TOKEN_NAME] ?? null;
         $storedToken = $_SESSION[self::TOKEN_NAME] ?? null;
+
+        unset($_SESSION[self::TOKEN_NAME]);
+        $this->token = null;
 
         if (!$token || !$storedToken || !hash_equals($storedToken, $token)) {
             return false;
         }
 
-        unset($_SESSION[self::TOKEN_NAME]);
-        $this->token = null;
         return true;
     }
 
+    /**
+     * Sets an error flag for CSRF validation failure.
+     *
+     * This method sets a flag in the Tiny framework's data object to indicate
+     * that a CSRF validation error has occurred. The error can be displayed
+     * to the user or logged for debugging purposes.
+     *
+     * @param string $id An identifier for the CSRF error. Defaults to 'CSRF-VALIDATION-FAILED'.
+     * @return void
+     */
+    public function showError(string $id = 'CSRF-VALIDATION-FAILED'): void
+    {
+        tiny::data()->CSRFError = $id;
+    }
 
     /**
      * Generates an HTML input field containing the CSRF token.
@@ -93,7 +108,7 @@ class TinyCSRF
     public function input(bool $echo = true): ?string
     {
         $token = $this->token ?? $this->generate();
-        $field = sprintf('<input type="hidden" name="%s" value="%s">', self::TOKEN_NAME, htmlspecialchars($token, ENT_QUOTES, 'UTF-8'));
+        $field = sprintf('<input type="hidden" name="%s" value="%s">'."\n", self::TOKEN_NAME, htmlspecialchars($token, ENT_QUOTES, 'UTF-8'));
 
         if ($echo) {
             echo $field;
