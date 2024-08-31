@@ -30,7 +30,7 @@ class TinyRequest
     public bool $htmx;
     public array $query;
     public object $path;
-    public object $csrf;
+    public string $csrf_token;
 
     private ?array $bodyCached = null;
     private ?array $jsonCached = null;
