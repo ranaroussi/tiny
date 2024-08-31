@@ -130,8 +130,16 @@ function buildOAuthConfig()
                 'team_id' => $_SERVER['OAUTH_APPLE_TEAM_ID'],
                 'key_id' => $_SERVER['OAUTH_APPLE_KEY_ID'],
                 // 'key_content' => $_SERVER['OAUTH_APPLE_KEY_CONTENT'],
-                'key_file' => $_SERVER['OAUTH_APPLE_KEY_FILE'],
+                // 'key_file' => $_SERVER['OAUTH_APPLE_KEY_FILE'],
             ];
+            if (isset($_SERVER['OAUTH_APPLE_KEY_CONTENT'])) {
+                $provides[$key]['keys']['key_content'] = str_replace('\\n', "\n", $_SERVER['OAUTH_APPLE_KEY_CONTENT']);
+            } else if (isset($_SERVER['OAUTH_APPLE_KEY_FILE'])) {
+                $provides[$key]['keys']['key_file'] = $_SERVER['OAUTH_APPLE_KEY_FILE'];
+            } else {
+                throw new Exception('Missing apple key content or file');
+            }
+
             $provides[$key]['scope'] = 'name email';
             $provides[$key]['verifyTokenSignature'] = false;
         } else if ($key == 'microsoft') {
