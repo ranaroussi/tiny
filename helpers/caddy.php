@@ -95,6 +95,13 @@ class Caddy
         $domain = strtolower($domain);
         $root = self::getRootDomain(true);
 
+        if (!$root->success) {
+            return (object) [
+                'success' => false,
+                'data' => [],
+            ];
+        }
+
         $domains = array_filter(
             $root->json->routes[0]->match[0]->host,
             fn($item) => $item !== $domain
