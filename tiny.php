@@ -274,7 +274,7 @@ class tiny
         if ($handle = opendir($basePath)) {
             $filesToInclude = [];
             while (false !== ($file = readdir($handle))) {
-                if (@str_starts_with($file, '_') && str_ends_with($file, '.php')) {
+                if (!str_starts_with($file, '_') && str_ends_with($file, '.php')) {
                     $filesToInclude[] = $file;
                 }
             }
