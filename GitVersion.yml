@@ -1,5 +1,5 @@
 mode: ContinuousDeployment
-next-version: '2' # <== used to force new MAJOR version
+next-version: '2.0' # <== used to force new MAJOR version
 
 branches:
   main:
