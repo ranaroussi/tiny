@@ -19,16 +19,22 @@ Tiny is a lightweight PHP framework designed to provide a simple and efficient w
 
 ## Getting Started
 
-1. Clone the repository or download the Tiny framework files.
+1. Create a new directory for your project.
 
-```php
+```bash
+$ mkdir my-project && cd my-project
+```
+
+2. Clone the repository or download the Tiny framework files.
+
+```bash
 $ git clone https://github.com/ranaroussi/tiny.git
 ```
 
-3. From inside the project directory, execute the following command to create the project:
+3. Execute the following command to create the project:
 
 ```bash
-$ php tiny/cli.php create-project
+$ php tiny/cli.php create
 ```
 
 4. Install dependencies:
