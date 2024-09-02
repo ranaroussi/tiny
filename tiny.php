@@ -21,8 +21,10 @@
  */
 
 /* -------------------------------------- */
-require_once __DIR__ . '/bootstrap.php';
-require_once __DIR__ . '/ext/utils.php';
+require __DIR__ . '/bootstrap.php';
+spl_autoload_register(function ($class) {
+    include __DIR__ . '/ext/' . str_replace('tiny', '', strtolower($class)) . '.php';
+});
 /* -------------------------------------- */
 session_name('tiny');
 session_start();
@@ -51,7 +53,6 @@ class tiny
         }
 
         self::$router = new stdClass();
-
         self::$config = new stdClass();
         self::$config->initialized = true;
 
@@ -59,7 +60,9 @@ class tiny
         self::loadConfig();
 
         // Initialize database
-        self::initDB();
+        if (!isset($_SERVER['DB_AUTOCONNECT']) || $_SERVER['DB_AUTOCONNECT'] !== false) {
+            self::initDB();
+        }
 
         // Clean input
         $_GET = self::cleanObjectTypes($_GET);
@@ -131,16 +134,15 @@ class tiny
             return;
         }
 
-        require_once __DIR__ . '/ext/database.php';
-
         $dbType = strtolower($_SERVER['DB_TYPE']);
 
         $dbConfig = [
-            'host'     => $_SERVER['DB_HOST'] ?? 'localhost',
-            'port'     => $_SERVER['DB_PORT'] ?? ($dbType === 'mysql' ? 3306 : 5432),
-            'dbname'   => $_SERVER['DB_NAME'] ?? 'tiny',
-            'user'     => $_SERVER['DB_USER'] ?? 'root',
-            'password' => $_SERVER['DB_PASS'] ?? '',
+            'host'       => $_SERVER['DB_HOST'] ?? 'localhost',
+            'port'       => $_SERVER['DB_PORT'] ?? ($dbType === 'mysql' ? 3306 : 5432),
+            'dbname'     => $_SERVER['DB_NAME'] ?? 'tiny',
+            'user'       => $_SERVER['DB_USER'] ?? 'root',
+            'password'   => $_SERVER['DB_PASS'] ?? '',
+            'persistent' => $_SERVER['DB_PERSISTENT'] ?? false,
         ];
 
         self::$db = match ($dbType) {
@@ -282,7 +284,6 @@ class tiny
             sort($filesToInclude);
             self::require($filesToInclude, $basePath, true);
         }
-
     }
 
     /**
@@ -290,7 +291,6 @@ class tiny
      */
     private static function setupComponents(): void
     {
-        require_once __DIR__ . '/ext/component.php';
         define('Component', new Component(self::$config->app_path . '/views/components'));
         define('Layout', new Layout(self::$config->app_path . '/views/layouts'));
     }
@@ -313,7 +313,6 @@ class tiny
      */
     public static function cache(string $engine = 'apcu'): TinyCache
     {
-        require_once __DIR__ . '/ext/cache.php';
 
         if (self::$cache === null) {
             $config = self::$config->memcached ?? [];
@@ -428,7 +427,6 @@ class tiny
             self::$router->worker[] = $file;
         }
 
-        require_once __DIR__ . '/ext/controller.php';
         require_once $filePath;
 
         try {
@@ -508,7 +506,6 @@ class tiny
      */
     public static function csrf(): TinyCSRF
     {
-        require_once __DIR__ . '/ext/csrf.php';
         static $csrf = null;
         return $csrf ??= new TinyCSRF();
     }
@@ -520,7 +517,6 @@ class tiny
      */
     public static function http(): TinyHTTP
     {
-        require_once __DIR__ . '/ext/http.php';
         static $http = null;
         return $http ??= new TinyHTTP();
     }
@@ -533,7 +529,6 @@ class tiny
      */
     public static function request(): TinyRequest
     {
-        require_once __DIR__ . '/ext/request.php';
         static $request = null;
         return $request ??= new TinyRequest();
     }
@@ -545,7 +540,6 @@ class tiny
      */
     public static function response(): TinyResponse
     {
-        require_once __DIR__ . '/ext/response.php';
         static $response = null;
         return $response ??= new TinyResponse();
     }
@@ -557,7 +551,6 @@ class tiny
      */
     public static function sse(): TinySSE
     {
-        require_once __DIR__ . '/ext/sse.php';
         static $sse = null;
         return $sse ??= new TinySSE();
     }
@@ -569,7 +562,6 @@ class tiny
      */
     public static function scheduler(): TinyScheduler
     {
-        require_once __DIR__ . '/ext/scheduler.php';
         static $scheduler = null;
         return $scheduler ??= new TinyScheduler();
     }
@@ -615,7 +607,6 @@ class tiny
      */
     public static function model(string $model): object
     {
-        require_once __DIR__ . '/ext/model.php';
 
         static $models = [];
         if (!isset($models[$model])) {
@@ -634,7 +625,6 @@ class tiny
      */
     public static function cookie(string $name = 'default', array $values = []): TinyCookie
     {
-        require_once __DIR__ . '/ext/cookie.php';
         return new TinyCookie($name, $values);
     }
 
