@@ -1,0 +1,19 @@
+mode: ContinuousDeployment
+# next-version: '3.0' # <== used to force new MAJOR version
+
+branches:
+  main:
+    increment: Minor
+    is-release-branch: true
+  develop:
+    label: beta
+    increment: Patch
+    is-release-branch: false
+    track-merge-target: true
+    source-branches: ['main']
+  pull-request:
+    label: rc
+    increment: Patch
+    is-release-branch: false
+    track-merge-target: true
+    source-branches: ['develop']
