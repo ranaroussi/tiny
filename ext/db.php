@@ -184,6 +184,7 @@ class TinyDB implements DB
         $user     = $config['user'] ?? 'root';
         $password = $config['password'] ?? '';
         $timeout = $config['timeout'] ?? 5;
+        $persistent = $config['persistent'] ?? false;
 
         if (!is_array($host)) {
             $host = $host ? explode(',', tiny::trim(str_replace(' ', '', $host), ',')) : [];
@@ -199,6 +200,10 @@ class TinyDB implements DB
             PDO::ATTR_EMULATE_PREPARES => false,
             PDO::ATTR_TIMEOUT => $timeout
         ];
+
+        if ($persistent) {
+            $options[PDO::ATTR_PERSISTENT] = true;
+        }
 
         $dsn = "mysql:host=" . tiny::trim($host) . ";dbname=" . tiny::trim($dbname) . ";port={$port};charset=utf8mb4";
         try {
@@ -216,21 +221,27 @@ class TinyDB implements DB
      */
     private function connectPostgreSQL(array $config): void
     {
-        $host     = $config['host'] ?? 'localhost';
-        $port     = $config['port'] ?? 5432;
-        $dbname   = $config['dbname'] ?? 'tiny';
-        $user     = $config['user'] ?? 'root';
-        $password = $config['password'] ?? '';
-        $timeout  = $config['timeout'] ?? 5;
+        $host       = $config['host'] ?? 'localhost';
+        $port       = $config['port'] ?? 5432;
+        $dbname     = $config['dbname'] ?? 'tiny';
+        $user       = $config['user'] ?? 'root';
+        $password   = $config['password'] ?? '';
+        $timeout    = $config['timeout'] ?? 5;
+        $persistent = $config['persistent'] ?? false;
+
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => $timeout
+        ];
+        if ($persistent) {
+            $options[PDO::ATTR_PERSISTENT] = true;
+        }
 
         $dsn = "pgsql:host=$host;port=$port;dbname=$dbname";
         try {
-            $this->pdo = new PDO($dsn, $user, $password, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => $timeout
-            ]);
+            $this->pdo = new PDO($dsn, $user, $password, $options);
         } catch (PDOException $e) {
             throw new Exception('Unable to open database: ' . $e->getMessage());
         }

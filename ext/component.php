@@ -20,24 +20,7 @@
  *
  */
 
- declare(strict_types=1);
-
-
-/**
- * Suppresses undefined variable and array key errors.
- *
- * @param bool $suppress Whether to suppress the errors or not
- */
-function suppress_undefined_error($suppress = true): void
-{
-    set_error_handler(function (int $errno, string $errstr) use ($suppress) {
-        if ((!str_contains($errstr, 'Undefined array key')) && (!str_contains($errstr, 'Undefined variable'))) {
-            return !$suppress;
-        } else {
-            return (bool)$suppress;
-        }
-    }, E_WARNING);
-}
+declare(strict_types=1);
 
 class Component
 {
@@ -144,83 +127,10 @@ class Component
             throw new \RuntimeException("Component not registered: {$name}");
         }
 
-        suppress_undefined_error(true);
+        tiny::suppressUndefinedError(true);
         $result = call_user_func($this->components[$name], ...$props);
-        suppress_undefined_error(false);
+        tiny::suppressUndefinedError(false);
 
         return $result;
     }
 }
-
-class Layout
-{
-    private array $layoutProps = [];
-    private array $_props = [];
-
-    /**
-     * Constructor for the Layout class.
-     *
-     * @param string $path The base path for layout files
-     */
-    public function __construct(private string $path = './views/layouts/')
-    {
-        $this->path = rtrim($path, '/');
-    }
-
-    /**
-     * Magic method to handle layout rendering.
-     *
-     * @param string $layout The name of the layout to render
-     * @param array $props Additional properties to pass to the layout
-     * @throws \RuntimeException if the layout file is not found
-     */
-    public function __call(string $layout, array $props): void
-    {
-        suppress_undefined_error(true);
-
-        $file = $this->determineFileToInclude($layout, $props);
-        $this->_props = $props;
-
-        $filePath = "{$this->path}/{$layout}/{$file}.php";
-        if (!file_exists($filePath)) {
-            throw new \RuntimeException("Layout file not found: {$filePath}");
-        }
-        include $filePath;
-
-        suppress_undefined_error(false);
-    }
-
-    /**
-     * Determines which file to include for a layout.
-     *
-     * @param string $layout The name of the layout
-     * @param array &$props Reference to the properties array
-     * @return string The file to include ('open' or 'close')
-     */
-    private function determineFileToInclude(string $layout, array &$props): string
-    {
-        if (!isset($this->layoutProps[$layout])) {
-            $this->layoutProps[$layout] = $props;
-            return 'open';
-        } else {
-            $props = array_merge($this->layoutProps[$layout], $props);
-            unset($this->layoutProps[$layout]);
-            return 'close';
-        }
-    }
-
-    /**
-     * Retrieves a property value for the current layout.
-     *
-     * @param string $prop The name of the property to retrieve
-     * @param mixed $fallback The fallback value if the property is not set
-     * @return mixed The property value or fallback
-     */
-    public function props(string $prop, mixed $fallback = ''): mixed
-    {
-        return $this->_props[$prop] ?? $fallback;
-    }
-}
-
-// define('Component', new Component());
-// define('Layout', new Layout());

@@ -22,13 +22,14 @@
 
 /* -------------------------------------- */
 try {
-    require_once __DIR__ . '/../vendor/autoload.php';
+    require __DIR__ . '/../vendor/autoload.php';
 } catch (Exception $e) {
     die('<code>ERROR: Cannot find composer autoloader</code>');
 }
 
 /* -------------------------------------- */
-// Pass these for Dockerized apps
+// Required for Dockerized apps
+/* -------------------------------------- */
 try {
     $_SERVER['SERVER_PORT'] = $_SERVER['HTTP_X_FORWARDED_PORT'] ?? @$_SERVER['SERVER_PORT'];
     $_SERVER['HTTP_HOST'] = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? @$_SERVER['HTTP_HOST'];
@@ -40,11 +41,12 @@ try {
 
 /* -------------------------------------- */
 // Load configuration
+/* -------------------------------------- */
 $_SERVER['ENV'] = 'prod';
 $env_file = __DIR__ . '/../env.php';
 if (file_exists($env_file)) {
     try {
-        require_once $env_file;
+        require $env_file;
         $env = defined('ENV') ? ENV : 'prod';
         $_SERVER['ENV'] = $env;
 
@@ -84,4 +86,22 @@ if (@$_SERVER['TINY_MINIFY_OUTPUT'] == 'true') {
 if (@$_SERVER['ENV'] != 'local' && isset($_SERVER['SENTRY_DSN'])) {
     \Sentry\init(['dsn' => $_SERVER['SENTRY_DSN']]);
     \Sentry\captureLastError();
+}
+
+/* -------------------------------------- */
+// html output minifier
+function minifyOutput($buffer): array|string
+{
+    $search = array(
+        '/\>[^\S ]+/s', // strip whitespaces after tags, except space
+        '/[^\S ]+\</s', // strip whitespaces before tags, except space
+        '/(\s)+/s', // shorten multiple whitespace sequences
+        '/<!--(.|\s)*?-->/', // Remove HTML comments
+    );
+    $replace = array('>', '<', '\\1', '');
+    $buffer = preg_replace($search, $replace, $buffer);
+    $buffer = str_replace('> ', '>', $buffer);
+    $buffer = str_replace(' <', '<', $buffer);
+    $buffer = str_replace("\n}", ' }', $buffer);
+    return str_replace("}\n", '} ', $buffer);
 }
