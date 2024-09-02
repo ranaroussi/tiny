@@ -194,11 +194,21 @@ class Spaces
      *
      * @param string|null $path The object path.
      * @param bool $useCDN Whether to use the CDN URL if available.
+     * @param bool $useCache Whether to use the cache.
      * @return string The full URL to the object.
      */
-    public static function buildURL(?string $path, bool $useCDN = true): string
+    public static function buildURL(?string $path, bool $useCDN = true, bool $useCache = true): string
     {
         $path = $path == '' ? $path : '/' . ltrim($path, '/');
+        if ($useCache) {
+            return tiny::cache()->remember('spaces:url:' . md5($path . $useCDN), 3600, function () use ($path, $useCDN) {
+                if ($useCDN && $_SERVER['S3_CDN'] ?? '') {
+                    return $_SERVER['S3_CDN'] . $path;
+                }
+                return 'https://' . ($_SERVER['S3_BUCKET'] ?? '') . '.' . explode('://', $_SERVER['S3_ENDPOINT'] ?? '')[1] . $path;
+            });
+        }
+
         if ($useCDN && $_SERVER['S3_CDN'] ?? '') {
             return $_SERVER['S3_CDN'] . $path;
         }
@@ -210,10 +220,20 @@ class Spaces
      *
      * @param string $path The full URL.
      * @param bool $useCDN Whether to consider the CDN URL if available.
+     * @param bool $useCache Whether to use the cache.
      * @return string The extracted path.
      */
-    public static function pathURL(string $path, bool $useCDN = true): string
+    public static function pathURL(string $path, bool $useCDN = true, bool $useCache = true): string
     {
+        if ($useCache) {
+            return tiny::cache()->remember('spaces:path:' . md5($path . $useCDN), 3600, function () use ($path, $useCDN) {
+                if ($useCDN && $_SERVER['S3_CDN'] ?? '') {
+                    return str_replace($_SERVER['S3_CDN'], '', $path . '');
+                }
+                return str_replace('https://' . ($_SERVER['S3_BUCKET'] ?? '') . '.' . explode('://', $_SERVER['S3_ENDPOINT'] ?? '')[1], '', $path);
+            });
+        }
+
         if ($useCDN && $_SERVER['S3_CDN'] ?? '') {
             return str_replace($_SERVER['S3_CDN'], '', $path . '');
         }
