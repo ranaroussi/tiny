@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - develop
-  
+
   # Triggers the workflow on push or pull request events but only for the "main" branch
   pull_request:
     branches:
@@ -67,7 +67,6 @@ jobs:
             echo "Updating version file to ${{ steps.gitversion.outputs.semVer }}..."
             git config user.email "no-reply@github.com"
             git config user.name "Release Bot"
-            if: github.ref == 'refs/heads/master'
             echo "${{ steps.gitversion.outputs.FullSemVer }}+${{ steps.gitversion.outputs.ShortSha }}"> .version
             git add .version
             git commit -m "Updated version file to ${{ steps.gitversion.outputs.FullSemVer }}"
