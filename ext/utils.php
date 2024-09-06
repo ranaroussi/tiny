@@ -75,8 +75,7 @@ trait TinyUtils
         if (!str_starts_with($goto, 'http://') && !str_starts_with($goto, 'https://')) {
             $goto = self::getHomeURL(str_replace(self::getHomeURL(), '/', $goto));
         }
-
-        match (strtolower($header)) {
+        match ($header) {
             302 => header('HTTP/1.0 302 Moved Temporarily'),
             301 => header('HTTP/1.1 301 Moved Permanently'),
             'javascript' => self::javascriptRedirect($goto),
@@ -85,7 +84,11 @@ trait TinyUtils
                 tiny::csrf()->showError(nextPage: true);
                 self::htmxRedirect($goto);
             },
-            default => null
+            default => function() use ($goto) {
+                if (self::$router->htmx) {
+                    self::htmxRedirect($goto);
+                }
+            }
         };
 
         header("Location: $goto");
