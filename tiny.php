@@ -178,7 +178,6 @@ class tiny
                 'section' => '',
                 'slug' => '',
                 'query' => [],
-                'htmx' => isset($_SERVER['HTTP_HX_REQUEST']),
             ];
 
             foreach (@$_GET as $key => $value) {
@@ -215,6 +214,8 @@ class tiny
 
             return (object)$router;
         });
+
+        self::$router->htmx = isset($_SERVER['HTTP_HX_REQUEST']);
     }
 
     /**
