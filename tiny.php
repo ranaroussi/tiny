@@ -34,6 +34,7 @@ session_start();
 class tiny
 {
     use TinyUtils;
+    use TinyDebugger;
 
     private static object $config;
     private static ?TinyCache $cache = null;

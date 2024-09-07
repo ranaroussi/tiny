@@ -864,50 +864,6 @@ trait TinyUtils
     }
 
     /**
-     * Prints debug information and optionally terminates the script.
-     *
-     * @param mixed $what The data to debug
-     * @param bool $die Whether to terminate the script after debugging (default: true)
-     */
-    public static function debug($what = '', $die = true)
-    {
-        if (isset($_SERVER['DEBUG_WHITELIST']) && $_SERVER['DEBUG_WHITELIST'] != '*') {
-            if (!in_array(explode(':', $_SERVER['HTTP_HOST'])[0], explode(',', $_SERVER['DEBUG_WHITELIST']))) {
-                return;
-            }
-        }
-        print '<pre style="direction:ltr;font:13px/125% monaro,courier">';
-        print_r($what);
-        print '</pre>';
-        if ($die) {
-            die();
-        }
-        print('<hr>');
-    }
-
-    /**
-     * Dumps variable information and optionally terminates the script.
-     *
-     * @param mixed $what The data to dump
-     * @param bool $die Whether to terminate the script after dumping (default: true)
-     */
-    public static function dump($what = '', $die = true)
-    {
-        if (isset($_SERVER['DEBUG_WHITELIST'])) {
-            if (!in_array(explode(':', $_SERVER['HTTP_HOST'])[0], explode(',', $_SERVER['DEBUG_WHITELIST']))) {
-                return;
-            }
-        }
-        print '<pre style="direction:ltr;font:13px/125% monospace">';
-        var_dump($what);
-        print '</pre>';
-        if ($die) {
-            die();
-        }
-        print('<hr>');
-    }
-
-    /**
      * Reads and parses the JSON body of a request.
      *
      * @param bool $associative Whether to return an associative array (true) or an object (false) (default: true)
