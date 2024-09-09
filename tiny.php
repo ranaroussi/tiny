@@ -95,9 +95,11 @@ class tiny
             self::$config->homepage = $_SERVER['HOMEPAGE'] ?? 'home';
             self::$config->static_dir = $_SERVER['STATIC_DIR'] ?? 'static';
 
-            $basePath = $_SERVER['APP_PATH'] ?? '/' . trim(dirname(__FILE__, 2), '/') . '/';
+            $basePath = '/' . trim(dirname(__FILE__, 2), '/') . '/';
             self::$config->app_path = $_SERVER['APP_PATH'] ?? $basePath . self::$config->app_dir;
             self::$config->tiny_path = $_SERVER['TINY_PATH'] ?? $basePath . self::$config->tiny_dir;
+            self::$config->public_path = $_SERVER['PUBLIC_PATH'] ?? $basePath . 'html';
+            self::$config->static_path = self::$config->public_path . '/' . self::$config->static_dir;
             self::$config->url_path = $_SERVER['URL_PATH'] ?? str_replace('index.php', '', $_SERVER['SCRIPT_NAME']);
             self::$config->cookie_path = $_SERVER['COOKIE_PATH'] ?? str_replace('.php', '', self::$config->url_path);
 
