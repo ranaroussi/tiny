@@ -749,7 +749,7 @@ trait TinyUtils
                 return $_SERVER[$item];
             }
         }
-        return '';
+        return '0.0.0.0';
     }
 
     /**
