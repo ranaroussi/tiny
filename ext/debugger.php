@@ -31,6 +31,28 @@ define('INTERNAL_FUNCTIONS', array_merge(
 trait TinyDebugger
 {
     /**
+     * Determines if debugging is allowed based on the client's IP address and debug whitelist.
+     *
+     * This method checks if the client's IP address is allowed to access debugging features.
+     * It uses the DEBUG_WHITELIST server variable to control access. If DEBUG_WHITELIST
+     * is set to '*', all IPs are allowed. Otherwise, it checks if the client's IP
+     * is in the comma-separated list of allowed IPs.
+     *
+     * @return bool Returns true if debugging is allowed for the current client, false otherwise.
+     */
+    private static function canDebug(): bool
+    {
+        $userIP = self::getClientRealIP();
+        $debugWhitelist = $_SERVER['DEBUG_WHITELIST'] ?? '*';
+        if ($debugWhitelist != '*') {
+            if (!in_array($userIP, explode(',', $debugWhitelist))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Generates a trace array containing file, line, and function information.
      *
      * @return array Associative array with 'file', 'line', and 'function' keys.
@@ -122,6 +144,10 @@ trait TinyDebugger
      */
     public static function debug(...$vars): void
     {
+        if (!self::canDebug()) {
+            return;
+        }
+
         [$trace, $content] = self::dump_debug('debug', ...$vars);
         echo self::formatOutput($trace, $content);
     }
@@ -130,10 +156,13 @@ trait TinyDebugger
      * Dumps variables and exits the script.
      *
      * @param mixed ...$vars Variables to be dumped.
-     * @return never
      */
-    public static function dd(...$vars): never
+    public static function dd(...$vars): void
     {
+        if (!self::canDebug()) {
+            return;
+        }
+
         [$trace, $content] = self::dump_debug('debug', ...$vars);
         echo self::formatOutput($trace, $content);
         exit(1);
@@ -146,6 +175,10 @@ trait TinyDebugger
      */
     public static function dump(...$vars): void
     {
+        if (!self::canDebug()) {
+            return;
+        }
+
         [$trace, $content] = self::dump_debug('dump', ...$vars);
         echo self::formatOutput($trace, $content);
     }
@@ -154,10 +187,13 @@ trait TinyDebugger
      * Dumps detailed information about variables and exits the script.
      *
      * @param mixed ...$vars Variables to be dumped.
-     * @return never
      */
-    public static function ddump(...$vars): never
+    public static function ddump(...$vars): void
     {
+        if (!self::canDebug()) {
+            return;
+        }
+
         [$trace, $content] = self::dump_debug('dump', ...$vars);
         echo self::formatOutput($trace, $content);
         exit(1);
