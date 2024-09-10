@@ -51,7 +51,7 @@ class TinyFlash
      * @param bool $keep Whether to keep the flash message after retrieval (default: false)
      * @return ?string The flash message value or null if not set
      */
-    public function get($keep = false): ?string
+    public function get($keep = false): null|string|array
     {
         return tiny::flashGet($this->name, $keep);
     }

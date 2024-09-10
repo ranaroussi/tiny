@@ -194,7 +194,7 @@ trait TinyUtils
      * @param bool $keep Whether to keep the message after retrieval
      * @return ?string The flash message or null if not found
      */
-    public static function flashGet(string $name = 'flash_msg', bool $keep = false): ?string
+    public static function flashGet(string $name = 'flash_msg', bool $keep = false): null|string|array
     {
         $flashData = $_COOKIE[$name] ?? null;
         $cookiePath = tiny::config()->cookie_path;
