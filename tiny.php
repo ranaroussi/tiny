@@ -23,7 +23,10 @@
 /* -------------------------------------- */
 require __DIR__ . '/bootstrap.php';
 spl_autoload_register(function ($class) {
-    include __DIR__ . '/ext/' . str_replace('tiny', '', strtolower($class)) . '.php';
+    $classFile = __DIR__ . '/ext/' . str_replace('tiny', '', strtolower($class)) . '.php';
+    if (file_exists($classFile)) {
+        include $classFile;
+    }
 });
 /* -------------------------------------- */
 session_name('tiny');
