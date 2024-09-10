@@ -40,10 +40,9 @@ class TinyCookie
      */
     public function __construct($name = 'default', $values = [])
     {
-
         // default cookie values
         $this->name = ($name) ? $name : 'default';
-        $this->expiry = @$_SERVER['COOKIE_TTL'] ? strtotime($_SERVER['COOKIE_TTL']) : 0;
+        $this->expiry = @$_SERVER['COOKIE_TTL'] ? time()+(int)$_SERVER['COOKIE_TTL'] : 0;
         $this->domain = @$_SERVER['COOKIE_DOMAIN'] ? $_SERVER['COOKIE_DOMAIN'] : $_SERVER['HTTP_HOST'];
         $this->path = @$_SERVER['COOKIE_PATH'] ? $_SERVER['COOKIE_PATH'] : tiny::config()->url_path;
         $this->_exists = false;
@@ -53,7 +52,6 @@ class TinyCookie
         foreach ($values as $k => $v) {
             $cookie[$k] = $v;
         }
-
         // cookie exists?
         if (isset($_COOKIE[$name])) {
             $this->_exists = true;
@@ -110,8 +108,8 @@ class TinyCookie
         if ($expiry == null) {
             $expiry = $this->expiry;
         }
-        // print_r($this->data);
-        setcookie($this->name, serialize($this->data), ($expiry == null) ? 0 : strtotime($expiry), $this->path, $this->domain);
+        setcookie($this->name, serialize($this->data), ($expiry == null) ? 0 : $expiry, $this->path, $this->domain);
+        $this->_exists = true;
     }
 
     /**
@@ -121,5 +119,6 @@ class TinyCookie
     {
         setcookie($this->name, '', -1, $this->path, $this->domain);
         unset($_COOKIE[$this->name]);
+        $this->_exists = false;
     }
 }
