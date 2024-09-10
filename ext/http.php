@@ -219,7 +219,7 @@ class TinyHTTP
         */
         $curlOptions = self::DEFAULT_CURL_OPTIONS + [
             CURLOPT_URL => $url,
-            CURLOPT_CUSTOMREQUEST => strtoupper($method),
+            CURLOPT_CUSTOMREQUEST => mb_strtoupper($method),
             CURLOPT_TIMEOUT => $options['timeout'] ?? $_SERVER['CURL_TIMEOUT'] ?? 30,
         ];
 

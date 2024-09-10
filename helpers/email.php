@@ -25,7 +25,7 @@ const EMAIL_PROVIDERS = [
 
 function clean_email(string $email): string
 {
-    return filter_var(strtolower($email), FILTER_SANITIZE_EMAIL);
+    return filter_var(mb_strtolower($email), FILTER_SANITIZE_EMAIL);
 }
 
 function parse_webmail(string $email): object

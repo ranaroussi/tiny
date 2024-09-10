@@ -102,10 +102,10 @@ function inString($haystack, $needles = array(), $lowercase = false, $return_nee
         $needles = array($needles);
     }
     if ($lowercase) {
-        $haystack = strtolower($haystack);
+        $haystack = mb_strtolower($haystack);
     }
     foreach ($needles as $needle) {
-        $needle = ($lowercase) ? strtolower($needle) : $needle;
+        $needle = ($lowercase) ? mb_strtolower($needle) : $needle;
         if (str_contains($haystack, $needle)) {
             return $return_needle ? $needle : true;
         }
@@ -174,7 +174,7 @@ function timeElapsedString($datetime, $full = false)
 
 function generateRandomUsername($string)
 {
-    $string = strtolower(preg_replace('/[^A-Za-z0-9_ ]/', '', str_replace('@', ' ', $string)));
+    $string = mb_strtolower(preg_replace('/[^A-Za-z0-9_ ]/', '', str_replace('@', ' ', $string)));
     $username = substr($string, 0, 8);
     if (str_contains($string, ' ')) {
         $firstPart = substr(strstr($string, ' ', true), 0, 3);
@@ -293,7 +293,7 @@ function currencySymbol($word)
         'eur' => '€',
         'gbp' => '£',
     ];
-    return $currencies[strtolower($word)] ?? strtoupper($word);
+    return $currencies[mb_strtolower($word)] ?? mb_strtoupper($word);
 }
 
 function getCurrency($countryCode = 'US', $as_symbol = false)

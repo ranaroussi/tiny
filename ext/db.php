@@ -152,7 +152,7 @@ class TinyDB implements DB
      */
     public function __construct(string $dbType, array $config)
     {
-        $this->dbType = strtolower($dbType);
+        $this->dbType = mb_strtolower($dbType);
 
         switch ($this->dbType) {
             case 'mysql':

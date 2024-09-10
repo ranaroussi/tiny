@@ -23,7 +23,7 @@
 /* -------------------------------------- */
 require __DIR__ . '/bootstrap.php';
 spl_autoload_register(function ($class) {
-    $classFile = __DIR__ . '/ext/' . str_replace('tiny', '', strtolower($class)) . '.php';
+    $classFile = __DIR__ . '/ext/' . str_replace('tiny', '', mb_strtolower($class)) . '.php';
     if (file_exists($classFile)) {
         include $classFile;
     }
@@ -140,7 +140,7 @@ class tiny
             return;
         }
 
-        $dbType = strtolower($_SERVER['DB_TYPE']);
+        $dbType = mb_strtolower($_SERVER['DB_TYPE']);
 
         $dbConfig = [
             'host'       => $_SERVER['DB_HOST'] ?? 'localhost',
@@ -441,7 +441,7 @@ class tiny
             $class = preg_replace('/Index$/', '', $class);
 
             if (class_exists($class)) {
-                $method = strtolower($_SERVER['REQUEST_METHOD'] ?? 'GET');
+                $method = mb_strtolower($_SERVER['REQUEST_METHOD'] ?? 'GET');
                 $instance = new $class();
                 if (method_exists($instance, $method)) {
                     $instance->$method(self::request(), self::response());

@@ -84,10 +84,10 @@ class TinyRequest
     {
         if ($this->req_params === null) {
             foreach ($_REQUEST as $k => $v) {
-                $this->req_params[strtolower($k)] = trim($v . '');
+                $this->req_params[mb_strtolower($k)] = trim($v . '');
             }
         }
-        return $this->req_params[strtolower($key)] ?? $fallback;
+        return $this->req_params[mb_strtolower($key)] ?? $fallback;
     }
 
     /**

@@ -293,7 +293,7 @@ function detectContentType(string $file): ?string
     ];
 
     // $ext = array_pop(explode('.', $file));
-    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    $ext = mb_strtolower(pathinfo($file, PATHINFO_EXTENSION));
 
     if (isset($mimeTypes[$ext])) {
         return $mimeTypes[$ext];

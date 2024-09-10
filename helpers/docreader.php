@@ -12,7 +12,7 @@ class DOCReader
 
     public static function getText(string $file_name, ?string $ext = null): string
     {
-        $ext = $ext ?? strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+        $ext = $ext ?? mb_strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
         $finfo = new finfo(FILEINFO_MIME);
         $type = explode('charset=', $finfo->file($file_name))[1];
 

@@ -2067,6 +2067,6 @@ function currency_by_region($region): string
 
 function currency_symbol($currency)
 {
-    $currency = strtoupper($currency);
+    $currency = mb_strtoupper($currency);
     return CURRENCIES[$currency]['symbol'] ?? $currency;
 }

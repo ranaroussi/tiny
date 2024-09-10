@@ -76,7 +76,7 @@ class Caddy
 
     public static function setCustomDomain(string $domain): object
     {
-        $domain = strtolower($domain);
+        $domain = mb_strtolower($domain);
         $root = self::getRootDomain(true);
 
         $domains = $root->json->routes[0]->match[0]->host;
@@ -92,7 +92,7 @@ class Caddy
 
     public static function deleteCustomDomain(string $domain): object
     {
-        $domain = strtolower($domain);
+        $domain = mb_strtolower($domain);
         $root = self::getRootDomain(true);
 
         if (!$root->success) {

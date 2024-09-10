@@ -114,12 +114,12 @@ function buildOAuthConfig()
     foreach ($_SERVER as $key => $value) {
         if (str_starts_with($key, 'OAUTH_') && $value) {
             $slug = explode('_', str_replace('OAUTH_', '', $key))[0];
-            $provides[strtolower($slug)] = [];
+            $provides[mb_strtolower($slug)] = [];
         }
     }
 
     foreach ($provides as $key => $value) {
-        $env_key = 'OAUTH_' . strtoupper($key);
+        $env_key = 'OAUTH_' . mb_strtoupper($key);
         $provides[$key] = [
             'enabled' => @$_SERVER[$env_key . '_ENABLED'] ? $_SERVER[$env_key . '_ENABLED'] : true,
         ];
@@ -241,8 +241,8 @@ class OAuth
         return [
             'provider' => $this->provider,
             'identifier' => str_replace("'", '', $user->data->getId()),
-            'email' => strtolower($user->data->getMail()),
-            'emailVerified' => strtolower($user->data->getMail()),
+            'email' => mb_strtolower($user->data->getMail()),
+            'emailVerified' => mb_strtolower($user->data->getMail()),
             'displayName' => $user->data->getDisplayName(),
             'firstName' => $name['firstname'],
             'lastName' => $name['lastname'],

@@ -363,7 +363,7 @@ trait TinyUtils
         $str = str_replace('&', 'and', $str);
 
         $s = preg_replace(array_keys($highASCII), array_values($highASCII), $str);
-        $s = strtolower($s);
+        $s = mb_strtolower($s);
         $s = strip_tags($s);
         $s = preg_replace('!&[^;\s]+;!', '', $s);
         $s = preg_replace('![^\w\s-_.]!', '', $s);
@@ -383,7 +383,7 @@ trait TinyUtils
         if (isset($_SERVER['HTTP_SEC_CH_UA_MOBILE'])) {
             return $_SERVER['HTTP_SEC_CH_UA_MOBILE'] === '?1';
         }
-        $browser = strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
+        $browser = mb_strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
         return (
             str_contains($browser, 'iphone') || str_contains($browser, 'ipod') ||
             (str_contains($browser, 'android') && str_contains($browser, 'mobile'))
@@ -542,7 +542,7 @@ trait TinyUtils
     {
         $str = stripslashes($str);
         $str = str_replace(['_', '-'], ' ', $str);
-        return ucwords(strtolower($str));
+        return ucwords(mb_strtolower($str));
     }
 
     /**
@@ -855,7 +855,7 @@ trait TinyUtils
      */
     public static function parseQuery(string $var): ?string
     {
-        $query = strtolower($var);
+        $query = mb_strtolower($var);
         $query = strip_tags(trim($query));
         $query = str_replace('+', '~', $query);
         $query = urldecode($query);
