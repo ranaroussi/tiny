@@ -300,7 +300,7 @@ function detectContentType(string $file): ?string
     }
 
     try {
-        return mime_content_type($file) ?: null;
+        return @mime_content_type($file) ?: null;
     } catch (Exception $e) {
         return null;
     }
