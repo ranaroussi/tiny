@@ -98,7 +98,8 @@ trait TinyDebugger
             . '<span>' . date('[H:i:s] ')
             . "{$trace['file']}:{$trace['line']}</span>\n"
             . "<pre style='$preStyles'>"
-            . ($trace['function'] ? "in: <strong style='color:#ef5a6f'>{$trace['function']}()</strong>\n" : '')
+            . ($trace['url'] ? "url: <span style='color:#55bef0'>{$trace['url']}</span>\n" : '')
+            . ($trace['function'] ? "in:  <strong style='color:#ef5a6f'>{$trace['function']}()</strong>\n" : '')
             . "\n$content</pre></div>";
     }
 
@@ -134,6 +135,7 @@ trait TinyDebugger
             $content .= ob_get_clean() . "\n";
         }
 
+        $trace['url'] = $_SERVER['REQUEST_URI'] ?? '';
         return [$trace, trim(str_replace("}\nbool(true)", "}\n  ", $content))];
     }
 
@@ -211,7 +213,8 @@ trait TinyDebugger
 
         $output = date('[Y-m-d H:i:s] ') .
             "{$trace['file']}:{$trace['line']}\n\n" .
-            ($trace['function'] ? "in: {$trace['function']}()\n" : '')
+            ($trace['url'] ? "url: {$trace['url']}\n" : '') .
+            ($trace['function'] ? "in:  {$trace['function']}()\n" : '')
             . "\n" . strip_tags($content);
 
         $output .= "\n\n" . str_repeat('-', 80) . "\n\n";
