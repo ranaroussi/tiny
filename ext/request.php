@@ -100,7 +100,7 @@ class TinyRequest
     {
         if ($this->bodyCached === null) {
             // $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
-            $body = json_decode(file_get_contents('php://input'), true);
+            $body = json_decode(file_get_contents('php://input'), true) ?? [];
             if ($this->method === 'POST') {
                 $body = array_merge($_POST, $body);
             }
@@ -111,12 +111,6 @@ class TinyRequest
             $this->bodyCached = $body;
         }
 
-        if (count($this->bodyCached) === 1 && str_starts_with($this->bodyCached[0], '{')  && str_ends_with($this->bodyCached[0], '}')) {
-            try {
-                return json_decode($this->bodyCached[0], $associative);
-            } catch (Exception $e) {
-            }
-        }
         return $associative ? $this->bodyCached : (object) $this->bodyCached;
     }
 
