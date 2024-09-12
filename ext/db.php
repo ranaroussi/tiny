@@ -322,7 +322,7 @@ class TinyDB implements DB
                 $value = is_numeric($value) || in_array($value, ['TRUE', 'FALSE', 'NULL']) ? $value : "'" . trim($value) . "'";
             }
 
-            $query = preg_replace('/\?/', $value, $query, 1);
+            $query = preg_replace('/(?<!\\\)\?/', $value, $query, 1);
         }
         return $query;
     }
@@ -336,7 +336,7 @@ class TinyDB implements DB
      */
     public function execute(string $query, array $params = []): mixed
     {
-        return $this->pdo->exec($this->prepare($query, $params));
+        return $this->pdo->exec(str_replace('\\?', '?', $this->prepare($query, $params)));
     }
 
     /**
@@ -358,7 +358,7 @@ class TinyDB implements DB
      */
     public function getQuery($query): array
     {
-        $stmt = $this->pdo->query($query);
+        $stmt = $this->pdo->query(str_replace('\\?', '?', $query));
         return $stmt ? $stmt->fetchAll() : [];
     }
 
@@ -379,7 +379,7 @@ class TinyDB implements DB
         $limit = ($limit) ? ' LIMIT ' . $limit : '';
         $fields = is_array($fields) ? implode(',', $fields) : $fields;
         $query = "SELECT $fields FROM $table $where $orderby $limit";
-        $stmt = $this->pdo->query($query);
+        $stmt = $this->pdo->query(str_replace('\\?', '?', $query));
         return $stmt ? $stmt->fetchAll() : [];
     }
 
@@ -517,7 +517,7 @@ class TinyDB implements DB
      */
     public function query(string $query)
     {
-        return $this->pdo->query($query);
+        return $this->pdo->query(str_replace('\\?', '?', $query));
     }
 
 
