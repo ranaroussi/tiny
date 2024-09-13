@@ -20,18 +20,15 @@
  *
  */
 
-
 declare(strict_types=1);
-
 
 class TinyCookie
 {
-
     public string $name = 'default';
     public string $path = '';
     public string $domain = '';
     public int|null|false $expiry = null;
-    public bool $_exists = false;
+    public bool $exists = false;
     public array|object $data = [];
 
     /**
@@ -48,7 +45,7 @@ class TinyCookie
         $this->expiry = @$_SERVER['COOKIE_TTL'] ? time() + (int)$_SERVER['COOKIE_TTL'] : 0;
         $this->domain = @$_SERVER['COOKIE_DOMAIN'] ? $_SERVER['COOKIE_DOMAIN'] : $_SERVER['HTTP_HOST'];
         $this->path = @$_SERVER['COOKIE_PATH'] ? $_SERVER['COOKIE_PATH'] : tiny::config()->url_path;
-        $this->_exists = false;
+        $this->exists = false;
 
         // set default values
         $cookie = [];
@@ -57,7 +54,7 @@ class TinyCookie
         }
         // cookie exists?
         if (isset($_COOKIE[$name])) {
-            $this->_exists = true;
+            $this->exists = true;
             $_cookie = @unserialize(@$_COOKIE[$name]);
             $_cookie = json_decode(json_encode($_cookie), true);
             foreach ($_cookie as $k => $v) {
@@ -78,7 +75,7 @@ class TinyCookie
      */
     public function read($item = null): mixed
     {
-        if ($item != null && array_key_exists($item, $this->data)) {
+        if ($item != null && rray_key_exists($item, $this->data)) {
             return $this->data[$item];
         }
         return $this->data;
@@ -112,7 +109,7 @@ class TinyCookie
             $expiry = $this->expiry;
         }
         setcookie($this->name, serialize($this->data), ($expiry == null) ? 0 : $expiry, $this->path, $this->domain);
-        $this->_exists = true;
+        $this->exists = true;
     }
 
     /**
@@ -122,6 +119,6 @@ class TinyCookie
     {
         setcookie($this->name, '', -1, $this->path, $this->domain);
         unset($_COOKIE[$this->name]);
-        $this->_exists = false;
+        $this->exists = false;
     }
 }

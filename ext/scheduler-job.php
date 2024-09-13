@@ -21,9 +21,7 @@
  */
 
 declare(strict_types=1);
-
 use Cron\CronExpression;
-
 
 class Job
 {

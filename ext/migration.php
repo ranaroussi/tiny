@@ -20,7 +20,6 @@
  *
  */
 
-
 declare(strict_types=1);
 
 require_once __DIR__ . '/../tiny.php';
@@ -278,7 +277,6 @@ class Migration
         $className = str_replace(' ', '', ucwords(str_replace('_', ' ', $name)));
         return <<<PHP
 <?php
-
 declare(strict_types=1);
 require_once __DIR__ . '/../tiny.php';
 

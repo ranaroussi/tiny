@@ -1,7 +1,5 @@
 <?php
-
 declare(strict_types=1);
-
 /**
  * Executes a console command in a Linux or Windows environment without waiting for the result.
  * Useful for executing extensive tasks.

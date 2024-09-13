@@ -742,7 +742,17 @@ trait TinyUtils
      */
     public static function getClientRealIP(): string
     {
-        $check = ['HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED', 'HTTP_FORWARDED_FOR', 'HTTP_FORWARDED', 'HTTP_VIA', 'HTTP_X_COMING_FROM', 'HTTP_COMING_FROM', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'];
+        $check = [
+            'HTTP_X_FORWARDED_FOR',
+            'HTTP_X_FORWARDED',
+            'HTTP_FORWARDED_FOR',
+            'HTTP_FORWARDED',
+            'HTTP_VIA',
+            'HTTP_X_COMING_FROM',
+            'HTTP_COMING_FROM',
+            'HTTP_CLIENT_IP',
+            'REMOTE_ADDR'
+        ];
 
         foreach ($check as $item) {
             if (isset($_SERVER[$item])) {

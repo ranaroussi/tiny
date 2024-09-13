@@ -308,7 +308,9 @@ class TinyDB implements DB
      */
     public function prepare(string $query, array|object $values = []): string
     {
-        if (isset($values['csrf_token'])) unset($values['csrf_token']);
+        if (isset($values['csrf_token'])) {
+            unset($values['csrf_token']);
+        }
 
         $values = is_array($values) ? $values : [$values];
         foreach ($values as $value) {

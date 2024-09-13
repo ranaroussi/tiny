@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 const ENCHARGE_API_URL = 'https://ingest.encharge.io/v1';

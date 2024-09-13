@@ -506,11 +506,11 @@ class StripeHelper
         foreach ($lineitems as $plan => $items) {
             if (!empty($items['subscription']['items'])) {
                 $subkey = array_keys($lineitems[$plan]['subscription']['items'])[0];
-                $subscription = $this->line_item_summary($items['subscription']['items'][$subkey]);
+                $subscription = $this->lineItemSummary($items['subscription']['items'][$subkey]);
 
                 $metered = [];
                 foreach ($items['metered']['items'] as $key => $item) {
-                    $metered[] = $this->line_item_summary($item);
+                    $metered[] = $this->lineItemSummary($item);
                 }
 
                 $combo['subscriptions'][$plan] = [
@@ -543,7 +543,7 @@ class StripeHelper
         return $combo;
     }
 
-    private function line_item_summary($line_item)
+    private function lineItemSummary($line_item)
     {
         // return $line_item;
         $category = explode(' (', tiny::trim(explode(' × ', $line_item['description'])[1], ')'));

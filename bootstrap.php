@@ -67,7 +67,9 @@ error_reporting($_SERVER['ENV'] != 'prod' ? E_ALL : 0);
 /* -------------------------------------- */
 // PHP Enviroment
 foreach ($_SERVER as $key => $value) {
-    if (is_string($value)) $_SERVER[$key] = trim($value, "'");
+    if (is_string($value)) {
+        $_SERVER[$key] = trim($value, "'");
+    }
 }
 $_SERVER['CALC_TIMER'] = $_SERVER['CALC_TIMER'] ?? true;
 putenv('TZ=' . isset($_SERVER['TIMEZONE']) ? $_SERVER['TIMEZONE'] : 'UTC');
