@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 function isValidEmail(string $email, bool $verbose = false): bool|array
 {
     $validator = new EmailValidator($email);

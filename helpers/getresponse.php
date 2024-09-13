@@ -1,5 +1,6 @@
 <?php
 
+
 class GetResponse
 {
     public static function addContact($email, $name, $ip): object|array

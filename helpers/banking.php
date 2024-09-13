@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 
 const SORTCODES = [
     '300083' => 'AL RAYAN BANK',

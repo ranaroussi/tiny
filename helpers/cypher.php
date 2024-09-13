@@ -1,5 +1,6 @@
 <?php
 
+
 const NONCE_TTL = 60; // nonce time to live in seconds
 
 function urlsafe_b64encode($string): array|string
@@ -55,7 +56,7 @@ function cypher_decrypt_with_nonce($data, $secret, $ttl = NONCE_TTL): false|stri
             return false;
         }
         return $data;
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         return false;
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 // https://stripe.com/docs/billing/subscriptions/metered
 
 /**
@@ -153,7 +154,7 @@ class StripeHelper
             ]);
         } catch (CardException $e) {
             return ['error' => $e->getError()];
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return ['error' => json_encode($e)];
         }
 

@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 
 use Smalot\PdfParser\Parser;
 use League\HTMLToMarkdown\HtmlConverter;

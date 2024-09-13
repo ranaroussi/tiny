@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 /**
  * RateLimiter class for managing rate limiting in the application.
  *

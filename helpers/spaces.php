@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 use Aws\S3\S3Client;
 
 class Spaces
@@ -303,7 +304,7 @@ function detectContentType(string $file): ?string
 
     try {
         return @mime_content_type($file) ?: null;
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         return null;
     }
 }

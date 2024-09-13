@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 
 const EMAIL_PROVIDERS = [
     'Gmail' => ['gmail.com', 'googlemail.com'],

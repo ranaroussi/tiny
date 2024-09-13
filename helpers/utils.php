@@ -1,4 +1,5 @@
 <?php
+
 function getDNS($domain, $type = DNS_NS)
 {
     // DNS_A, DNS_CNAME, DNS_HINFO, DNS_CAA, DNS_MX,

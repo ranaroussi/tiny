@@ -1,4 +1,6 @@
 <?php
+
+
 // https://github.com/MattKetmo/EmailChecker/blob/master/res/throwaway_domains.txt
 // https://github.com/FGRibreau/mailchecker/blob/master/platform/php/blacklist.php
 const DISPOSABLE_DOMAINS = [

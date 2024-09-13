@@ -1,5 +1,7 @@
 <?php
+
 declare(strict_types=1);
+
 
 class SendGrid
 {
@@ -104,7 +106,7 @@ class SendGrid
         try {
             $response = tiny::http()->$method($url, $options);
             return $response;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log('SendGrid API Error: ' . $e->getMessage());
             return false;
         }
