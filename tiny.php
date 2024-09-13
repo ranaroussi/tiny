@@ -22,6 +22,14 @@
 
 declare(strict_types=1);
 
+/* -------------------------------------- */
+require __DIR__ . '/bootstrap.php';
+/* -------------------------------------- */
+session_name('tiny');
+session_start();
+/* -------------------------------------- */
+
+
 class tiny
 {
     use TinyUtils;
@@ -45,8 +53,8 @@ class tiny
             return;
         }
 
-        self::$router = new stdClass();
-        self::$config = new stdClass();
+        self::$router = new \stdClass();
+        self::$config = new \stdClass();
         self::$config->initialized = true;
 
         // Load configuration
@@ -298,8 +306,8 @@ class tiny
      */
     private static function setupComponents(): void
     {
-        define('Component', new Component(self::$config->app_path . '/views/components'));
-        define('Layout', new Layout(self::$config->app_path . '/views/layouts'));
+        define('Component', new TinyComponent(self::$config->app_path . '/views/components'));
+        define('Layout', new TinyLayout(self::$config->app_path . '/views/layouts'));
     }
 
     /**
@@ -509,7 +517,7 @@ class tiny
     /**
      * Returns the response object for handling CSRF tokens.
      *
-     * @return TinyCSRF The CSRF object
+     * @return TinyCSRF The TinyCSRF object
      */
     public static function csrf(): TinyCSRF
     {
@@ -520,7 +528,7 @@ class tiny
     /**
      * Returns the response object for handling http requests.
      *
-     * @return TinyHTTP The HTTP object
+     * @return TinyHTTP The TinyHTTP object
      */
     public static function http(): TinyHTTP
     {
@@ -532,7 +540,7 @@ class tiny
     /**
      * Returns the response object for handling HTTP responses.
      *
-     * @return TinyRequest The Request object
+     * @return TinyRequest The TinyRequest object
      */
     public static function request(): TinyRequest
     {
@@ -543,7 +551,7 @@ class tiny
     /**
      * Returns the response object for handling HTTP responses.
      *
-     * @return TinyResponse The response object
+     * @return TinyResponse The TinyResponse object
      */
     public static function response(): TinyResponse
     {
@@ -554,7 +562,7 @@ class tiny
     /**
      * Returns the sse object for handling HTTP SSE.
      *
-     * @return TinySSE The SSE object
+     * @return TinySSE The TinySSE object
      */
     public static function sse(): TinySSE
     {
@@ -565,7 +573,7 @@ class tiny
     /**
      * Returns the scheduler object for handling scheduled tasks.
      *
-     * @return TinyScheduler The scheduler object
+     * @return TinyScheduler The TinyScheduler object
      */
     public static function scheduler(): TinyScheduler
     {
@@ -603,7 +611,7 @@ class tiny
     public static function data(): object
     {
         static $data = null;
-        return $data ??= new stdClass();
+        return $data ??= new \stdClass();
     }
 
     /**
@@ -645,7 +653,7 @@ class tiny
     {
         static $data = null;
         if ($data === null) {
-            $data = new stdClass();
+            $data = new \stdClass();
         }
         if ($user === null && isset(self::data()->user)) {
             return self::data()->user;
@@ -718,3 +726,8 @@ class tiny
         return tiny::getHomeURL(tiny::config()->static_dir . '/' . ltrim($file, '/'), $full, $scheme);
     }
 }
+
+/* -------------------------------------- */
+// Initialize Tiny
+tiny::init();
+/* -------------------------------------- */

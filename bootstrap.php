@@ -26,6 +26,15 @@ try {
 } catch (Exception $e) {
     die('<code>ERROR: Cannot find composer autoloader</code>');
 }
+/* -------------------------------------- */
+// Autoloader for Tiny framework
+/* -------------------------------------- */
+spl_autoload_register(function ($class) {
+    $classFile = __DIR__ . '/ext/' . str_replace('tiny', '', mb_strtolower($class)) . '.php';
+    if (file_exists($classFile)) {
+        include $classFile;
+    }
+});
 
 /* -------------------------------------- */
 // Required for Dockerized apps
@@ -91,6 +100,7 @@ if (@$_SERVER['ENV'] != 'local' && isset($_SERVER['SENTRY_DSN'])) {
 }
 
 /* -------------------------------------- */
+
 // html output minifier
 function minifyOutput($buffer): array|string
 {
@@ -108,21 +118,3 @@ function minifyOutput($buffer): array|string
     return str_replace("}\n", '} ', $buffer);
 }
 
-
-
-
-/* -------------------------------------- */
-spl_autoload_register(function ($class) {
-    $classFile = __DIR__ . '/ext/' . str_replace('tiny', '', mb_strtolower($class)) . '.php';
-    if (file_exists($classFile)) {
-        include $classFile;
-    }
-});
-/* -------------------------------------- */
-session_name('tiny');
-session_start();
-/* -------------------------------------- */
-
-// Initialize Tiny
-require __DIR__ . '/tiny.php';
-tiny::init();

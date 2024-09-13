@@ -98,10 +98,8 @@ Example controller:
 
 ```php
 <?php
-
 class Users extends TinyController
 {
-
     public function get($request, $response)
     {
         // Handle GET request
@@ -254,9 +252,12 @@ It is recommended that only the `/html` directory be exposed to the world and th
 /home/webapp/env.php
 ```
 
-For information on how to deploy using `git push`, see [GIT-DEPLOY.md](GIT-DEPLOY.md).
+For information on deploying using `git push`, see [GIT-DEPLOY.md](GIT-DEPLOY.md).
 
 ---
+
+> [!WARNING] Intelephense users
+> Intelephense users might see a warning about `Undefined type 'tiny'`. This is because the `tiny` main class is registered at runtime, and Intelephense isn't aware of it. You can safely ignore the message as the code will work just fine. However, if you want to get rid of this message, simply add `use Tiny\tiny;` to the beginning of your file.
 
 # Migrations
 
