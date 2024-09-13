@@ -22,6 +22,7 @@
 
 declare(strict_types=1);
 
+
 class TinyCookie
 {
     public string $name = 'default';
@@ -75,7 +76,7 @@ class TinyCookie
      */
     public function read($item = null): mixed
     {
-        if ($item != null && rray_key_exists($item, $this->data)) {
+        if ($item != null && array_key_exists($item, $this->data)) {
             return $this->data[$item];
         }
         return $this->data;

@@ -21,6 +21,8 @@
  */
 
 declare(strict_types=1);
+
+
 use Cron\CronExpression;
 
 class Job
@@ -54,16 +56,16 @@ class Job
     /**
      * Checks if the job is due to run at the given date and time.
      *
-     * @param DateTime|null $date The date and time to check (default: current date/time)
+     * @param \DateTime|null $date The date and time to check (default: current date/time)
      * @return bool True if the job is due to run, false otherwise
      */
-    public function isDue(?DateTime $date = null): bool
+    public function isDue(?\DateTime $date = null): bool
     {
         if (!isset($this->executionTime)) {
             $this->at('* * * * *');
         }
 
-        $date ??= new DateTime();
+        $date ??= new \DateTime();
 
         if ($this->executionYear !== null && $this->executionYear !== (int)$date->format('Y')) {
             return false;
@@ -115,13 +117,13 @@ class Job
     /**
      * Sets the job to run at a specific date and time.
      *
-     * @param DateTime|string $date The date and time for the job to run
+     * @param \DateTime|string $date The date and time for the job to run
      * @return static
      */
-    public function date(DateTime|string $date): static
+    public function date(\DateTime|string $date): static
     {
-        if (!$date instanceof DateTime) {
-            $date = new DateTime($date);
+        if (!$date instanceof \DateTime) {
+            $date = new \DateTime($date);
         }
 
         $this->executionYear = (int)$date->format('Y');
@@ -504,7 +506,7 @@ class Job
         }
 
         if (!is_numeric($value) || $value < $min || $value > $max) {
-            throw new InvalidArgumentException(
+            throw new \InvalidArgumentException(
                 "Invalid value: it should be '*' or between {$min} and {$max}."
             );
         }

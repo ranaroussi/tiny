@@ -22,7 +22,8 @@
 
 declare(strict_types=1);
 
-class Layout
+
+class TinyLayout
 {
     private array $layoutProps = [];
     private array $props = [];

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 class TinyHTTP
 {
     private const DEFAULT_CURL_OPTIONS = [

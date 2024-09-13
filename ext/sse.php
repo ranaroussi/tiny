@@ -22,6 +22,7 @@
 
 declare(strict_types=1);
 
+
 class TinySSE
 {
     private const HEADERS = [
@@ -88,7 +89,7 @@ class TinySSE
      * @param string $data The data to be sent to the client
      * @return void
      *
-     * @uses TinySSE::flush() to ensure the data is immediately sent to the client
+     * @uses SSE::flush() to ensure the data is immediately sent to the client
      *
      * Note: The data is sent with the "data:" prefix as per SSE specification.
      *       Any backslashes in the data are removed using stripslashes().
@@ -133,10 +134,10 @@ class TinySSE
      * @param int $sleep The number of seconds to wait between checks for notifications (default: 1)
      * @return void
      *
-     * @uses TinySSE::start() to initialize the SSE connection
+     * @uses SSE::start() to initialize the SSE connection
      * @uses tiny::db()->getPdo() to get the PDO connection
-     * @uses TinySSE::send() to send data to the client
-     * @uses TinySSE::flush() to ensure data is immediately sent
+     * @uses SSE::send() to send data to the client
+     * @uses SSE::flush() to ensure data is immediately sent
      *
      * Note: This method runs indefinitely until the connection is closed by the client or the server.
      */
@@ -184,7 +185,7 @@ class TinySSE
      * @param int $sleep The number of seconds to wait between cache checks (default: 1)
      * @return void
      *
-     * @uses TinySSE::stream() to set up the SSE stream
+     * @uses SSE::stream() to set up the SSE stream
      * @uses tiny::cache() to interact with the cache
      *
      * Note: To terminate the stream, send "[DONE]" as the cache value.
@@ -255,9 +256,9 @@ class TinySSE
      * @param int $sleep The number of seconds to wait between function calls (default: 10)
      * @return void
      *
-     * @uses TinySSE::start() to initialize the SSE stream
-     * @uses TinySSE::send() to send data to the client
-     * @uses TinySSE::flush() to flush the output buffer
+     * @uses SSE::start() to initialize the SSE stream
+     * @uses SSE::send() to send data to the client
+     * @uses SSE::flush() to flush the output buffer
      *
      * Note: The stream will automatically terminate if the connection is aborted,
      * sending a '[DONE]' message before exiting.

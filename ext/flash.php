@@ -20,6 +20,7 @@
  *
  */
 
+
 class TinyFlash
 {
     private mixed $name;

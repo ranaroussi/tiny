@@ -22,6 +22,7 @@
 
 declare(strict_types=1);
 
+
 class TinyRequest
 {
     public object $user;
@@ -38,7 +39,7 @@ class TinyRequest
     private array $req_params;
 
     /**
-     * Initializes the TinyRequest object with request information.
+     * Initializes the Request object with request information.
      * Sets up user, method, headers, HTMX status, query parameters, and path details.
      */
     public function __construct()

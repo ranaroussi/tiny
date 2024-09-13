@@ -22,13 +22,14 @@
 
 declare(strict_types=1);
 
+
 class TinyController
 {
     public mixed $method;
     public array $allowedMethods;
 
     /**
-     * Constructor for the TinyController class.
+     * Constructor for the Controller class.
      * Initializes the request method and allowed HTTP methods.
      */
     public function __construct()

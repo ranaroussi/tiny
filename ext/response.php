@@ -20,6 +20,7 @@
  *
  */
 
+
 class TinyResponse
 {
     /**
@@ -90,7 +91,7 @@ class TinyResponse
     {
         try {
             http_response_code($code);
-        } catch (Exception) {
+        } catch (\Exception) {
             // Silently ignore exceptions when setting HTTP response code
         }
         echo json_encode($text);
@@ -110,7 +111,7 @@ class TinyResponse
     {
         try {
             http_response_code($code);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // Silently ignore exceptions when setting HTTP response code
         }
         echo file_get_contents($path);
@@ -130,7 +131,7 @@ class TinyResponse
     {
         try {
             header("Content-type: application/json; charset=utf-8", true, $code);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // Silently ignore exceptions when setting headers
         }
         if (is_object($data) || is_array($data)) {

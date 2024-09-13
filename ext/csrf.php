@@ -37,6 +37,7 @@ declare(strict_types=1);
  * }
  */
 
+
 class TinyCSRF
 {
     private const TOKEN_NAME = 'csrf_token';

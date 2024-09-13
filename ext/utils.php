@@ -22,6 +22,7 @@
 
 declare(strict_types=1);
 
+
 trait TinyUtils
 {
     /**
@@ -981,9 +982,9 @@ trait TinyUtils
     public static function parseName(string $name): array|string
     {
         try {
-            $parser = new TheIconic\NameParser\Parser();
+            $parser = new \TheIconic\NameParser\Parser();
             return $parser->parse($name)->getAll();
-        } catch (Exception) {
+        } catch (\Exception) {
             return $name;
         }
     }

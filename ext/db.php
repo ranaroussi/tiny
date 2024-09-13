@@ -27,11 +27,11 @@ const SQLITE3_OPEN_SHAREDCACHE = 0x00020000;
 interface DB
 {
     /**
-     * Returns the PDO instance.
+     * Returns the \PDO instance.
      *
-     * @return PDO The PDO instance
+     * @return \PDO The \PDO instance
      */
-    public function getPdo(): PDO;
+    public function getPdo(): \PDO;
 
     /**
      * Executes a SQL query with optional parameters.
@@ -136,10 +136,9 @@ interface DB
     public function escapeString($text);
 }
 
-
 class TinyDB implements DB
 {
-    private PDO $pdo;
+    private \PDO $pdo;
     private string $dbType;
 
     /**
@@ -148,7 +147,7 @@ class TinyDB implements DB
      *
      * @param string $dbType The type of database (mysql, pgsql, postgresql, sqlite)
      * @param array $config Configuration array for the database connection
-     * @throws Exception If an unsupported database type is specified
+     * @throws \Exception If an unsupported database type is specified
      */
     public function __construct(string $dbType, array $config)
     {
@@ -166,7 +165,7 @@ class TinyDB implements DB
                 $this->connectSQLite($config);
                 break;
             default:
-                throw new Exception("Unsupported database type: $dbType");
+                throw new \Exception("Unsupported database type: $dbType");
         }
     }
 
@@ -174,7 +173,7 @@ class TinyDB implements DB
      * Establishes a connection to a MySQL database.
      *
      * @param array $config Configuration array for MySQL connection
-     * @throws Exception If unable to connect to any MySQL server
+     * @throws \Exception If unable to connect to any MySQL server
      */
     private function connectMySQL(array $config): void
     {
@@ -191,25 +190,25 @@ class TinyDB implements DB
         }
 
         if (empty($host)) {
-            throw new Exception('No MySQL servers provided.');
+            throw new \Exception('No MySQL servers provided.');
         }
 
         $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::ATTR_TIMEOUT => $timeout
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+            \PDO::ATTR_EMULATE_PREPARES => false,
+            \PDO::ATTR_TIMEOUT => $timeout
         ];
 
         if ($persistent) {
-            $options[PDO::ATTR_PERSISTENT] = true;
+            $options[\PDO::ATTR_PERSISTENT] = true;
         }
 
         $dsn = "mysql:host=" . tiny::trim($host) . ";dbname=" . tiny::trim($dbname) . ";port={$port};charset=utf8mb4";
         try {
-            $this->pdo = new PDO($dsn, tiny::trim($user), tiny::trim($password), $options);
-        } catch (PDOException $e) {
-            throw new Exception('Unable to connect to any MySQL server.');
+            $this->pdo = new \PDO($dsn, tiny::trim($user), tiny::trim($password), $options);
+        } catch (\PDOException $e) {
+            throw new \Exception('Unable to connect to any MySQL server.');
         }
     }
 
@@ -217,7 +216,7 @@ class TinyDB implements DB
      * Establishes a connection to a PostgreSQL database.
      *
      * @param array $config Configuration array for PostgreSQL connection
-     * @throws Exception If unable to open the database connection
+     * @throws \Exception If unable to open the database connection
      */
     private function connectPostgreSQL(array $config): void
     {
@@ -230,20 +229,20 @@ class TinyDB implements DB
         $persistent = $config['persistent'] ?? false;
 
         $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::ATTR_TIMEOUT => $timeout
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+            \PDO::ATTR_EMULATE_PREPARES => false,
+            \PDO::ATTR_TIMEOUT => $timeout
         ];
         if ($persistent) {
-            $options[PDO::ATTR_PERSISTENT] = true;
+            $options[\PDO::ATTR_PERSISTENT] = true;
         }
 
         $dsn = "pgsql:host=$host;port=$port;dbname=$dbname";
         try {
-            $this->pdo = new PDO($dsn, $user, $password, $options);
-        } catch (PDOException $e) {
-            throw new Exception('Unable to open database: ' . $e->getMessage());
+            $this->pdo = new \PDO($dsn, $user, $password, $options);
+        } catch (\PDOException $e) {
+            throw new \Exception('Unable to open database: ' . $e->getMessage());
         }
     }
 
@@ -251,7 +250,7 @@ class TinyDB implements DB
      * Establishes a connection to a SQLite database.
      *
      * @param array $config Configuration array for SQLite connection
-     * @throws Exception If unable to open the database connection
+     * @throws \Exception If unable to open the database connection
      */
     private function connectSQLite(array $config): void
     {
@@ -259,31 +258,31 @@ class TinyDB implements DB
         $db_scheme = $config['db_scheme'] ?? null;
 
         if (!$db_path) {
-            throw new Exception('SQLite database path not provided.');
+            throw new \Exception('SQLite database path not provided.');
         }
 
         $existing_db = file_exists($db_path);
         try {
-            $this->pdo = new PDO('sqlite:' . $db_path, null, null, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::SQLITE_ATTR_OPEN_FLAGS => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
+            $this->pdo = new \PDO('sqlite:' . $db_path, null, null, [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+                \PDO::SQLITE_ATTR_OPEN_FLAGS => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
             ]);
 
             if (!$existing_db && $db_scheme != null) {
                 $this->pdo->exec($db_scheme) or die('Create db failed');
             }
-        } catch (PDOException $e) {
-            throw new Exception('Unable to open database: ' . $e->getMessage());
+        } catch (\PDOException $e) {
+            throw new \Exception('Unable to open database: ' . $e->getMessage());
         }
     }
 
     /**
-     * Returns the PDO instance.
+     * Returns the \PDO instance.
      *
-     * @return PDO The PDO instance
+     * @return \PDO The \PDO instance
      */
-    public function getPdo(): PDO
+    public function getPdo(): \PDO
     {
         return $this->pdo;
     }
@@ -430,7 +429,7 @@ class TinyDB implements DB
 
         try {
             return $this->execute($query, $data);
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             return $e->getMessage();
         }
     }
@@ -465,7 +464,7 @@ class TinyDB implements DB
 
         try {
             return $this->execute($query, $values);
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             return $e->getMessage();
         }
     }
@@ -495,7 +494,7 @@ class TinyDB implements DB
 
         try {
             return $this->execute($query, $values);
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             return $e->getMessage();
         }
     }
@@ -531,7 +530,7 @@ class TinyDB implements DB
      * @param string $conflict The column(s) to check for conflicts
      * @return PDOStatement|bool The result of the upsert operation
      */
-    public function upsert(string $table, array $data, string $conflict): PDOStatement|bool
+    public function upsert(string $table, array $data, string $conflict): \PDOStatement|bool
     {
         if (isset($data['csrf_token'])) {
             unset($data['csrf_token']);

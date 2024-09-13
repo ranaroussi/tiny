@@ -22,6 +22,7 @@
 
 declare(strict_types=1);
 
+
 // Define constants once, outside of any function or method
 define('INTERNAL_FUNCTIONS', array_merge(
     get_defined_functions()['internal'],

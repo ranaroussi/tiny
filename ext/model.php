@@ -22,6 +22,7 @@
 
 declare(strict_types=1);
 
+
 class TinyModel
 {
     private const KNOWN_TYPES = [
@@ -65,7 +66,7 @@ class TinyModel
         foreach ($schema as $item => $type) {
             if (is_array($type)) {
                 if (!isset($data[$item])) {
-                    throw new Exception("Key $item is missing", 1);
+                    throw new \Exception("Key $item is missing", 1);
                 }
                 $this->isValid($data[$item], $type);
             } else {
@@ -155,12 +156,12 @@ class TinyModel
     private function isSpecificObject($value, string $object): bool
     {
         try {
-            $actualObject = new ReflectionClass($object);
+            $actualObject = new \ReflectionClass($object);
             if ($actualObject->isEnum()) {
                 return in_array($value, array_map(fn($case) => $case->value ?? $case->name, $object::cases()), true);
             }
             return $value instanceof $object;
-        } catch (ReflectionException) {
+        } catch (\ReflectionException) {
             return false;
         }
     }
