@@ -21,9 +21,10 @@
  */
 
 require_once __DIR__ . '/ext/utils.php';
-class Tiny
+
+class tiny
 {
-    use TinyUtils;
+    use Utils;
 }
 
 if (PHP_SAPI === 'cli' && str_ends_with(__FILE__, $argv[0])) {
@@ -56,7 +57,7 @@ if (PHP_SAPI === 'cli' && str_ends_with(__FILE__, $argv[0])) {
     if ($category === 'migrations') {
         require_once __DIR__ . '/ext/migration.php';
 
-        $migration = new Migration();
+        $migration = new TinyMigration();
         if ($argc < 3) {
             echo "Usage: php migration.php [create|up|down|remove] [name]\n";
             exit(1);
