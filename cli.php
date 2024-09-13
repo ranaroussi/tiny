@@ -24,7 +24,7 @@ require_once __DIR__ . '/ext/utils.php';
 
 class tiny
 {
-    use Utils;
+    use TinyUtils;
 }
 
 if (PHP_SAPI === 'cli' && str_ends_with(__FILE__, $argv[0])) {
