@@ -1150,7 +1150,7 @@ trait TinyUtils
      * @param string $w The characters to be trimmed (default is whitespace)
      * @return string The trimmed string
      */
-    public static function trim(mixed $s, string $w = ''): string
+    public static function trim(mixed $s, string $w = " \n\r\t\v\x00"): string
     {
         return trim($s . '', $w);
     }
@@ -1162,7 +1162,7 @@ trait TinyUtils
      * @param string $w The characters to be trimmed (default is whitespace)
      * @return string The trimmed string
      */
-    public static function ltrim(mixed $s, string $w = ''): string
+    public static function ltrim(mixed $s, string $w = " \n\r\t\v\x00"): string
     {
         return ltrim($s . '', $w);
     }
@@ -1174,7 +1174,7 @@ trait TinyUtils
      * @param string $w The characters to be trimmed (default is whitespace)
      * @return string The trimmed string
      */
-    public static function rtrim(mixed $s, string $w = ''): string
+    public static function rtrim(mixed $s, string $w = " \n\r\t\v\x00"): string
     {
         return rtrim($s . '', $w);
     }
