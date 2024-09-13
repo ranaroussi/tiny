@@ -20,19 +20,7 @@
  *
  */
 
-/* -------------------------------------- */
-require __DIR__ . '/bootstrap.php';
-spl_autoload_register(function ($class) {
-    $classFile = __DIR__ . '/ext/' . str_replace('tiny', '', mb_strtolower($class)) . '.php';
-    if (file_exists($classFile)) {
-        include $classFile;
-    }
-});
-/* -------------------------------------- */
-session_name('tiny');
-session_start();
-/* -------------------------------------- */
-
+declare(strict_types=1);
 
 class tiny
 {
@@ -43,6 +31,7 @@ class tiny
     private static ?TinyCache $cache = null;
     private static ?DB $db = null;
     private static object $router;
+    private static array $middlewares = [];
 
     /**
      * Initializes the Tiny framework.
@@ -214,7 +203,8 @@ class tiny
                 $router['slug'] = $parts[2] ?? '';
             }
 
-            $router['permalink'] = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . "://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
+            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $router['permalink'] = $protocol . "://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
             $router['path'] = self::resolveControllerPath($router);
             $router['worker'] = [$router['path']];
 
@@ -273,23 +263,33 @@ class tiny
     /**
      * Loads middleware for non-CLI requests.
      */
-    private static function loadMiddleware(): void
+    public static function middleware(string $name): void
     {
         if (PHP_SAPI === 'cli') {
             return;
         }
         // do not load files starting with underscore
         $basePath = self::$config->app_path . '/middleware/';
-        if ($handle = opendir($basePath)) {
-            $filesToInclude = [];
-            while (false !== ($file = readdir($handle))) {
-                if (!str_starts_with($file, '_') && str_ends_with($file, '.php')) {
-                    $filesToInclude[] = $file;
-                }
-            }
-            closedir($handle);
-            sort($filesToInclude);
-            self::require($filesToInclude, $basePath, true);
+        $file = $name . '.php';
+        if (file_exists($basePath . $file)) {
+            self::$middlewares[] = $name;
+        }
+    }
+
+    /**
+     * Loads middleware for non-CLI requests.
+     */
+    private static function loadMiddleware(): void
+    {
+        if (PHP_SAPI === 'cli') {
+            return;
+        }
+        self::require('/middleware.php', self::$config->app_path, true);
+
+        foreach (self::$middlewares as $middleware) {
+            self::require($middleware . '.php', self::$config->app_path . '/middleware/', true);
+            $middlewareClassName = str_replace(' ', '', ucwords(str_replace('-', ' ', $middleware))) . 'Middleware';
+            (new $middlewareClassName())->handle();
         }
     }
 
@@ -718,6 +718,3 @@ class tiny
         return tiny::getHomeURL(tiny::config()->static_dir . '/' . ltrim($file, '/'), $full, $scheme);
     }
 }
-
-// Initialize Tiny
-tiny::init();

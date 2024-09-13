@@ -109,7 +109,7 @@ trait TinyDebugger
      * @param string $which Determines whether to use 'debug' or 'dump' behavior.
      * @param mixed ...$vars Variables to be debugged or dumped.
      */
-    private static function dump_debug($which, ...$vars): array
+    private static function dumpOrDebug($which, ...$vars): array
     {
         $trace = self::trace();
         $content = '';
@@ -150,7 +150,7 @@ trait TinyDebugger
             return;
         }
 
-        [$trace, $content] = self::dump_debug('debug', ...$vars);
+        [$trace, $content] = self::dumpOrDebug('debug', ...$vars);
         echo self::formatOutput($trace, $content);
     }
 
@@ -165,7 +165,7 @@ trait TinyDebugger
             return;
         }
 
-        [$trace, $content] = self::dump_debug('debug', ...$vars);
+        [$trace, $content] = self::dumpOrDebug('debug', ...$vars);
         echo self::formatOutput($trace, $content);
         exit(1);
     }
@@ -181,7 +181,7 @@ trait TinyDebugger
             return;
         }
 
-        [$trace, $content] = self::dump_debug('dump', ...$vars);
+        [$trace, $content] = self::dumpOrDebug('dump', ...$vars);
         echo self::formatOutput($trace, $content);
     }
 
@@ -196,7 +196,7 @@ trait TinyDebugger
             return;
         }
 
-        [$trace, $content] = self::dump_debug('dump', ...$vars);
+        [$trace, $content] = self::dumpOrDebug('dump', ...$vars);
         echo self::formatOutput($trace, $content);
         exit(1);
     }
@@ -209,7 +209,7 @@ trait TinyDebugger
     public static function log(...$vars): void
     {
         $logFile = $_SERVER['LOG_FILE'] ?? '/tmp/tiny.log';
-        [$trace, $content] = self::dump_debug('dump', ...$vars);
+        [$trace, $content] = self::dumpOrDebug('dump', ...$vars);
 
         $output = date('[Y-m-d H:i:s] ') .
             "{$trace['file']}:{$trace['line']}\n\n" .

@@ -57,7 +57,7 @@ interface DB
      * @param mixed $res Unused parameter (kept for compatibility)
      * @return string The last insert ID
      */
-    public function last_insert_id($res): bool|int|string;
+    public function lastInsertId($res): bool|int|string;
 
     /**
      * Executes a SQL query and returns the result set.
@@ -133,7 +133,7 @@ interface DB
      * @param mixed $text The text to escape
      * @return string The escaped string
      */
-    public function escape_string($text);
+    public function escapeString($text);
 }
 
 
@@ -294,7 +294,7 @@ class TinyDB implements DB
      * @param mixed $text The text to escape
      * @return string The escaped string
      */
-    public function escape_string($text): string
+    public function escapeString($text): string
     {
         return substr($this->pdo->quote($text), 1, -1);
     }
@@ -314,9 +314,9 @@ class TinyDB implements DB
         foreach ($values as $value) {
             if ($value === null) {
                 $value = 'NULL';
-            } else if ($value === false || $value === 'false') {
+            } elseif ($value === false || $value === 'false') {
                 $value = 'FALSE';
-            } else if ($value === true || $value === 'true') {
+            } elseif ($value === true || $value === 'true') {
                 $value = 'TRUE';
             } else {
                 $value = is_numeric($value) || in_array($value, ['TRUE', 'FALSE', 'NULL']) ? $value : "'" . trim($value) . "'";
@@ -345,7 +345,7 @@ class TinyDB implements DB
      * @param mixed $res Unused parameter (kept for compatibility)
      * @return string The last insert ID
      */
-    public function last_insert_id($res = null): string
+    public function lastInsertId($res = null): string
     {
         return $this->pdo->lastInsertId();
     }
@@ -504,9 +504,9 @@ class TinyDB implements DB
      * @param string $text The text to escape
      * @return string The escaped string
      */
-    public function real_escape_string(string $text): string
+    public function realEscapeString(string $text): string
     {
-        return $this->escape_string($text);
+        return $this->escapeString($text);
     }
 
     /**

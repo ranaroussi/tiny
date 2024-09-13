@@ -21,6 +21,9 @@
  */
 
 
+declare(strict_types=1);
+
+
 class TinyCookie
 {
 
@@ -42,7 +45,7 @@ class TinyCookie
     {
         // default cookie values
         $this->name = ($name) ? $name : 'default';
-        $this->expiry = @$_SERVER['COOKIE_TTL'] ? time()+(int)$_SERVER['COOKIE_TTL'] : 0;
+        $this->expiry = @$_SERVER['COOKIE_TTL'] ? time() + (int)$_SERVER['COOKIE_TTL'] : 0;
         $this->domain = @$_SERVER['COOKIE_DOMAIN'] ? $_SERVER['COOKIE_DOMAIN'] : $_SERVER['HTTP_HOST'];
         $this->path = @$_SERVER['COOKIE_PATH'] ? $_SERVER['COOKIE_PATH'] : tiny::config()->url_path;
         $this->_exists = false;

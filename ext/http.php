@@ -232,7 +232,7 @@ class TinyHTTP
             }
             $headers[] = 'Content-Type: application/json';
             $headers[] = 'Content-Length: ' . strlen($options['json']);
-        } else if (!empty($options['data'])) {
+        } elseif (!empty($options['data'])) {
             if ($method === 'GET') {
                 $curlOptions[CURLOPT_URL] .= (strpos($url, '?') === false ? '?' : '&') . http_build_query($options['data']);
             } else {

@@ -44,7 +44,7 @@ if (PHP_SAPI === 'cli' && str_ends_with(__FILE__, $argv[0])) {
             unlink($path . '/' . $file);
         }
         $zip = new ZipArchive();
-        if ($zip->open($path . '/sample-project.zip') === TRUE) {
+        if ($zip->open($path . '/sample-project.zip') === true) {
             $zip->extractTo(__DIR__ . '/../');
             unlink($path . '/sample-project.zip');
             $zip->close();

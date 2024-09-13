@@ -54,6 +54,7 @@ The resulting directory structure should look like this:
 │   │   ├── components
 │   │   └── layouts
 │   └── middleware
+│   └── middleware.php
 ├── html (public directory)
 │   └── index.php
 ├── migrations
@@ -153,12 +154,35 @@ class UserModel extends TinyModel
 
 ## Middleware
 
-Middleware can be used to perform actions before or after request processing. Place middleware files in the `app/middleware` directory.
-
+Middleware can perform actions before or after request processing. To use it, place the middleware files in the `app/middleware` directory.
 
 ```
 $ ls -la /app/middleware
-$ 00-auth.php   01-some-other-file.php
+$ auth.php   some-other-middleware.php
+```
+
+Make sure that middleware files include a class name with the file's name and the `Middleware` suffix (for example, `auth.php` should have a class named `AuthMiddleware`) and a function named `handle()`:
+
+```php
+<?php
+
+class AuthMiddleware
+
+	public function handle() {
+		// this method will be called by tiny upon initialization
+	}
+	
+	// ...
+}
+```
+
+Finally, edit `/app/middleware.php` and add the middleware you want to use.
+
+```php
+<?php
+tiny::middleware('auth');
+tiny::middleware('some-other-middleware');
+//...
 ```
 
 ## Helpers

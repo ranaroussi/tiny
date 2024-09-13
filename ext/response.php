@@ -94,7 +94,9 @@ class TinyResponse
             // Silently ignore exceptions when setting HTTP response code
         }
         echo json_encode($text);
-        if ($die) die();
+        if ($die) {
+            die();
+        }
     }
 
     /**
@@ -112,7 +114,9 @@ class TinyResponse
             // Silently ignore exceptions when setting HTTP response code
         }
         echo file_get_contents($path);
-        if ($die) die();
+        if ($die) {
+            die();
+        }
     }
 
     /**
@@ -134,6 +138,8 @@ class TinyResponse
         } else {
             echo $data;
         }
-        if ($die) die();
+        if ($die) {
+            die();
+        }
     }
 }

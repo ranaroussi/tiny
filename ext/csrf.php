@@ -135,7 +135,7 @@ class TinyCSRF
     public function input(bool $echo = true): ?string
     {
         $token = $this->token ?? $this->generate();
-        $field = sprintf('<input type="hidden" name="%s" value="%s">'."\n", self::TOKEN_NAME, htmlspecialchars($token, ENT_QUOTES, 'UTF-8'));
+        $field = sprintf('<input type="hidden" name="%s" value="%s">' . "\n", self::TOKEN_NAME, htmlspecialchars($token, ENT_QUOTES, 'UTF-8'));
 
         if ($echo) {
             echo $field;

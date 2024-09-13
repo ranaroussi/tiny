@@ -35,7 +35,7 @@ trait TinyUtils
         return rtrim(self::config()->app_path, '/') . '/' . ltrim($path, '/');
     }
 
-        /**
+    /**
      * Suppresses undefined variable and array key errors.
      *
      * @param bool $suppress Whether to suppress the errors or not
@@ -80,11 +80,11 @@ trait TinyUtils
             301 => header('HTTP/1.1 301 Moved Permanently'),
             'javascript' => self::javascriptRedirect($goto),
             'htmx' => self::htmxRedirect($goto),
-            'csrf' => function() use ($goto) {
+            'csrf' => function () use ($goto) {
                 tiny::csrf()->showError(nextPage: true);
                 self::htmxRedirect($goto);
             },
-            default => function() use ($goto) {
+            default => function () use ($goto) {
                 if (self::$router->htmx) {
                     self::htmxRedirect($goto);
                 }
@@ -838,7 +838,7 @@ trait TinyUtils
      * @param int $dec The number of decimal places
      * @return string The converted number as a string
      */
-    public static function curr2number(mixed $input, int $dec = 2): string
+    public static function currencyToNumber(mixed $input, int $dec = 2): string
     {
         $arr = explode('.', (string)$input);
         foreach ($arr as &$val) {
@@ -892,7 +892,6 @@ trait TinyUtils
             $res = $associative ? $body : (object) $body;
         }
         return $res;
-
     }
 
     /**
@@ -903,7 +902,7 @@ trait TinyUtils
      * @param bool $die Whether to terminate the script after sending the response (default: true)
      * @return never
      */
-    public static function TextResponse(string $text, int $code = 200, bool $die = true): never
+    public static function textResponse(string $text, int $code = 200, bool $die = true): never
     {
         http_response_code($code);
         echo $text;
@@ -920,7 +919,7 @@ trait TinyUtils
      * @param bool $die Whether to terminate the script after sending the response (default: true)
      * @return never
      */
-    public static function FileResponse(string $path, int $code = 200, bool $die = true): never
+    public static function fileResponse(string $path, int $code = 200, bool $die = true): never
     {
         http_response_code($code);
         echo file_get_contents($path);
@@ -937,7 +936,7 @@ trait TinyUtils
      * @param bool $die Whether to terminate the script after sending the response (default: true)
      * @return never
      */
-    public static function JSONResponse(mixed $data, int $code = 200, bool $die = true): never
+    public static function jsonResponse(mixed $data, int $code = 200, bool $die = true): never
     {
         header("Content-type: application/json; charset=utf-8", true, $code);
         echo json_encode($data, JSON_THROW_ON_ERROR);
@@ -1192,14 +1191,14 @@ trait TinyUtils
             $objects = scandir($dir);
             foreach ($objects as $object) {
                 if ($object != "." && $object != "..") {
-                    if (is_dir($dir . DIRECTORY_SEPARATOR . $object) && !is_link($dir . "/" . $object))
+                    if (is_dir($dir . DIRECTORY_SEPARATOR . $object) && !is_link($dir . "/" . $object)) {
                         self::rrmdir($dir . DIRECTORY_SEPARATOR . $object);
-                    else
+                    } else {
                         unlink($dir . DIRECTORY_SEPARATOR . $object);
+                    }
                 }
             }
             rmdir($dir);
         }
     }
-
 }
