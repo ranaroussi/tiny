@@ -37,6 +37,7 @@ declare(strict_types=1);
  * }
  */
 
+
 class TinyCSRF
 {
     private const TOKEN_NAME = 'csrf_token';
@@ -115,7 +116,8 @@ class TinyCSRF
             tiny::flash('toast')->set([
                 'level' => 'error',
                 'title' => 'Request check failed',
-                'message' => 'Your request included an invalid or missing CSRF token. Please refresh the page and try again.',
+                'message' => 'Your request included an invalid or missing CSRF token. '
+                    . 'Please refresh the page and try again.',
                 'id' => $id,
             ]);
         } else {
@@ -135,7 +137,11 @@ class TinyCSRF
     public function input(bool $echo = true): ?string
     {
         $token = $this->token ?? $this->generate();
-        $field = sprintf('<input type="hidden" name="%s" value="%s">'."\n", self::TOKEN_NAME, htmlspecialchars($token, ENT_QUOTES, 'UTF-8'));
+        $field = sprintf(
+            '<input type="hidden" name="%s" value="%s">' . "\n",
+            self::TOKEN_NAME,
+            htmlspecialchars($token, ENT_QUOTES, 'UTF-8')
+        );
 
         if ($echo) {
             echo $field;

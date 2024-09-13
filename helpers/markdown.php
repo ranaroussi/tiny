@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 class Markdown
 {
     public const MARKDOWNLIB_VERSION = "1.6.0";
@@ -207,7 +208,7 @@ class Markdown
             '/\n(#{2,4})\s+(.*?)\n/m',
             function ($matches) {
                 $matches[2] = trim(strip_tags($matches[2]));
-                $hash = strtolower(str_replace(' ', '-', preg_replace('/[^a-zA-Z0-9 -]/m', '', $matches[2])));
+                $hash = mb_strtolower(str_replace(' ', '-', preg_replace('/[^a-zA-Z0-9 -]/m', '', $matches[2])));
                 if ($hash == 'up-next') {
                     return "\n$matches[1] $matches[2]";
                 }

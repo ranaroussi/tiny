@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 class SendGrid
 {
     private const API_URL = 'https://api.sendgrid.com/v3';
@@ -105,7 +106,7 @@ class SendGrid
         try {
             $response = tiny::http()->$method($url, $options);
             return $response;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log('SendGrid API Error: ' . $e->getMessage());
             return false;
         }

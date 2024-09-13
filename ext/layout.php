@@ -22,10 +22,11 @@
 
 declare(strict_types=1);
 
-class Layout
+
+class TinyLayout
 {
     private array $layoutProps = [];
-    private array $_props = [];
+    private array $props = [];
 
     /**
      * Constructor for the Layout class.
@@ -49,7 +50,7 @@ class Layout
         tiny::suppressUndefinedError(true);
 
         $file = $this->determineFileToInclude($layout, $props);
-        $this->_props = $props;
+        $this->props = $props;
 
         $filePath = "{$this->path}/{$layout}/{$file}.php";
         if (!file_exists($filePath)) {
@@ -88,7 +89,7 @@ class Layout
      */
     public function props(string $prop, mixed $fallback = ''): mixed
     {
-        return $this->_props[$prop] ?? $fallback;
+        return $this->props[$prop] ?? $fallback;
     }
 }
 

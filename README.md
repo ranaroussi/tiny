@@ -19,16 +19,22 @@ Tiny is a lightweight PHP framework designed to provide a simple and efficient w
 
 ## Getting Started
 
-1. Clone the repository or download the Tiny framework files.
+1. Create a new directory for your project.
 
-```php
+```bash
+$ mkdir my-project && cd my-project
+```
+
+2. Clone the repository or download the Tiny framework files.
+
+```bash
 $ git clone https://github.com/ranaroussi/tiny.git
 ```
 
-3. From inside the project directory, execute the following command to create the project:
+3. Execute the following command to create the project:
 
 ```bash
-$ php tiny/cli.php create-project
+$ php tiny/cli.php create
 ```
 
 4. Install dependencies:
@@ -48,6 +54,7 @@ The resulting directory structure should look like this:
 │   │   ├── components
 │   │   └── layouts
 │   └── middleware
+│   └── middleware.php
 ├── html (public directory)
 │   └── index.php
 ├── migrations
@@ -91,10 +98,8 @@ Example controller:
 
 ```php
 <?php
-
 class Users extends TinyController
 {
-
     public function get($request, $response)
     {
         // Handle GET request
@@ -147,12 +152,35 @@ class UserModel extends TinyModel
 
 ## Middleware
 
-Middleware can be used to perform actions before or after request processing. Place middleware files in the `app/middleware` directory.
-
+Middleware can perform actions before or after request processing. To use it, place the middleware files in the `app/middleware` directory.
 
 ```
 $ ls -la /app/middleware
-$ 00-auth.php   01-some-other-file.php
+$ auth.php   some-other-middleware.php
+```
+
+Make sure that middleware files include a class name with the file's name and the `Middleware` suffix (for example, `auth.php` should have a class named `AuthMiddleware`) and a function named `handle()`:
+
+```php
+<?php
+
+class AuthMiddleware
+
+	public function handle() {
+		// this method will be called by tiny upon initialization
+	}
+	
+	// ...
+}
+```
+
+Finally, edit `/app/middleware.php` and add the middleware you want to use.
+
+```php
+<?php
+tiny::middleware('auth');
+tiny::middleware('some-other-middleware');
+//...
 ```
 
 ## Helpers
@@ -224,9 +252,12 @@ It is recommended that only the `/html` directory be exposed to the world and th
 /home/webapp/env.php
 ```
 
-For information on how to deploy using `git push`, see [GIT-DEPLOY.md](GIT-DEPLOY.md).
+For information on deploying using `git push`, see [GIT-DEPLOY.md](GIT-DEPLOY.md).
 
 ---
+
+> [!WARNING] Intelephense users
+> Intelephense users might see a warning about `Undefined type 'tiny'`. This is because the `tiny` main class is registered at runtime, and Intelephense isn't aware of it. You can safely ignore the message as the code will work just fine. However, if you want to get rid of this message, simply add `use Tiny\tiny;` to the beginning of your file.
 
 # Migrations
 

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 function isValidEmail(string $email, bool $verbose = false): bool|array
 {
     $validator = new EmailValidator($email);
@@ -38,7 +39,7 @@ class EmailValidator
 
     public function __construct(string $email)
     {
-        $this->email = filter_var(strtolower($email), FILTER_SANITIZE_EMAIL);
+        $this->email = filter_var(mb_strtolower($email), FILTER_SANITIZE_EMAIL);
         [$this->user, $this->domain] = explode('@', $this->email, 2);
     }
 

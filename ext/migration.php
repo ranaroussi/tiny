@@ -20,19 +20,18 @@
  *
  */
 
-
 declare(strict_types=1);
 
-require_once __DIR__ . '/../tiny.php';
+require_once __DIR__ . '/../bootstrap.php';
 
-class Migration
+class TinyMigration
 {
     private $db;
     private $sqliteDb;
     private $path;
 
     /**
-     * Constructor for the Migration class.
+     * Constructor for the TinyMigration class.
      * Initializes the migration path, database connections, and SQLite database for tracking migrations.
      */
     public function __construct()
@@ -75,7 +74,7 @@ class Migration
         $content = $this->getMigrationTemplate($name, $createdAt);
 
         file_put_contents($this->path . $filename, $content);
-        echo "[✓] Migration created: migrations/$filename\n";
+        echo "[✓] TinyMigration created: migrations/$filename\n";
     }
 
     /**
@@ -167,7 +166,7 @@ class Migration
 
         // Remove the file
         if (unlink($file)) {
-            echo "[✓] Migration removed: $filename\n";
+            echo "[✓] TinyMigration removed: $filename\n";
         } else {
             echo "[!] Failed to remove migration file: $filename\n";
         }
@@ -278,9 +277,8 @@ class Migration
         $className = str_replace(' ', '', ucwords(str_replace('_', ' ', $name)));
         return <<<PHP
 <?php
-
 declare(strict_types=1);
-require_once __DIR__ . '/../tiny.php';
+require_once __DIR__ . '/../bootstrap.php';
 
 /**
  * @migration: $className
@@ -318,7 +316,7 @@ PHP;
 // // --------------
 
 // if (tiny::isCLI()) {
-//     $migration = new Migration();
+//     $migration = new TinyMigration();
 
 //     if ($argc < 2) {
 //         echo "Usage: php migration.php [create|up|down|remove] [name]\n";

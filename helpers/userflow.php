@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 class UserFlow
 {
     private const API_VERSION = '2020-01-03';

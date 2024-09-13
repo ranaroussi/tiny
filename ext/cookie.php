@@ -20,15 +20,16 @@
  *
  */
 
+declare(strict_types=1);
+
 
 class TinyCookie
 {
-
     public string $name = 'default';
     public string $path = '';
     public string $domain = '';
     public int|null|false $expiry = null;
-    public bool $_exists = false;
+    public bool $exists = false;
     public array|object $data = [];
 
     /**
@@ -40,23 +41,21 @@ class TinyCookie
      */
     public function __construct($name = 'default', $values = [])
     {
-
         // default cookie values
         $this->name = ($name) ? $name : 'default';
-        $this->expiry = @$_SERVER['COOKIE_TTL'] ? strtotime($_SERVER['COOKIE_TTL']) : 0;
+        $this->expiry = @$_SERVER['COOKIE_TTL'] ? time() + (int)$_SERVER['COOKIE_TTL'] : 0;
         $this->domain = @$_SERVER['COOKIE_DOMAIN'] ? $_SERVER['COOKIE_DOMAIN'] : $_SERVER['HTTP_HOST'];
         $this->path = @$_SERVER['COOKIE_PATH'] ? $_SERVER['COOKIE_PATH'] : tiny::config()->url_path;
-        $this->_exists = false;
+        $this->exists = false;
 
         // set default values
         $cookie = [];
         foreach ($values as $k => $v) {
             $cookie[$k] = $v;
         }
-
         // cookie exists?
         if (isset($_COOKIE[$name])) {
-            $this->_exists = true;
+            $this->exists = true;
             $_cookie = @unserialize(@$_COOKIE[$name]);
             $_cookie = json_decode(json_encode($_cookie), true);
             foreach ($_cookie as $k => $v) {
@@ -110,8 +109,8 @@ class TinyCookie
         if ($expiry == null) {
             $expiry = $this->expiry;
         }
-        // print_r($this->data);
-        setcookie($this->name, serialize($this->data), ($expiry == null) ? 0 : strtotime($expiry), $this->path, $this->domain);
+        setcookie($this->name, serialize($this->data), ($expiry == null) ? 0 : $expiry, $this->path, $this->domain);
+        $this->exists = true;
     }
 
     /**
@@ -121,5 +120,6 @@ class TinyCookie
     {
         setcookie($this->name, '', -1, $this->path, $this->domain);
         unset($_COOKIE[$this->name]);
+        $this->exists = false;
     }
 }

@@ -26,6 +26,15 @@ try {
 } catch (Exception $e) {
     die('<code>ERROR: Cannot find composer autoloader</code>');
 }
+/* -------------------------------------- */
+// Autoloader for Tiny framework
+/* -------------------------------------- */
+spl_autoload_register(function ($class) {
+    $classFile = __DIR__ . '/ext/' . str_replace('tiny', '', mb_strtolower($class)) . '.php';
+    if (file_exists($classFile)) {
+        include $classFile;
+    }
+});
 
 /* -------------------------------------- */
 // Required for Dockerized apps
@@ -67,7 +76,9 @@ error_reporting($_SERVER['ENV'] != 'prod' ? E_ALL : 0);
 /* -------------------------------------- */
 // PHP Enviroment
 foreach ($_SERVER as $key => $value) {
-    if (is_string($value)) $_SERVER[$key] = trim($value, "'");
+    if (is_string($value)) {
+        $_SERVER[$key] = trim($value, "'");
+    }
 }
 $_SERVER['CALC_TIMER'] = $_SERVER['CALC_TIMER'] ?? true;
 putenv('TZ=' . isset($_SERVER['TIMEZONE']) ? $_SERVER['TIMEZONE'] : 'UTC');
@@ -89,6 +100,7 @@ if (@$_SERVER['ENV'] != 'local' && isset($_SERVER['SENTRY_DSN'])) {
 }
 
 /* -------------------------------------- */
+
 // html output minifier
 function minifyOutput($buffer): array|string
 {
@@ -105,3 +117,4 @@ function minifyOutput($buffer): array|string
     $buffer = str_replace("\n}", ' }', $buffer);
     return str_replace("}\n", '} ', $buffer);
 }
+

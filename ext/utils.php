@@ -22,6 +22,7 @@
 
 declare(strict_types=1);
 
+
 trait TinyUtils
 {
     /**
@@ -35,7 +36,7 @@ trait TinyUtils
         return rtrim(self::config()->app_path, '/') . '/' . ltrim($path, '/');
     }
 
-        /**
+    /**
      * Suppresses undefined variable and array key errors.
      *
      * @param bool $suppress Whether to suppress the errors or not
@@ -75,17 +76,20 @@ trait TinyUtils
         if (!str_starts_with($goto, 'http://') && !str_starts_with($goto, 'https://')) {
             $goto = self::getHomeURL(str_replace(self::getHomeURL(), '/', $goto));
         }
-
-        match (strtolower($header)) {
+        match ($header) {
             302 => header('HTTP/1.0 302 Moved Temporarily'),
             301 => header('HTTP/1.1 301 Moved Permanently'),
             'javascript' => self::javascriptRedirect($goto),
             'htmx' => self::htmxRedirect($goto),
-            'csrf' => function() use ($goto) {
+            'csrf' => function () use ($goto) {
                 tiny::csrf()->showError(nextPage: true);
                 self::htmxRedirect($goto);
             },
-            default => null
+            default => function () use ($goto) {
+                if (self::$router->htmx) {
+                    self::htmxRedirect($goto);
+                }
+            }
         };
 
         header("Location: $goto");
@@ -191,7 +195,7 @@ trait TinyUtils
      * @param bool $keep Whether to keep the message after retrieval
      * @return ?string The flash message or null if not found
      */
-    public static function flashGet(string $name = 'flash_msg', bool $keep = false): ?string
+    public static function flashGet(string $name = 'flash_msg', bool $keep = false): null|string|array
     {
         $flashData = $_COOKIE[$name] ?? null;
         $cookiePath = tiny::config()->cookie_path;
@@ -360,7 +364,7 @@ trait TinyUtils
         $str = str_replace('&', 'and', $str);
 
         $s = preg_replace(array_keys($highASCII), array_values($highASCII), $str);
-        $s = strtolower($s);
+        $s = mb_strtolower($s);
         $s = strip_tags($s);
         $s = preg_replace('!&[^;\s]+;!', '', $s);
         $s = preg_replace('![^\w\s-_.]!', '', $s);
@@ -380,7 +384,7 @@ trait TinyUtils
         if (isset($_SERVER['HTTP_SEC_CH_UA_MOBILE'])) {
             return $_SERVER['HTTP_SEC_CH_UA_MOBILE'] === '?1';
         }
-        $browser = strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
+        $browser = mb_strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
         return (
             str_contains($browser, 'iphone') || str_contains($browser, 'ipod') ||
             (str_contains($browser, 'android') && str_contains($browser, 'mobile'))
@@ -539,7 +543,7 @@ trait TinyUtils
     {
         $str = stripslashes($str);
         $str = str_replace(['_', '-'], ' ', $str);
-        return ucwords(strtolower($str));
+        return ucwords(mb_strtolower($str));
     }
 
     /**
@@ -739,14 +743,24 @@ trait TinyUtils
      */
     public static function getClientRealIP(): string
     {
-        $check = ['HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED', 'HTTP_FORWARDED_FOR', 'HTTP_FORWARDED', 'HTTP_VIA', 'HTTP_X_COMING_FROM', 'HTTP_COMING_FROM', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'];
+        $check = [
+            'HTTP_X_FORWARDED_FOR',
+            'HTTP_X_FORWARDED',
+            'HTTP_FORWARDED_FOR',
+            'HTTP_FORWARDED',
+            'HTTP_VIA',
+            'HTTP_X_COMING_FROM',
+            'HTTP_COMING_FROM',
+            'HTTP_CLIENT_IP',
+            'REMOTE_ADDR'
+        ];
 
         foreach ($check as $item) {
             if (isset($_SERVER[$item])) {
                 return $_SERVER[$item];
             }
         }
-        return '';
+        return '0.0.0.0';
     }
 
     /**
@@ -835,7 +849,7 @@ trait TinyUtils
      * @param int $dec The number of decimal places
      * @return string The converted number as a string
      */
-    public static function curr2number(mixed $input, int $dec = 2): string
+    public static function currencyToNumber(mixed $input, int $dec = 2): string
     {
         $arr = explode('.', (string)$input);
         foreach ($arr as &$val) {
@@ -852,56 +866,12 @@ trait TinyUtils
      */
     public static function parseQuery(string $var): ?string
     {
-        $query = strtolower($var);
+        $query = mb_strtolower($var);
         $query = strip_tags(trim($query));
         $query = str_replace('+', '~', $query);
         $query = urldecode($query);
         $query = str_replace(['~', '- '], ['+', '-'], $query);
         return preg_replace('/[^A-Za-z0-9 +-.\'"]/', '', $query);
-    }
-
-    /**
-     * Prints debug information and optionally terminates the script.
-     *
-     * @param mixed $what The data to debug
-     * @param bool $die Whether to terminate the script after debugging (default: true)
-     */
-    public static function debug($what = '', $die = true)
-    {
-        if (isset($_SERVER['DEBUG_WHITELIST']) && $_SERVER['DEBUG_WHITELIST'] != '*') {
-            if (!in_array(explode(':', $_SERVER['HTTP_HOST'])[0], explode(',', $_SERVER['DEBUG_WHITELIST']))) {
-                return;
-            }
-        }
-        print '<pre style="direction:ltr;font:13px/125% monaro,courier">';
-        print_r($what);
-        print '</pre>';
-        if ($die) {
-            die();
-        }
-        print('<hr>');
-    }
-
-    /**
-     * Dumps variable information and optionally terminates the script.
-     *
-     * @param mixed $what The data to dump
-     * @param bool $die Whether to terminate the script after dumping (default: true)
-     */
-    public static function dump($what = '', $die = true)
-    {
-        if (isset($_SERVER['DEBUG_WHITELIST'])) {
-            if (!in_array(explode(':', $_SERVER['HTTP_HOST'])[0], explode(',', $_SERVER['DEBUG_WHITELIST']))) {
-                return;
-            }
-        }
-        print '<pre style="direction:ltr;font:13px/125% monospace">';
-        var_dump($what);
-        print '</pre>';
-        if ($die) {
-            die();
-        }
-        print('<hr>');
     }
 
     /**
@@ -925,15 +895,14 @@ trait TinyUtils
 
         static $res;
         if ($res === null) {
-            $body = [];
-            parse_str(file_get_contents('php://input'), $body);
+            // $body = []; parse_str(file_get_contents('php://input'), $body);
+            $body = json_decode(file_get_contents('php://input'), true) ?? [];
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $body = array_merge($_POST, $body);
             }
             $res = $associative ? $body : (object) $body;
         }
         return $res;
-
     }
 
     /**
@@ -944,7 +913,7 @@ trait TinyUtils
      * @param bool $die Whether to terminate the script after sending the response (default: true)
      * @return never
      */
-    public static function TextResponse(string $text, int $code = 200, bool $die = true): never
+    public static function textResponse(string $text, int $code = 200, bool $die = true): never
     {
         http_response_code($code);
         echo $text;
@@ -961,7 +930,7 @@ trait TinyUtils
      * @param bool $die Whether to terminate the script after sending the response (default: true)
      * @return never
      */
-    public static function FileResponse(string $path, int $code = 200, bool $die = true): never
+    public static function fileResponse(string $path, int $code = 200, bool $die = true): never
     {
         http_response_code($code);
         echo file_get_contents($path);
@@ -978,7 +947,7 @@ trait TinyUtils
      * @param bool $die Whether to terminate the script after sending the response (default: true)
      * @return never
      */
-    public static function JSONResponse(mixed $data, int $code = 200, bool $die = true): never
+    public static function jsonResponse(mixed $data, int $code = 200, bool $die = true): never
     {
         header("Content-type: application/json; charset=utf-8", true, $code);
         echo json_encode($data, JSON_THROW_ON_ERROR);
@@ -1013,9 +982,9 @@ trait TinyUtils
     public static function parseName(string $name): array|string
     {
         try {
-            $parser = new TheIconic\NameParser\Parser();
+            $parser = new \TheIconic\NameParser\Parser();
             return $parser->parse($name)->getAll();
-        } catch (Exception) {
+        } catch (\Exception) {
             return $name;
         }
     }
@@ -1181,7 +1150,7 @@ trait TinyUtils
      * @param string $w The characters to be trimmed (default is whitespace)
      * @return string The trimmed string
      */
-    public static function trim(mixed $s, string $w = ''): string
+    public static function trim(mixed $s, string $w = " \n\r\t\v\x00"): string
     {
         return trim($s . '', $w);
     }
@@ -1193,7 +1162,7 @@ trait TinyUtils
      * @param string $w The characters to be trimmed (default is whitespace)
      * @return string The trimmed string
      */
-    public static function ltrim(mixed $s, string $w = ''): string
+    public static function ltrim(mixed $s, string $w = " \n\r\t\v\x00"): string
     {
         return ltrim($s . '', $w);
     }
@@ -1205,7 +1174,7 @@ trait TinyUtils
      * @param string $w The characters to be trimmed (default is whitespace)
      * @return string The trimmed string
      */
-    public static function rtrim(mixed $s, string $w = ''): string
+    public static function rtrim(mixed $s, string $w = " \n\r\t\v\x00"): string
     {
         return rtrim($s . '', $w);
     }
@@ -1233,14 +1202,14 @@ trait TinyUtils
             $objects = scandir($dir);
             foreach ($objects as $object) {
                 if ($object != "." && $object != "..") {
-                    if (is_dir($dir . DIRECTORY_SEPARATOR . $object) && !is_link($dir . "/" . $object))
+                    if (is_dir($dir . DIRECTORY_SEPARATOR . $object) && !is_link($dir . "/" . $object)) {
                         self::rrmdir($dir . DIRECTORY_SEPARATOR . $object);
-                    else
+                    } else {
                         unlink($dir . DIRECTORY_SEPARATOR . $object);
+                    }
                 }
             }
             rmdir($dir);
         }
     }
-
 }

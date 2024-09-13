@@ -2,7 +2,8 @@
 
 declare(strict_types=1);
 
-use Customerio\Client;
+
+use Customerio\Client; // printu/customerio
 use GuzzleHttp\Exception\GuzzleException;
 
 class CustomerIO
@@ -43,7 +44,7 @@ class CustomerIO
 
         try {
             $updateMode ? $client->customers->update($attributes) : $client->customers->add($attributes);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return (object)['success' => false, 'data' => 'Failed to add contact'];
         }
 
@@ -70,7 +71,7 @@ class CustomerIO
         try {
             $client->customers->event($payload);
             return (object)['success' => true, 'data' => ['event' => ['name' => $event, 'data' => $attributes]]];
-        } catch (Exception | GuzzleException $e) {
+        } catch (\Exception | GuzzleException $e) {
             return (object)['success' => false, 'data' => 'Failed to track event'];
         }
     }

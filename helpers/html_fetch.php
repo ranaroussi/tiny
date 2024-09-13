@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
+
 use League\HTMLToMarkdown\HtmlConverter;
 
 function get_remote_url(string $url): array
 {
     try {
         $content = tiny::http()->get($url)->text;
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         return [
             'success' => false,
             'message' => $e->getMessage(),

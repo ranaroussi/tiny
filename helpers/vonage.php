@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 use Vonage\Client;
 use Vonage\Client\Credentials\Basic;
 use Vonage\SMS\Message\SMS;
@@ -25,7 +26,7 @@ function send_text(string $to, string $msg): bool
         $response = $client->sms()->send($message);
         $currentMessage = $response->current();
         return $currentMessage->getStatus() === 0;
-    } catch (Exception $e) {
+    } catch (\Exception $e) {
         error_log('Vonage SMS Error: ' . $e->getMessage());
         return false;
     }

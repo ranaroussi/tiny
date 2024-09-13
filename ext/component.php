@@ -22,7 +22,8 @@
 
 declare(strict_types=1);
 
-class Component
+
+class TinyComponent
 {
     private array $components;
 

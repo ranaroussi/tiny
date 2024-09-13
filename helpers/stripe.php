@@ -1,4 +1,5 @@
 <?php
+
 // https://stripe.com/docs/billing/subscriptions/metered
 
 /**
@@ -153,7 +154,7 @@ class StripeHelper
             ]);
         } catch (CardException $e) {
             return ['error' => $e->getError()];
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return ['error' => json_encode($e)];
         }
 
@@ -356,7 +357,7 @@ class StripeHelper
 
     public function createMeteredSubscription($plan, $cycle = 'monthly')
     {
-        $plan = strtolower(tiny::trim(str_replace(' ', '-', $plan)));
+        $plan = mb_strtolower(tiny::trim(str_replace(' ', '-', $plan)));
         $items = [];
         foreach (@$_SERVER['STRIPE_CONFIG'][$plan] as $key => $value) {
             if (!in_array($key, ['subscriptions', 'coupons'])) {
@@ -506,11 +507,11 @@ class StripeHelper
         foreach ($lineitems as $plan => $items) {
             if (!empty($items['subscription']['items'])) {
                 $subkey = array_keys($lineitems[$plan]['subscription']['items'])[0];
-                $subscription = $this->line_item_summary($items['subscription']['items'][$subkey]);
+                $subscription = $this->lineItemSummary($items['subscription']['items'][$subkey]);
 
                 $metered = [];
                 foreach ($items['metered']['items'] as $key => $item) {
-                    $metered[] = $this->line_item_summary($item);
+                    $metered[] = $this->lineItemSummary($item);
                 }
 
                 $combo['subscriptions'][$plan] = [
@@ -543,7 +544,7 @@ class StripeHelper
         return $combo;
     }
 
-    private function line_item_summary($line_item)
+    private function lineItemSummary($line_item)
     {
         // return $line_item;
         $category = explode(' (', tiny::trim(explode(' × ', $line_item['description'])[1], ')'));
@@ -565,7 +566,7 @@ class StripeHelper
                 'price' => [
                     'amount' => $line_item['amount'],
                     'unit_amount' => $line_item['price']['unit_amount'] ?: 0,
-                    'currency' => strtoupper($line_item['price']['currency']),
+                    'currency' => mb_strtoupper($line_item['price']['currency']),
                     'usage_type' => ucwords($line_item['plan']['usage_type']),
                     'billing_interval' => ucwords($line_item['plan']['interval']),
                     'billing_interval_count' => $line_item['plan']['interval_count'],
@@ -629,12 +630,12 @@ class StripeHelper
                     'period' => date('M d, Y', $group->plan->period->start) . ' - ' . date('M d, Y', $group->plan->period->end),
                     'discount' => '',
                     'structure' => $group->plan->price->billing_interval . 'ly Subscription',
-                    'cycle' => $group->plan->price->billing_interval_count . '-' . strtolower($group->plan->price->billing_interval) . ($group->plan->price->billing_interval_count > 1 ? 's' : ''),
+                    'cycle' => $group->plan->price->billing_interval_count . '-' . mb_strtolower($group->plan->price->billing_interval) . ($group->plan->price->billing_interval_count > 1 ? 's' : ''),
                 ],
             ];
 
             if ($group->plan->price->billing_interval_count > 1) {
-                $usage[$key]['plan']['structure'] = 'Every ' . $group->plan->price->billing_interval_count . ' ' . strtolower($group->plan->price->billing_interval) . 's';
+                $usage[$key]['plan']['structure'] = 'Every ' . $group->plan->price->billing_interval_count . ' ' . mb_strtolower($group->plan->price->billing_interval) . 's';
             }
 
             $couponId = @$group->plan->discounts[0]->discount;

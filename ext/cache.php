@@ -22,6 +22,7 @@
 
 declare(strict_types=1);
 
+
 class TinyCache
 {
     private $memcached;
@@ -42,17 +43,17 @@ class TinyCache
 
         if ($this->engine === 'apcu') {
             if (!extension_loaded('apcu') || !apcu_enabled()) {
-                throw new RuntimeException('APCu extension is not available or not enabled');
+                throw new \RuntimeException('APCu extension is not available or not enabled');
             }
         } elseif ($this->engine === 'memcached') {
             if (class_exists('Memcached')) {
-                $this->memcached = new Memcached();
+                $this->memcached = new \Memcached();
                 $this->memcached->addServer($memcached_host, $memcached_port);
             } else {
-                throw new RuntimeException('Memcached extension is not available');
+                throw new \RuntimeException('Memcached extension is not available');
             }
         } else {
-            throw new RuntimeException('Invalid cache engine specified');
+            throw new \RuntimeException('Invalid cache engine specified');
         }
     }
 
@@ -117,7 +118,7 @@ class TinyCache
         $matches = [];
 
         if ($this->engine === 'apcu') {
-            $iterator = new APCUIterator('/^' . preg_quote($prefix, '/') . '/');
+            $iterator = new \APCUIterator('/^' . preg_quote($prefix, '/') . '/');
             foreach ($iterator as $item) {
                 $matches[] = $item['key'];
             }
@@ -144,7 +145,7 @@ class TinyCache
     public function deleteByPrefix(string $prefix): void
     {
         if ($this->engine === 'apcu') {
-            $iterator = new APCUIterator('/^' . preg_quote($prefix, '/') . '/');
+            $iterator = new \APCUIterator('/^' . preg_quote($prefix, '/') . '/');
             foreach ($iterator as $item) {
                 apcu_delete($item['key']);
             }

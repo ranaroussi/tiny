@@ -22,6 +22,7 @@
 
 declare(strict_types=1);
 
+
 class TinyRequest
 {
     public object $user;
@@ -38,7 +39,7 @@ class TinyRequest
     private array $req_params;
 
     /**
-     * Initializes the TinyRequest object with request information.
+     * Initializes the Request object with request information.
      * Sets up user, method, headers, HTMX status, query parameters, and path details.
      */
     public function __construct()
@@ -84,10 +85,10 @@ class TinyRequest
     {
         if ($this->req_params === null) {
             foreach ($_REQUEST as $k => $v) {
-                $this->req_params[strtolower($k)] = trim($v . '');
+                $this->req_params[mb_strtolower($k)] = trim($v . '');
             }
         }
-        return $this->req_params[strtolower($key)] ?? $fallback;
+        return $this->req_params[mb_strtolower($key)] ?? $fallback;
     }
 
     /**
@@ -99,8 +100,8 @@ class TinyRequest
     public function body(bool $associative = false): array|object
     {
         if ($this->bodyCached === null) {
-            $body = [];
-            parse_str(file_get_contents('php://input') ?: '', $body);
+            // $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
+            $body = json_decode(file_get_contents('php://input'), true) ?? [];
             if ($this->method === 'POST') {
                 $body = array_merge($_POST, $body);
             }
@@ -110,6 +111,7 @@ class TinyRequest
             }
             $this->bodyCached = $body;
         }
+
         return $associative ? $this->bodyCached : (object) $this->bodyCached;
     }
 
@@ -122,8 +124,8 @@ class TinyRequest
     public function isValidCSRF($remove = true): bool
     {
         if (!is_string($this->csrf_token)) {
-            $body = [];
-            parse_str(file_get_contents('php://input') ?: '', $body);
+            // $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
+            $body = json_decode(file_get_contents('php://input'), true);
             if (isset($body[tiny::csrf()->getTokenName()])) {
                 $this->csrf_token = $body[tiny::csrf()->getTokenName()];
             }

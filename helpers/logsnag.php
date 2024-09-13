@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 class LogSnag
 {
     private const API_URL = 'https://api.logsnag.com/v1';

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 const EMAIL_PROVIDERS = [
     'Gmail' => ['gmail.com', 'googlemail.com'],
     'Yahoo! mail' => [
@@ -25,7 +26,7 @@ const EMAIL_PROVIDERS = [
 
 function clean_email(string $email): string
 {
-    return filter_var(strtolower($email), FILTER_SANITIZE_EMAIL);
+    return filter_var(mb_strtolower($email), FILTER_SANITIZE_EMAIL);
 }
 
 function parse_webmail(string $email): object

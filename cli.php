@@ -20,8 +20,14 @@
  *
  */
 
- if (PHP_SAPI === 'cli' && str_ends_with(__FILE__, $argv[0])) {
-    require_once __DIR__ . '/tiny.php';
+require_once __DIR__ . '/ext/utils.php';
+
+class tiny
+{
+    use TinyUtils;
+}
+
+if (PHP_SAPI === 'cli' && str_ends_with(__FILE__, $argv[0])) {
 
     if ($argc < 2) {
         echo "Usage: php tiny/cli.php [category] [?options]\n";
@@ -30,13 +36,28 @@
 
     $category = $argv[1];
     if ($category === 'create') {
-        return;
+        $path = str_replace('tiny/tiny', 'tiny', __DIR__ . '/tiny');
+        foreach (['.git', '.github'] as $dir) {
+            print_r($path . '/' . $dir);
+            tiny::rrmdir($path . '/' . $dir);
+        }
+        foreach (['.git', '.gitignore', 'GitVersion.yml'] as $file) {
+            unlink($path . '/' . $file);
+        }
+        $zip = new ZipArchive();
+        if ($zip->open($path . '/sample-project.zip') === true) {
+            $zip->extractTo(__DIR__ . '/../');
+            unlink($path . '/sample-project.zip');
+            $zip->close();
+        }
+        echo "[✓] Project created successfully 🎉\n\nPlease run `composer install` to complete the setup.\n";
+        exit(0);
     }
 
     if ($category === 'migrations') {
         require_once __DIR__ . '/ext/migration.php';
 
-        $migration = new Migration();
+        $migration = new TinyMigration();
         if ($argc < 3) {
             echo "Usage: php migration.php [create|up|down|remove] [name]\n";
             exit(1);
@@ -68,5 +89,4 @@
                 exit(1);
         }
     }
-
 }

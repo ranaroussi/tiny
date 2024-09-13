@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 use Aws\S3\S3Client;
 
 class Spaces
@@ -57,10 +58,12 @@ class Spaces
         $files = array_map([self::class, 'prefixPath'], $files);
 
         return tiny::http()->delete(
-            'https://api.digitalocean.com/v2/cdn/endpoints/' . ($_SERVER['DO_CDN_ID'] ?? '') . '/cache', [
-            'data' => ['files' => $files],
-            'headers' => ['Authorization: Bearer ' . ($_SERVER['DO_TOKEN'] ?? '')]
-        ])->json;
+            'https://api.digitalocean.com/v2/cdn/endpoints/' . ($_SERVER['DO_CDN_ID'] ?? '') . '/cache',
+            [
+                'data' => ['files' => $files],
+                'headers' => ['Authorization: Bearer ' . ($_SERVER['DO_TOKEN'] ?? '')]
+            ]
+        )->json;
     }
 
     /**
@@ -293,15 +296,15 @@ function detectContentType(string $file): ?string
     ];
 
     // $ext = array_pop(explode('.', $file));
-    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    $ext = mb_strtolower(pathinfo($file, PATHINFO_EXTENSION));
 
     if (isset($mimeTypes[$ext])) {
         return $mimeTypes[$ext];
     }
 
     try {
-        return mime_content_type($file) ?: null;
-    } catch (Exception $e) {
+        return @mime_content_type($file) ?: null;
+    } catch (\Exception $e) {
         return null;
     }
 }

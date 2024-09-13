@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 class TinyHTTP
 {
     private const DEFAULT_CURL_OPTIONS = [
@@ -219,7 +220,7 @@ class TinyHTTP
         */
         $curlOptions = self::DEFAULT_CURL_OPTIONS + [
             CURLOPT_URL => $url,
-            CURLOPT_CUSTOMREQUEST => strtoupper($method),
+            CURLOPT_CUSTOMREQUEST => mb_strtoupper($method),
             CURLOPT_TIMEOUT => $options['timeout'] ?? $_SERVER['CURL_TIMEOUT'] ?? 30,
         ];
 
@@ -232,7 +233,7 @@ class TinyHTTP
             }
             $headers[] = 'Content-Type: application/json';
             $headers[] = 'Content-Length: ' . strlen($options['json']);
-        } else if (!empty($options['data'])) {
+        } elseif (!empty($options['data'])) {
             if ($method === 'GET') {
                 $curlOptions[CURLOPT_URL] .= (strpos($url, '?') === false ? '?' : '&') . http_build_query($options['data']);
             } else {

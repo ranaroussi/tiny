@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 class HubSpotContact
 {
     private const API_URL = 'https://api.hubapi.com/crm/v3/objects/contacts';

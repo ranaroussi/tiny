@@ -20,11 +20,10 @@
  *
  */
 
+declare(strict_types=1);
+
 /* -------------------------------------- */
 require __DIR__ . '/bootstrap.php';
-spl_autoload_register(function ($class) {
-    include __DIR__ . '/ext/' . str_replace('tiny', '', strtolower($class)) . '.php';
-});
 /* -------------------------------------- */
 session_name('tiny');
 session_start();
@@ -34,11 +33,13 @@ session_start();
 class tiny
 {
     use TinyUtils;
+    use TinyDebugger;
 
     private static object $config;
     private static ?TinyCache $cache = null;
     private static ?DB $db = null;
     private static object $router;
+    private static array $middlewares = [];
 
     /**
      * Initializes the Tiny framework.
@@ -52,8 +53,8 @@ class tiny
             return;
         }
 
-        self::$router = new stdClass();
-        self::$config = new stdClass();
+        self::$router = new \stdClass();
+        self::$config = new \stdClass();
         self::$config->initialized = true;
 
         // Load configuration
@@ -94,9 +95,11 @@ class tiny
             self::$config->homepage = $_SERVER['HOMEPAGE'] ?? 'home';
             self::$config->static_dir = $_SERVER['STATIC_DIR'] ?? 'static';
 
-            $basePath = $_SERVER['APP_PATH'] ?? '/' . trim(dirname(__FILE__, 2), '/') . '/';
+            $basePath = '/' . trim(dirname(__FILE__, 2), '/') . '/';
             self::$config->app_path = $_SERVER['APP_PATH'] ?? $basePath . self::$config->app_dir;
             self::$config->tiny_path = $_SERVER['TINY_PATH'] ?? $basePath . self::$config->tiny_dir;
+            self::$config->public_path = $_SERVER['PUBLIC_PATH'] ?? $basePath . 'html';
+            self::$config->static_path = self::$config->public_path . '/' . self::$config->static_dir;
             self::$config->url_path = $_SERVER['URL_PATH'] ?? str_replace('index.php', '', $_SERVER['SCRIPT_NAME']);
             self::$config->cookie_path = $_SERVER['COOKIE_PATH'] ?? str_replace('.php', '', self::$config->url_path);
 
@@ -134,7 +137,7 @@ class tiny
             return;
         }
 
-        $dbType = strtolower($_SERVER['DB_TYPE']);
+        $dbType = mb_strtolower($_SERVER['DB_TYPE']);
 
         $dbConfig = [
             'host'       => $_SERVER['DB_HOST'] ?? 'localhost',
@@ -178,7 +181,6 @@ class tiny
                 'section' => '',
                 'slug' => '',
                 'query' => [],
-                'htmx' => isset($_SERVER['HTTP_HX_REQUEST']),
             ];
 
             foreach (@$_GET as $key => $value) {
@@ -209,12 +211,15 @@ class tiny
                 $router['slug'] = $parts[2] ?? '';
             }
 
-            $router['permalink'] = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . "://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
+            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $router['permalink'] = $protocol . "://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}";
             $router['path'] = self::resolveControllerPath($router);
             $router['worker'] = [$router['path']];
 
             return (object)$router;
         });
+
+        self::$router->htmx = isset($_SERVER['HTTP_HX_REQUEST']);
     }
 
     /**
@@ -266,23 +271,33 @@ class tiny
     /**
      * Loads middleware for non-CLI requests.
      */
-    private static function loadMiddleware(): void
+    public static function middleware(string $name): void
     {
         if (PHP_SAPI === 'cli') {
             return;
         }
         // do not load files starting with underscore
         $basePath = self::$config->app_path . '/middleware/';
-        if ($handle = opendir($basePath)) {
-            $filesToInclude = [];
-            while (false !== ($file = readdir($handle))) {
-                if (!str_starts_with($file, '_') && str_ends_with($file, '.php')) {
-                    $filesToInclude[] = $file;
-                }
-            }
-            closedir($handle);
-            sort($filesToInclude);
-            self::require($filesToInclude, $basePath, true);
+        $file = $name . '.php';
+        if (file_exists($basePath . $file)) {
+            self::$middlewares[] = $name;
+        }
+    }
+
+    /**
+     * Loads middleware for non-CLI requests.
+     */
+    private static function loadMiddleware(): void
+    {
+        if (PHP_SAPI === 'cli') {
+            return;
+        }
+        self::require('/middleware.php', self::$config->app_path, true);
+
+        foreach (self::$middlewares as $middleware) {
+            self::require($middleware . '.php', self::$config->app_path . '/middleware/', true);
+            $middlewareClassName = str_replace(' ', '', ucwords(str_replace('-', ' ', $middleware))) . 'Middleware';
+            (new $middlewareClassName())->handle();
         }
     }
 
@@ -291,8 +306,8 @@ class tiny
      */
     private static function setupComponents(): void
     {
-        define('Component', new Component(self::$config->app_path . '/views/components'));
-        define('Layout', new Layout(self::$config->app_path . '/views/layouts'));
+        define('Component', new TinyComponent(self::$config->app_path . '/views/components'));
+        define('Layout', new TinyLayout(self::$config->app_path . '/views/layouts'));
     }
 
     /**
@@ -434,7 +449,7 @@ class tiny
             $class = preg_replace('/Index$/', '', $class);
 
             if (class_exists($class)) {
-                $method = strtolower($_SERVER['REQUEST_METHOD'] ?? 'GET');
+                $method = mb_strtolower($_SERVER['REQUEST_METHOD'] ?? 'GET');
                 $instance = new $class();
                 if (method_exists($instance, $method)) {
                     $instance->$method(self::request(), self::response());
@@ -502,7 +517,7 @@ class tiny
     /**
      * Returns the response object for handling CSRF tokens.
      *
-     * @return TinyCSRF The CSRF object
+     * @return TinyCSRF The TinyCSRF object
      */
     public static function csrf(): TinyCSRF
     {
@@ -513,7 +528,7 @@ class tiny
     /**
      * Returns the response object for handling http requests.
      *
-     * @return TinyHTTP The HTTP object
+     * @return TinyHTTP The TinyHTTP object
      */
     public static function http(): TinyHTTP
     {
@@ -525,7 +540,7 @@ class tiny
     /**
      * Returns the response object for handling HTTP responses.
      *
-     * @return TinyRequest The Request object
+     * @return TinyRequest The TinyRequest object
      */
     public static function request(): TinyRequest
     {
@@ -536,7 +551,7 @@ class tiny
     /**
      * Returns the response object for handling HTTP responses.
      *
-     * @return TinyResponse The response object
+     * @return TinyResponse The TinyResponse object
      */
     public static function response(): TinyResponse
     {
@@ -547,7 +562,7 @@ class tiny
     /**
      * Returns the sse object for handling HTTP SSE.
      *
-     * @return TinySSE The SSE object
+     * @return TinySSE The TinySSE object
      */
     public static function sse(): TinySSE
     {
@@ -558,7 +573,7 @@ class tiny
     /**
      * Returns the scheduler object for handling scheduled tasks.
      *
-     * @return TinyScheduler The scheduler object
+     * @return TinyScheduler The TinyScheduler object
      */
     public static function scheduler(): TinyScheduler
     {
@@ -596,7 +611,7 @@ class tiny
     public static function data(): object
     {
         static $data = null;
-        return $data ??= new stdClass();
+        return $data ??= new \stdClass();
     }
 
     /**
@@ -638,7 +653,7 @@ class tiny
     {
         static $data = null;
         if ($data === null) {
-            $data = new stdClass();
+            $data = new \stdClass();
         }
         if ($user === null && isset(self::data()->user)) {
             return self::data()->user;
@@ -712,5 +727,7 @@ class tiny
     }
 }
 
+/* -------------------------------------- */
 // Initialize Tiny
 tiny::init();
+/* -------------------------------------- */

@@ -12,7 +12,7 @@ declare(strict_types=1);
  */
 function executeShellCommand(string $cmd, bool $async = false): void
 {
-    $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+    $isWindows = mb_strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
 
     if ($isWindows) {
         $command = $async ? "$cmd >NUL 2>NUL" : $cmd;

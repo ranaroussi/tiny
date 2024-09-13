@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 class Mixpanel
 {
     private const API_URL = 'https://api.mixpanel.com';

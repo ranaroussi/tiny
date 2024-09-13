@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 const ENCHARGE_API_URL = 'https://ingest.encharge.io/v1';
 
 function encharge_send_event(string $event, array $user, array $event_props = []): bool

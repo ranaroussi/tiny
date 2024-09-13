@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+
 const SORTCODES = [
     '300083' => 'AL RAYAN BANK',
     '400328' => 'HSBC BANK',
@@ -232,7 +233,7 @@ function swiftLookup(string $swift): array
     $result = [];
     foreach ($parts as $item) {
         [$key, $value] = array_pad(explode(':', $item, 2), 2, '');
-        $result[strtolower($key)] = str_replace(', ,', ', ', trim($value));
+        $result[mb_strtolower($key)] = str_replace(', ,', ', ', trim($value));
     }
 
     unset($result['type']);

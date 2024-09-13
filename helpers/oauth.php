@@ -1,5 +1,6 @@
 <?php
 
+
 use myPHPnotes\Microsoft\Auth;
 use myPHPnotes\Microsoft\Handlers\Session;
 use myPHPnotes\Microsoft\Models\User;
@@ -114,12 +115,12 @@ function buildOAuthConfig()
     foreach ($_SERVER as $key => $value) {
         if (str_starts_with($key, 'OAUTH_') && $value) {
             $slug = explode('_', str_replace('OAUTH_', '', $key))[0];
-            $provides[strtolower($slug)] = [];
+            $provides[mb_strtolower($slug)] = [];
         }
     }
 
     foreach ($provides as $key => $value) {
-        $env_key = 'OAUTH_' . strtoupper($key);
+        $env_key = 'OAUTH_' . mb_strtoupper($key);
         $provides[$key] = [
             'enabled' => @$_SERVER[$env_key . '_ENABLED'] ? $_SERVER[$env_key . '_ENABLED'] : true,
         ];
@@ -134,7 +135,7 @@ function buildOAuthConfig()
             ];
             if (isset($_SERVER['OAUTH_APPLE_KEY_CONTENT'])) {
                 $provides[$key]['keys']['key_content'] = str_replace('\\n', "\n", $_SERVER['OAUTH_APPLE_KEY_CONTENT']);
-            } else if (isset($_SERVER['OAUTH_APPLE_KEY_FILE'])) {
+            } elseif (isset($_SERVER['OAUTH_APPLE_KEY_FILE'])) {
                 $provides[$key]['keys']['key_file'] = $_SERVER['OAUTH_APPLE_KEY_FILE'];
             } else {
                 throw new Exception('Missing apple key content or file');
@@ -142,7 +143,7 @@ function buildOAuthConfig()
 
             $provides[$key]['scope'] = 'name email';
             $provides[$key]['verifyTokenSignature'] = false;
-        } else if ($key == 'microsoft') {
+        } elseif ($key == 'microsoft') {
             $provides[$key]['keys'] = [
                 'tenant' => $_SERVER['OAUTH_MICROSOFT_TENANT'] ?? 'common',
                 'client_id' => $_SERVER['OAUTH_MICROSOFT_ID'],
@@ -234,15 +235,15 @@ class OAuth
         $tokens = $microsoft->getToken($_REQUEST['code'], Session::get('state'));
         $accessToken = $tokens->access_token;
         $microsoft->setAccessToken($accessToken);
-        $user = (new User); // User get pulled only if refresh token was generated for scope User.Read
+        $user = (new User()); // User get pulled only if refresh token was generated for scope User.Read
 
         $name = tiny::parseName($user->data->getDisplayName() . '');
 
         return [
             'provider' => $this->provider,
             'identifier' => str_replace("'", '', $user->data->getId()),
-            'email' => strtolower($user->data->getMail()),
-            'emailVerified' => strtolower($user->data->getMail()),
+            'email' => mb_strtolower($user->data->getMail()),
+            'emailVerified' => mb_strtolower($user->data->getMail()),
             'displayName' => $user->data->getDisplayName(),
             'firstName' => $name['firstname'],
             'lastName' => $name['lastname'],
