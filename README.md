@@ -165,12 +165,12 @@ Make sure that middleware files include a class name with the file's name and th
 <?php
 
 class AuthMiddleware
+{
+    public function handle() {
+        // this method will be called by tiny upon initialization
+    }
 
-	public function handle() {
-		// this method will be called by tiny upon initialization
-	}
-	
-	// ...
+    // ...
 }
 ```
 
