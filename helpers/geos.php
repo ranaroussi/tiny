@@ -1958,6 +1958,20 @@ function countries_options()
     return $val;
 }
 
+function states_options()
+{
+    $val = tiny::cache()->remember('us_states_options', 3600, function () {
+        $states_options = '';
+        foreach (US as $code => $country) {
+            $states_options .= "<option value=\"{$code}\">{$country}</option>";
+        }
+        return '
+            <option value="" readonly hidden selected>State</option>
+        ' . $states_options;
+    });
+    return $val;
+}
+
 function get_user_country($country = null)
 {
     if (@GEOS[$country]) {
