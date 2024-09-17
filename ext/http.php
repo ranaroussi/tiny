@@ -229,11 +229,14 @@ class TinyHTTP
 
         if (!empty($options['json'])) {
             if (is_array($options['json']) || is_object($options['json'])) {
-                $options['json'] = json_encode($options['json']);
+                $options['data'] = json_encode($options['json'], JSON_UNESCAPED_SLASHES);
+            } else {
+                $options['data'] = $options['json'];
             }
             $headers[] = 'Content-Type: application/json';
-            $headers[] = 'Content-Length: ' . strlen($options['json']);
-        } elseif (!empty($options['data'])) {
+            $headers[] = 'Content-Length: ' . strlen($options['data']);
+        }
+        if (!empty($options['data'])) {
             if ($method === 'GET') {
                 $curlOptions[CURLOPT_URL] .= (strpos($url, '?') === false ? '?' : '&') . http_build_query($options['data']);
             } else {
