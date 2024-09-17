@@ -44,11 +44,6 @@ class TinyRequest
      */
     public function __construct()
     {
-        if (isset($_REQUEST[tiny::csrf()->getTokenName()])) {
-            $this->csrf_token = $_REQUEST[tiny::csrf()->getTokenName()];
-            unset($_REQUEST[tiny::csrf()->getTokenName()]);
-        }
-
         $router = tiny::router();
         $this->user = tiny::user();
         $this->method = $_SERVER['REQUEST_METHOD'];
@@ -100,8 +95,8 @@ class TinyRequest
     public function body(bool $associative = false): array|object
     {
         if ($this->bodyCached === null) {
-            // $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
-            $body = json_decode(file_get_contents('php://input'), true) ?? [];
+            $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
+            $body = json_decode(file_get_contents('php://input'), true) ?? $body ?? [];
             if ($this->method === 'POST') {
                 $body = array_merge($_POST, $body);
             }
@@ -124,17 +119,8 @@ class TinyRequest
     public function isValidCSRF($remove = true): bool
     {
         if (!is_string($this->csrf_token)) {
-            // $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
-            $body = json_decode(file_get_contents('php://input'), true);
-            if (isset($body[tiny::csrf()->getTokenName()])) {
-                $this->csrf_token = $body[tiny::csrf()->getTokenName()];
-            }
-        }
-
-        if (!is_string($this->csrf_token)) {
             return true;
         }
-
         return tiny::csrf()->isValid($this->csrf_token, $remove);
     }
 

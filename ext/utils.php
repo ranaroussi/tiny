@@ -895,8 +895,8 @@ trait TinyUtils
 
         static $res;
         if ($res === null) {
-            // $body = []; parse_str(file_get_contents('php://input'), $body);
-            $body = json_decode(file_get_contents('php://input'), true) ?? [];
+            $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
+            $body = json_decode(file_get_contents('php://input'), true) ?? $body ?? [];
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $body = array_merge($_POST, $body);
             }
