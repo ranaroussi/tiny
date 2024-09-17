@@ -31,7 +31,7 @@ class TinyRequest
     public bool $htmx;
     public array $query;
     public object $path;
-    public string $csrf_token;
+    public string $csrf_token = '';
 
     private ?array $bodyCached = null;
     private ?array $jsonCached = null;
@@ -118,6 +118,9 @@ class TinyRequest
      */
     public function isValidCSRF($remove = true): bool
     {
+        if (empty($this->csrf_token)) {
+            $this->body();
+        }
         if (!is_string($this->csrf_token)) {
             return true;
         }
