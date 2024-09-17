@@ -1949,7 +1949,7 @@ function countries_options()
             $countries_options .= "<option value=\"{$data[0]}\">{$country} {$data[1]}</option>";
         }
         return '
-            <option value="" readonly hidden selected>Country</option>
+            <option value="" readonly disabled selected>Country</option>
             <option value="US">United States 🇺🇸</option>
             <option value="GB">United Kingdom 🇬🇧</option>
             <option value="--" readonly>-----</option>
@@ -1960,13 +1960,13 @@ function countries_options()
 
 function states_options()
 {
-    $val = tiny::cache()->remember('us_states_options', 3600, function () {
+    $val = tiny::cache()->remember('usstates_options', 3600, function () {
         $states_options = '';
         foreach (US as $code => $country) {
             $states_options .= "<option value=\"{$code}\">{$country}</option>";
         }
         return '
-            <option value="" readonly hidden selected>State</option>
+            <option value="" readonly disabled selected>State</option>
         ' . $states_options;
     });
     return $val;
