@@ -242,6 +242,7 @@ function swiftLookup(string $swift): array
 
 function getBankInfo(string $type, string $identifier): array
 {
+    // tiny::dd($type);
     $bankInfo = match ($type) {
         'swift' => getSwiftBankInfo($identifier),
         'iban' => getIbanBankInfo($identifier),
@@ -260,24 +261,71 @@ function getBankInfo(string $type, string $identifier): array
 function getSwiftBankInfo(string $swift): array
 {
     $res = tiny::http()->post('https://bank.codes/swift-code-checker/', [
-        'json' => ['swift' => $swift]
+        'data' => ['swift' => $swift]
     ]);
-    $text = preg_replace('/\s+/', ' ', trim(strip_tags($res->text)));
-
-    preg_match('/Bank\s+(.*?)\s+Address\s+(.*?)$/i', $text, $matches);
-
+    $text = trim($res->body);
+    if (!str_contains($text, 'This SWIFT code looks right')) {
+        return [
+            'swift' => $swift,
+            'bank' => '',
+            'address' => '',
+            'phone' => '',
+        ];
+    }
+    $text = explode('<ul class="c-copy-list">', $text)[1];
+    $text = explode('</ul>', $text)[0];
+    $info = explode("</li>", $text);
+    $bank = [];
+    foreach ($info as $item) {
+        if (str_contains($item, '</span>')) {
+            [$key, $value] = explode('</span>', $item, 2);
+            $bank[strtolower(trim(strip_tags($key)))] = trim(strip_tags($value));
+        }
+    }
     return [
         'swift' => $swift,
-        'bank' => $matches[1] ?? '',
-        'address' => str_replace(' ,', ',', $matches[2] ?? ''),
+        'bank' => $bank['bank'] ?? '',
+        'address' => $bank['address'] ?? '',
+        'phone' => $bank['phone'] ?? '',
     ];
 }
 
 function getIbanBankInfo(string $iban): array
 {
     $res = tiny::http()->post('https://bank.codes/iban/validate/', [
-        'json' => ['iban' => $iban]
+        'data' => ['iban' => $iban]
     ]);
+
+    $text = trim($res->body);
+
+    if (!str_contains($text, 'is a valid IBAN')) {
+        return [
+            'iban' => $iban,
+            'bank' => '',
+            'address' => '',
+            'phone' => '',
+        ];
+    }
+    $text = explode('<dl class="c-zebra-list">', $text)[1];
+    $text = explode('</dl>', $text)[0];
+    $info = explode("<dt>", $text);
+    // tiny::dd($info);
+    $bank = [];
+    foreach ($info as $item) {
+        if (str_contains($item, '</dt>')) {
+            [$key, $value] = explode('</dt>', $item, 2);
+            $bank[strtolower(trim(strip_tags($key)))] = trim(strip_tags($value));
+        }
+    }
+    return [
+        'iban' => $iban,
+        'bank' => strtoupper($bank['bank'] ?? $bank['bank name'] ?? ''),
+        'branch' => strtoupper($bank['branch'] ?? $bank['branch name'] ?? ''),
+        'address' => strtoupper($bank['address'] ?? ''),
+        'phone' => $bank['phone'] ?? '',
+    ];
+
+
     $text = preg_replace('/\s+/', ' ', trim(strip_tags($res->text)));
 
     preg_match('/IBAN &amp; Bank Details(.*?)USE WISE TO/is', $text, $matches);
@@ -293,17 +341,23 @@ function getIbanBankInfo(string $iban): array
 function getRoutingBankInfo(string $routing): array
 {
     $res = tiny::http()->post('https://bank.codes/us-routing-number-checker/', [
-        'json' => ['routing' => $routing]
+        'data' => ['routing' => $routing]
     ]);
-    $text = preg_replace('/\s+/', ' ', trim(strip_tags($res->text)));
-
+    $text = trim($res->body);
     preg_match("/Detail Information of Routing Number $routing(.*?)$/is", $text, $matches);
-    $info = array_slice(explode("\n", trim($matches[1] ?? '')), 3, 5);
-
+    $info = array_slice(explode("\n", trim($matches[1] ?? '')), 0, 20);
+    $bank = [];
+    foreach ($info as $item) {
+        if (str_contains($item, '</th>')) {
+            [$key, $value] = explode('</th>', $item, 2);
+            $bank[strtolower(trim(strip_tags($key)))] = trim(strip_tags($value));
+        }
+    }
     return [
         'routing' => $routing,
-        'bank' => substr($info[0] ?? '', 4),
-        'address' => implode(' ', array_map(fn($line) => substr($line, strpos($line, ':') + 1), array_slice($info, 1))),
+        'bank' => $bank['bank'] ?? '',
+        'address' => ($bank['address'] ?? '') . ', ' . ($bank['city'] ?? '') . ', ' . ($bank['state'] ?? '') . ' ' . ($bank['zip'] ?? ''),
+        'phone' => $bank['phone'] ?? '',
     ];
 }
 
@@ -314,5 +368,6 @@ function getSortcodeBankInfo(string $sortcode): array
         'sortcode' => $sortcode,
         'bank' => SORTCODES[$sortcode] ?? '',
         'address' => '',
+        'phone' => '',
     ];
 }
