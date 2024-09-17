@@ -313,7 +313,7 @@ class TinyHTTP
 
         $headerSize = $info['header_size'];
         $headers = self::parseHeaders(substr($response, 0, $headerSize));
-        $body = substr($response, $headerSize);
+        $body = $response; //substr($response, $headerSize);
 
         return (object) [
             'success' => true,
