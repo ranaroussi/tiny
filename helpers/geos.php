@@ -1895,7 +1895,8 @@ const CURRENCIES = [
     'ZMW' => ['name' => 'Zambian Kwacha', 'symbol' => 'ZK', 'countries' => ['ZM']]
 ];
 
-define("SUPPORTED_CURRENCIES", explode(',', $_SERVER['SUPPORTED_CURRENCIES']));
+define("SUPPORTED_CURRENCIES", $_SERVER['SUPPORTED_CURRENCIES'] ? explode(',', $_SERVER['SUPPORTED_CURRENCIES']) : ['USD']);
+define("UNSUPPORTED_COUNTRIES", $_SERVER['UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['UNSUPPORTED_COUNTRIES']) : []);
 
 
 function countries_json()
@@ -1928,12 +1929,15 @@ function geo_area_codes()
 
 // tiny::debug($countries);
 
-function geo_countries()
+function geo_countries($hide_unsupported = true)
 {
-    $val = tiny::cache()->remember('geo_countries', 3600, function () {
+    $key = $hide_unsupported ? 'geo_countries_no_unsupported' : 'geo_countries';
+    $val = tiny::cache()->remember($key, 3600, function () use ($hide_unsupported) {
         $countries = [];
         foreach (GEOS as $geo => $info) {
-            $countries[$info['name']] = [$geo, $info['flag']];
+            if (!$hide_unsupported || !in_array($geo, UNSUPPORTED_COUNTRIES)) {
+                $countries[$info['name']] = [$geo, $info['flag']];
+            }
         }
         ksort($countries);
         return $countries;
@@ -1941,18 +1945,28 @@ function geo_countries()
     return $val;
 }
 
-function countries_options()
+function countries_options($hide_unsupported = false)
 {
-    $val = tiny::cache()->remember('countries_options', 3600, function () {
+    $key = $hide_unsupported ? 'countries_options_no_unsupported' : 'countries_options';
+    $val = tiny::cache()->remember($key, 3600, function () use ($hide_unsupported) {
         $countries_options = '';
-        foreach (geo_countries() as $country => $data) {
-            $countries_options .= "<option value=\"{$data[0]}\">{$country} {$data[1]}</option>";
+        if ($hide_unsupported) {
+            foreach (geo_countries(false) as $country => $data) {
+                if (!in_array($data[0], UNSUPPORTED_COUNTRIES)) {
+                    $countries_options .= "<option value=\"{$data[0]}\">{$country} {$data[1]}</option>";
+                }
+            }
+        } else {
+            foreach (geo_countries(false) as $country => $data) {
+                $disabled = in_array($data[0], UNSUPPORTED_COUNTRIES) ? ' disabled' : '';
+                $countries_options .= "<option value=\"{$data[0]}\"{$disabled}>{$country} {$data[1]}</option>";
+            }
         }
         return '
-            <option value="" readonly disabled selected>Country</option>
+            <option value="" disabled selected>Country</option>
             <option value="US">United States 🇺🇸</option>
             <option value="GB">United Kingdom 🇬🇧</option>
-            <option value="--" readonly>-----</option>
+            <option value="--" disabled>-----</option>
         ' . $countries_options;
     });
     return $val;
@@ -1966,7 +1980,7 @@ function states_options()
             $states_options .= "<option value=\"{$code}\">{$country}</option>";
         }
         return '
-            <option value="" readonly disabled selected>State</option>
+            <option value="" disabled selected>State</option>
         ' . $states_options;
     });
     return $val;
@@ -2041,14 +2055,14 @@ function currencies_options(): string
 {
     $val = tiny::cache()->remember('currencies_options', 3600, function () {
         $return = '
-        <option value="-" readonly hidden>Currency</option>
+        <option value="-" disabled hidden>Currency</option>
         <option value="USD">USD - US Dollar 🇺🇸</option>
         <option value="EUR">EUR - Euro 🇪🇺</option>
         <option value="GBP">GBP - Pound Sterling 🇬🇧</option>
-        <option value="" readonly>-----</option>
+        <option value="" disabled>-----</option>
         ';
         foreach (CURRENCIES as $code => $item) {
-            if (in_array($code, SUPPORTED_CURRENCIES)) {
+            if (in_array($code, SUPPORTED_CURRENCIES) && !in_array($code, ['USD', 'EUR', 'GBP'])) {
                 $flag = $code == 'EUR' ? '🇪🇺' : GEOS[$item['countries'][0]]['flag'];
                 $return .= "<option value=\"{$code}\">{$code} - {$item['name']} {$flag}</option>";
             }
