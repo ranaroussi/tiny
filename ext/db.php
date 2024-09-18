@@ -38,9 +38,9 @@ interface DB
      *
      * @param string $query The SQL query to execute
      * @param array $params Optional parameters for the query
-     * @return mixed True if the query was successful, false otherwise
+     * @return bool|int True if the query was successful, false otherwise
      */
-    public function execute(string $query);
+    public function execute(string $query, array $params = []): bool|int;
 
     /**
      * Prepares a SQL query by replacing placeholders with values.
@@ -87,7 +87,7 @@ interface DB
      * @param string|array $fields The fields to select (default: '*')
      * @return mixed The first row of the result set or false if no rows found
      */
-    public function getOne(string $table, ?string $where = null, ?string $fields = "*");
+    public function getOne(string $table, ?string $where = null, string|array $fields = "*"): mixed;
 
     /**
      * Retrieves all rows from a table.
@@ -106,7 +106,7 @@ interface DB
      * @param array $data An associative array of column-value pairs to insert
      * @return mixed The result of the insert operation or an error message
      */
-    public function insert(string $table, array $data);
+    public function insert(string $table, array $data): mixed;
 
     /**
      * Updates rows in a table based on specified conditions.
@@ -116,7 +116,7 @@ interface DB
      * @param string|array $conditions The WHERE conditions for the update
      * @return mixed The result of the update operation or an error message
      */
-    public function update(string $table, array $data, string|array $conditions = []);
+    public function update(string $table, array $data, string|array $conditions = []): mixed;
 
     /**
      * Deletes rows from a table based on specified conditions.
@@ -125,7 +125,7 @@ interface DB
      * @param string|array|null $conditions The WHERE conditions for the delete
      * @return mixed The result of the delete operation or an error message
      */
-    public function delete(string $table, string|array|null $conditions = null);
+    public function delete(string $table, string|array|null $conditions = null): mixed;
 
     /**
      * Escapes a string for use in a SQL query.
@@ -153,19 +153,15 @@ class TinyDB implements DB
     {
         $this->dbType = mb_strtolower($dbType);
 
-        switch ($this->dbType) {
-            case 'mysql':
-                $this->connectMySQL($config);
-                break;
-            case 'pgsql':
-            case 'postgresql':
-                $this->connectPostgreSQL($config);
-                break;
-            case 'sqlite':
-                $this->connectSQLite($config);
-                break;
-            default:
-                throw new \Exception("Unsupported database type: $dbType");
+        try {
+            match ($this->dbType) {
+                'mysql' => $this->connectMySQL($config),
+                'pgsql', 'postgresql' => $this->connectPostgreSQL($config),
+                'sqlite' => $this->connectSQLite($config),
+                default => throw new \Exception("Unsupported database type: $dbType")
+            };
+        } catch (\PDOException $e) {
+            throw new \Exception('Unable to connect to database: ' . $e->getMessage());
         }
     }
 
@@ -177,10 +173,10 @@ class TinyDB implements DB
      */
     private function connectMySQL(array $config): void
     {
-        $host     = $config['host'] ?? 'localhost';
-        $port     = $config['port'] ?? 3306;
-        $dbname   = $config['dbname'] ?? 'tiny';
-        $user     = $config['user'] ?? 'root';
+        $host = $config['host'] ?? 'localhost';
+        $port = $config['port'] ?? 3306;
+        $dbname = $config['dbname'] ?? 'tiny';
+        $user = $config['user'] ?? 'root';
         $password = $config['password'] ?? '';
         $timeout = $config['timeout'] ?? 5;
         $persistent = $config['persistent'] ?? false;
@@ -197,12 +193,9 @@ class TinyDB implements DB
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
             \PDO::ATTR_EMULATE_PREPARES => false,
-            \PDO::ATTR_TIMEOUT => $timeout
+            \PDO::ATTR_TIMEOUT => $timeout,
+            ...($persistent ? [\PDO::ATTR_PERSISTENT => true] : [])
         ];
-
-        if ($persistent) {
-            $options[\PDO::ATTR_PERSISTENT] = true;
-        }
 
         $dsn = "mysql:host=" . tiny::trim($host) . ";dbname=" . tiny::trim($dbname) . ";port={$port};charset=utf8mb4";
         try {
@@ -220,23 +213,21 @@ class TinyDB implements DB
      */
     private function connectPostgreSQL(array $config): void
     {
-        $host       = $config['host'] ?? 'localhost';
-        $port       = $config['port'] ?? 5432;
-        $dbname     = $config['dbname'] ?? 'tiny';
-        $user       = $config['user'] ?? 'root';
-        $password   = $config['password'] ?? '';
-        $timeout    = $config['timeout'] ?? 5;
+        $host = $config['host'] ?? 'localhost';
+        $port = $config['port'] ?? 5432;
+        $dbname = $config['dbname'] ?? 'tiny';
+        $user = $config['user'] ?? 'root';
+        $password = $config['password'] ?? '';
+        $timeout = $config['timeout'] ?? 5;
         $persistent = $config['persistent'] ?? false;
 
         $options = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
             \PDO::ATTR_EMULATE_PREPARES => false,
-            \PDO::ATTR_TIMEOUT => $timeout
+            \PDO::ATTR_TIMEOUT => $timeout,
+            ...($persistent ? [\PDO::ATTR_PERSISTENT => true] : [])
         ];
-        if ($persistent) {
-            $options[\PDO::ATTR_PERSISTENT] = true;
-        }
 
         $dsn = "pgsql:host=$host;port=$port;dbname=$dbname";
         try {
@@ -320,7 +311,7 @@ class TinyDB implements DB
             } elseif ($value === true || $value === 'true') {
                 $value = 'TRUE';
             } else {
-                $value = is_numeric($value) || in_array($value, ['TRUE', 'FALSE', 'NULL']) ? $value : "'" . trim($value) . "'";
+                $value = is_numeric($value) || str_contains('TRUE,FALSE,NULL', $value) ? $value : "'" . trim($value) . "'";
             }
 
             $query = preg_replace('/(?<!\\\)\?/', $value, $query, 1);
@@ -333,9 +324,9 @@ class TinyDB implements DB
      *
      * @param string $query The SQL query to execute
      * @param array $params Optional parameters for the query
-     * @return mixed True if the query was successful, false otherwise
+     * @return bool|int True if the query was successful, false otherwise
      */
-    public function execute(string $query, array $params = []): mixed
+    public function execute(string $query, array $params = []): bool|int
     {
         return $this->pdo->exec(str_replace('\\?', '?', $this->prepare($query, $params)));
     }
@@ -392,7 +383,7 @@ class TinyDB implements DB
      * @param string|array $fields The fields to select (default: '*')
      * @return mixed The first row of the result set or false if no rows found
      */
-    public function getOne(string $table, ?string $where = null, ?string $fields = "*")
+    public function getOne(string $table, ?string $where = null, string|array $fields = "*"): mixed
     {
         $res = $this->get($table, $where, $fields, '', 1);
         return $res ? $res[0] : false;
@@ -418,7 +409,7 @@ class TinyDB implements DB
      * @param array $data An associative array of column-value pairs to insert
      * @return mixed The result of the insert operation or an error message
      */
-    public function insert(string $table, array $data)
+    public function insert(string $table, array $data): mixed
     {
         if (isset($data['csrf_token'])) {
             unset($data['csrf_token']);
@@ -442,7 +433,7 @@ class TinyDB implements DB
      * @param string|array $conditions The WHERE conditions for the update
      * @return mixed The result of the update operation or an error message
      */
-    public function update(string $table, array $data, string|array $conditions = [])
+    public function update(string $table, array $data, string|array $conditions = []): mixed
     {
         if (isset($data['csrf_token'])) {
             unset($data['csrf_token']);
@@ -476,7 +467,7 @@ class TinyDB implements DB
      * @param string|array|null $conditions The WHERE conditions for the delete
      * @return mixed The result of the delete operation or an error message
      */
-    public function delete(string $table, string|array|null $conditions = null)
+    public function delete(string $table, string|array|null $conditions = null): mixed
     {
         $query = "DELETE FROM $table";
         $values = [];
@@ -532,16 +523,15 @@ class TinyDB implements DB
      */
     public function upsert(string $table, array $data, string $conflict): \PDOStatement|bool
     {
-        if (isset($data['csrf_token'])) {
-            unset($data['csrf_token']);
-        }
+        unset($data['csrf_token']);
+
         if ($this->dbType === 'pgsql') {
             $keys = array_keys($data);
             $cols = implode(', ', $keys);
             $update = implode('=?, ', $keys) . '=?';
-            $placeholders = trim(str_repeat('?, ', count($data)), ', ');
+            $placeholders = implode(', ', array_fill(0, count($data), '?'));
             $query = "INSERT INTO $table ($cols) VALUES ($placeholders) ON CONFLICT ($conflict) DO UPDATE SET $update";
-            return $this->execute($query, array_merge(array_values($data), array_values($data)));
+            return $this->execute($query, [...array_values($data), ...array_values($data)]);
         } else {
             // For MySQL and SQLite, use REPLACE INTO as a simple upsert
             $columns = implode(', ', array_keys($data));

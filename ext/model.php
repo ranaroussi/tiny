@@ -83,7 +83,7 @@ class TinyModel
      * @param mixed $value The value of the field
      * @param string $type The type definition for the field
      */
-    private function validateField(string $item, $value, string $type): void
+    private function validateField(string $item, mixed $value, string $type): void
     {
         $types = explode('|', $type);
         $isValid = false;
@@ -123,7 +123,7 @@ class TinyModel
      * @param string|null $length The maximum length (if applicable)
      * @return bool True if the value is valid, false otherwise
      */
-    private function validateType(string $item, $value, string $dataType, ?string $length): bool
+    private function validateType(string $item, mixed $value, string $dataType, ?string $length): bool
     {
         if (isset(self::KNOWN_TYPES[$dataType])) {
             $validationFunction = self::KNOWN_TYPES[$dataType];
@@ -153,7 +153,7 @@ class TinyModel
      * @param string $object The name of the expected object or enum
      * @return bool True if the value is an instance of the specified object or enum, false otherwise
      */
-    private function isSpecificObject($value, string $object): bool
+    private function isSpecificObject(mixed $value, string $object): bool
     {
         try {
             $actualObject = new \ReflectionClass($object);

@@ -21,9 +21,11 @@
  */
 
 
+declare(strict_types=1);
+
 class TinyFlash
 {
-    private mixed $name;
+    private string $name;
 
     /**
      * Constructor for the TinyFlash class.
@@ -31,7 +33,7 @@ class TinyFlash
      *
      * @param string $name The name of the flash message (default: 'flash_msg')
      */
-    public function __construct($name = 'flash_msg')
+    public function __construct(string $name = 'flash_msg')
     {
         $this->name = $name;
     }
@@ -41,7 +43,7 @@ class TinyFlash
      *
      * @param mixed $value The value to be stored as a flash message
      */
-    public function set($value): void
+    public function set(mixed $value): void
     {
         tiny::flashSet($value, $this->name);
     }
@@ -50,9 +52,9 @@ class TinyFlash
      * Retrieves the flash message.
      *
      * @param bool $keep Whether to keep the flash message after retrieval (default: false)
-     * @return ?string The flash message value or null if not set
+     * @return null|string|array The flash message value or null if not set
      */
-    public function get($keep = false): null|string|array
+    public function get(bool $keep = false): null|string|array
     {
         return tiny::flashGet($this->name, $keep);
     }
@@ -64,7 +66,7 @@ class TinyFlash
      * @param bool $keep Whether to keep the flash message after checking (default: false)
      * @return bool True if the flash message matches the given value, false otherwise
      */
-    public function is($match, $keep = false): bool
+    public function is(mixed $match, bool $keep = false): bool
     {
         $val = tiny::flashGet($this->name, $keep);
         return $val == $match;

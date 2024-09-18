@@ -78,12 +78,8 @@ class TinyRequest
      */
     public function params(string $key, mixed $fallback = null): mixed
     {
-        if ($this->req_params === null) {
-            foreach ($_REQUEST as $k => $v) {
-                $this->req_params[mb_strtolower($k)] = trim($v . '');
-            }
-        }
-        return $this->req_params[mb_strtolower($key)] ?? $fallback;
+        $this->req_params ??= array_change_key_case($_REQUEST, CASE_LOWER);
+        return $this->req_params[strtolower($key)] ?? $fallback;
     }
 
     /**
@@ -95,15 +91,19 @@ class TinyRequest
     public function body(bool $associative = false): array|object
     {
         if ($this->bodyCached === null) {
-            $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
-            $body = json_decode(file_get_contents('php://input'), true) ?? $body ?? [];
+            $rawBody = file_get_contents('php://input') ?: '';
+            $parsedBody = [];
+            parse_str($rawBody, $parsedBody);
+            $jsonBody = json_decode($rawBody, true);
+            $body = $jsonBody ?? $parsedBody ?? [];
+
             if ($this->method === 'POST') {
-                $body = array_merge($_POST, $body);
+                $body = [...$_POST, ...$body];
             }
-            if (isset($body[tiny::csrf()->getTokenName()])) {
-                $this->csrf_token = $body[tiny::csrf()->getTokenName()];
-                unset($body[tiny::csrf()->getTokenName()]);
-            }
+
+            $this->csrf_token = $body[tiny::csrf()->getTokenName()] ?? '';
+            unset($body[tiny::csrf()->getTokenName()]);
+
             $this->bodyCached = $body;
         }
 
@@ -118,11 +118,8 @@ class TinyRequest
      */
     public function isValidCSRF($remove = true): bool
     {
-        if (empty($this->csrf_token)) {
+        if ($this->csrf_token === '') {
             $this->body();
-        }
-        if (!is_string($this->csrf_token)) {
-            return true;
         }
         return tiny::csrf()->isValid($this->csrf_token, $remove);
     }
@@ -138,10 +135,8 @@ class TinyRequest
     {
         if ($this->jsonCached === null) {
             $this->jsonCached = $this->method === 'GET' ? [] : tiny::readJSONBody(true);
-            if (isset($this->jsonCached[tiny::csrf()->getTokenName()])) {
-                $this->csrf_token = $this->jsonCached[tiny::csrf()->getTokenName()];
-                unset($this->jsonCached[tiny::csrf()->getTokenName()]);
-            }
+            $this->csrf_token = $this->jsonCached[tiny::csrf()->getTokenName()] ?? '';
+            unset($this->jsonCached[tiny::csrf()->getTokenName()]);
         }
         return $associative ? $this->jsonCached : (object) $this->jsonCached;
     }

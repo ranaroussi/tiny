@@ -28,7 +28,7 @@ class TinyCookie
     public string $name = 'default';
     public string $path = '';
     public string $domain = '';
-    public int|null|false $expiry = null;
+    public int|null $expiry = null;
     public bool $exists = false;
     public array|object $data = [];
 
@@ -39,7 +39,7 @@ class TinyCookie
      * @param string $name The name of the cookie (default: 'default')
      * @param array $values Initial values for the cookie (default: [])
      */
-    public function __construct($name = 'default', $values = [])
+    public function __construct(string $name = 'default', array $values = [])
     {
         // default cookie values
         $this->name = ($name) ? $name : 'default';
@@ -74,7 +74,7 @@ class TinyCookie
      * @param string|null $item The key of the item to read (optional)
      * @return mixed The value of the specified item, or the entire cookie data if no item is specified
      */
-    public function read($item = null): mixed
+    public function read(?string $item = null): mixed
     {
         if ($item != null && array_key_exists($item, $this->data)) {
             return $this->data[$item];
@@ -89,7 +89,7 @@ class TinyCookie
      * @param mixed|null $value The value to write (if $key_or_data is a string)
      * @return static Returns the current instance for method chaining
      */
-    public function write($key_or_data, $value = null): static
+    public function write(string|array $key_or_data, mixed $value = null): static
     {
         if ($value != null) {
             $this->data[$key_or_data] = $value;
@@ -104,7 +104,7 @@ class TinyCookie
      *
      * @param string|null $expiry The expiration time for the cookie (optional)
      */
-    public function save($expiry = null): void
+    public function save(?int $expiry = null): void
     {
         if ($expiry == null) {
             $expiry = $this->expiry;

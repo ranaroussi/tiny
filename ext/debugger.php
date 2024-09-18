@@ -45,12 +45,7 @@ trait TinyDebugger
     {
         $userIP = self::getClientRealIP();
         $debugWhitelist = $_SERVER['DEBUG_WHITELIST'] ?? '*';
-        if ($debugWhitelist != '*') {
-            if (!in_array($userIP, explode(',', $debugWhitelist))) {
-                return false;
-            }
-        }
-        return true;
+        return $debugWhitelist === '*' || in_array($userIP, explode(',', $debugWhitelist));
     }
 
     /**
@@ -63,15 +58,12 @@ trait TinyDebugger
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 4);
         $caller = $backtrace[1]['file'] !== __FILE__ ? $backtrace[1] : ($backtrace[2] ?? $backtrace[1]);
 
-        $path_prefix = ('/' . trim(tiny::config()->tiny_path, '/tiny')) ?? $_SERVER['DOCUMENT_ROOT'] ?? '';
+        $path_prefix = ('/' . trim(tiny::config()->tiny_path ?? '', '/tiny')) ?? $_SERVER['DOCUMENT_ROOT'] ?? '';
 
         $func_caller = $backtrace[3] ?? $backtrace[2] ?? $backtrace[1];
-        $function = '';
-        if (isset($func_caller['function'])) {
-            $function = $func_caller['function'];
-            if (isset($func_caller['class'])) {
-                $function = $func_caller['class'] . '::' . $function;
-            }
+        $function = $func_caller['function'] ?? '';
+        if (isset($func_caller['class'])) {
+            $function = $func_caller['class'] . '::' . $function;
         }
 
         return [
@@ -109,8 +101,9 @@ trait TinyDebugger
      *
      * @param string $which Determines whether to use 'debug' or 'dump' behavior.
      * @param mixed ...$vars Variables to be debugged or dumped.
+     * @return array An array containing trace information and formatted content.
      */
-    private static function dumpOrDebug($which, ...$vars): array
+    private static function dumpOrDebug(string $which, mixed ...$vars): array
     {
         $trace = self::trace();
         $content = '';
@@ -127,12 +120,11 @@ trait TinyDebugger
             $name = trim($argNames[$index] ?? "var{$ix}", '(');
             $type = gettype($var);
             ob_start();
-            if ($type === 'string' && $name == "'$var'") {
-                $content .= trim($var) . "\n";
-            } else {
-                $content .= "→ <strong style='color:#5767e7'>$name</strong> <span style='color:#c47622'>($type)</span>\n";
-                $content .= ($which === 'debug') ? '  ' . str_replace("\n", "\n  ", print_r($var, true)) : var_dump($var, true);
-            }
+            $content .= match (true) {
+                $type === 'string' && $name == "'$var'" => trim($var) . "\n",
+                default => "→ <strong style='color:#5767e7'>$name</strong> <span style='color:#c47622'>($type)</span>\n" .
+                    (($which === 'debug') ? '  ' . str_replace("\n", "\n  ", print_r($var, true)) : var_dump($var, true))
+            };
             $content .= ob_get_clean() . "\n";
         }
 
@@ -145,7 +137,7 @@ trait TinyDebugger
      *
      * @param mixed ...$vars Variables to be debugged.
      */
-    public static function debug(...$vars): void
+    public static function debug(mixed ...$vars): void
     {
         if (!self::canDebug()) {
             return;
@@ -160,10 +152,10 @@ trait TinyDebugger
      *
      * @param mixed ...$vars Variables to be dumped.
      */
-    public static function dd(...$vars): void
+    public static function dd(mixed ...$vars): never
     {
         if (!self::canDebug()) {
-            return;
+            exit(1);
         }
 
         [$trace, $content] = self::dumpOrDebug('debug', ...$vars);
@@ -176,7 +168,7 @@ trait TinyDebugger
      *
      * @param mixed ...$vars Variables to be dumped.
      */
-    public static function dump(...$vars): void
+    public static function dump(mixed ...$vars): void
     {
         if (!self::canDebug()) {
             return;
@@ -191,10 +183,10 @@ trait TinyDebugger
      *
      * @param mixed ...$vars Variables to be dumped.
      */
-    public static function ddump(...$vars): void
+    public static function ddump(mixed ...$vars): never
     {
         if (!self::canDebug()) {
-            return;
+            exit(1);
         }
 
         [$trace, $content] = self::dumpOrDebug('dump', ...$vars);
@@ -207,9 +199,9 @@ trait TinyDebugger
      *
      * @param mixed ...$vars Variables to be logged.
      */
-    public static function log(...$vars): void
+    public static function log(mixed ...$vars): void
     {
-        $logFile = $_SERVER['LOG_FILE'] ?? '/tmp/tiny.log';
+        $logFile = $_SERVER['LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
         [$trace, $content] = self::dumpOrDebug('dump', ...$vars);
 
         $output = date('[Y-m-d H:i:s] ') .

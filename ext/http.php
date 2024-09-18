@@ -70,16 +70,10 @@ class TinyHTTP
 
         $response = curl_exec($ch);
         $error = curl_error($ch);
-
-        $options['finalUrl'] = $options['finalUrl'] ?? true;
-        if ($options['finalUrl']) {
-            $info = curl_getinfo($ch);
-        } else {
-            $info = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        }
+        $info = $options['finalUrl'] ?? true ? curl_getinfo($ch) : curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         curl_close($ch);
 
-        return self::formatResponse($response, $error, $info, $options['finalUrl'] ?? $url);
+        return self::formatResponse($response, $error, $info, $options['finalUrl'] ?? true);
     }
 
     /**
@@ -224,24 +218,18 @@ class TinyHTTP
             CURLOPT_TIMEOUT => $options['timeout'] ?? $_SERVER['CURL_TIMEOUT'] ?? 30,
         ];
 
-        $headers = $options['headers'] ?? [];
-        $headers = array_merge(self::$defaultHeaders, $headers);
+        $headers = array_merge(self::$defaultHeaders, $options['headers'] ?? []);
 
         if (!empty($options['json'])) {
-            if (is_array($options['json']) || is_object($options['json'])) {
-                $options['data'] = json_encode($options['json'], JSON_UNESCAPED_SLASHES);
-            } else {
-                $options['data'] = $options['json'];
-            }
+            $options['data'] = is_string($options['json']) ? $options['json'] : json_encode($options['json'], JSON_UNESCAPED_SLASHES);
             $headers[] = 'Content-Type: application/json';
             $headers[] = 'Content-Length: ' . strlen($options['data']);
         }
+
         if (!empty($options['data'])) {
-            if ($method === 'GET') {
-                $curlOptions[CURLOPT_URL] .= (strpos($url, '?') === false ? '?' : '&') . http_build_query($options['data']);
-            } else {
-                $curlOptions[CURLOPT_POSTFIELDS] = $options['data'];
-            }
+            $method === 'GET'
+                ? $curlOptions[CURLOPT_URL] .= (strpos($url, '?') === false ? '?' : '&') . http_build_query($options['data'])
+                : $curlOptions[CURLOPT_POSTFIELDS] = $options['data'];
         }
 
         if (!empty($headers)) {
@@ -293,11 +281,11 @@ class TinyHTTP
      *
      * @param mixed $response The raw cURL response
      * @param string $error Any error message from cURL
-     * @param array $info The cURL info array
+     * @param array|string $info The cURL info array or effective URL
      * @param bool $finalUrl Whether to include the final URL after redirects
      * @return object The formatted response object
      */
-    private static function formatResponse($response, $error, $info, bool $finalUrl): object
+    private static function formatResponse($response, string $error, array|string $info, bool $finalUrl): object
     {
         if ($error) {
             return (object) [
@@ -306,22 +294,21 @@ class TinyHTTP
                 'status_code' => 0,
                 'headers' => [],
                 'body' => null,
-                'json' => [],
-                'url' => $finalUrl ?: null,
+                'json' => null,
+                'url' => null,
             ];
         }
 
-        $headerSize = $info['header_size'];
-        $headers = self::parseHeaders(substr($response, 0, $headerSize));
-        $body = $response; //substr($response, $headerSize);
+        $headers = self::parseHeaders(substr($response, 0, $info['header_size'] ?? 0));
+        $body = substr($response, $info['header_size'] ?? 0);
 
         return (object) [
             'success' => true,
-            'status_code' => $info['http_code'],
+            'status_code' => $info['http_code'] ?? 0,
             'headers' => $headers,
             'body' => $body,
             'json' => json_decode($body),
-            'url' => $finalUrl ? $info['url'] : null,
+            'url' => $finalUrl ? ($info['url'] ?? null) : null,
         ];
     }
 
