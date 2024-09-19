@@ -72,13 +72,16 @@ class TinyRequest
     /**
      * Retrieves a request parameter value by key, with an optional fallback.
      *
-     * @param string $key The parameter key to look up.
+     * @param ?string $key The parameter key to look up.
      * @param mixed $fallback The fallback value if the key is not found.
      * @return mixed The parameter value or fallback.
      */
-    public function params(string $key, mixed $fallback = null): mixed
+    public function params(?string $key = null, mixed $fallback = null): mixed
     {
         $this->req_params ??= array_change_key_case($_REQUEST, CASE_LOWER);
+        if ($key === null) {
+            return $this->req_params;
+        }
         return $this->req_params[strtolower($key)] ?? $fallback;
     }
 
