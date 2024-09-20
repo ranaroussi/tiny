@@ -1921,7 +1921,7 @@ function geo_area_codes()
                 $codes[$key] = [$geo, $code, $info['flag']];
             }
         }
-        asort($codes);
+        // asort($codes);
         return $codes;
     });
     return $val;
@@ -1939,7 +1939,7 @@ function geo_countries($hide_unsupported = true)
                 $countries[$info['name']] = [$geo, $info['flag']];
             }
         }
-        ksort($countries);
+        // ksort($countries);
         return $countries;
     });
     return $val;
