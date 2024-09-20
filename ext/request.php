@@ -34,7 +34,7 @@ class TinyRequest
     public string $csrf_token = '';
 
     private ?array $bodyCached = null;
-    private ?array $jsonCached = null;
+    private ?string $jsonCached = null;
 
     private array $req_params;
 
@@ -131,16 +131,14 @@ class TinyRequest
     /**
      * Retrieves the JSON payload of the request as an array or object.
      *
-     * @param bool $associative Whether to return an associative array (true) or an object (false).
-     * @return array|object The JSON payload.
+     * @return string The JSON payload.
      */
-    public function json(bool $associative = true): array|object
+    public function json(): string
     {
         if ($this->jsonCached === null) {
-            $this->jsonCached = $this->method === 'GET' ? [] : tiny::readJSONBody(true);
-            $this->csrf_token = $this->jsonCached[tiny::csrf()->getTokenName()] ?? '';
-            unset($this->jsonCached[tiny::csrf()->getTokenName()]);
+            $this->jsonCached = @file_get_contents('php://input');
+            return $this->jsonCached;
         }
-        return $associative ? $this->jsonCached : (object) $this->jsonCached;
+        return $this->jsonCached;
     }
 }
