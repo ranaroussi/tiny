@@ -202,7 +202,7 @@ trait TinyDebugger
     public static function log(mixed ...$vars): void
     {
         $logFile = $_SERVER['LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
-        [$trace, $content] = self::dumpOrDebug('dump', ...$vars);
+        [$trace, $content] = self::dumpOrDebug($_SERVER['LOG_MODE'] ?? 'dump', ...$vars);
 
         $output = date('[Y-m-d H:i:s] ') .
             "{$trace['file']}:{$trace['line']}\n\n" .
