@@ -317,6 +317,7 @@ class TinyDB implements DB
                 $value = in_array($value, ['TRUE','FALSE','NULL']) ? $value : "'{$value}'";
             }
 
+            $value = is_array($value) ? $value : (string)$value;
             $query = preg_replace('/(?<!\\\)\?/', $value, $query, 1);
         }
         return $query;
@@ -417,6 +418,7 @@ class TinyDB implements DB
         if (isset($data['csrf_token'])) {
             unset($data['csrf_token']);
         }
+
         $columns = implode(', ', array_keys($data));
         $placeholders = implode(', ', array_fill(0, count($data), '?'));
         $query = "INSERT INTO $table ($columns) VALUES ($placeholders)";
