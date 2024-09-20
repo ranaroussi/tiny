@@ -310,8 +310,11 @@ class TinyDB implements DB
                 $value = 'FALSE';
             } elseif ($value === true || $value === 'true') {
                 $value = 'TRUE';
+            } elseif (is_numeric($value)) {
+                $value = str_contains($value, '.') ? floatval($value) : intval($value);
             } else {
-                $value = is_numeric($value) || str_contains('TRUE,FALSE,NULL', $value) ? $value : "'" . trim($value) . "'";
+                $value = tiny::trim($value);
+                $value = in_array($value, ['TRUE','FALSE','NULL']) ? $value : "'{$value}'";
             }
 
             $query = preg_replace('/(?<!\\\)\?/', $value, $query, 1);
