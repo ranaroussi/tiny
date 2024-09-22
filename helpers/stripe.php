@@ -15,7 +15,7 @@ use Stripe\SearchResult;
  */
 class StripeHelper
 {
-    private StripeClient $client;
+    public StripeClient $client;
 
     /**
      * Constructor for StripeHelper
