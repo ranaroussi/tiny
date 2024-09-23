@@ -1,4 +1,5 @@
 <?php
+tiny::helpers(['geos']);
 
 // setasign/fpdf
 class InvoiceGenerator extends FPDF
