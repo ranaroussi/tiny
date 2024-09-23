@@ -80,13 +80,12 @@ class InvoiceGenerator extends FPDF
     protected $columns = 1;
 
     public function __construct(
-        string $currency = '$',
         string $currencyCode = 'USD',
         string $size = self::INVOICE_SIZE_LETTER
     ) {
         $this->items = $this->totals = $this->addText = [];
-        $this->currency = $this->convert($currency);
-        $this->currencyCode = $this->convert($currencyCode);
+        $this->currency = $this->convert(currency_symbol($currencyCode));
+        $this->currencyCode = $this->convert(strtoupper($currencyCode));
         $this->maxImageDimensions = $this->dimensions = [56, 56];
         $this->from = $this->to = [''];
 
