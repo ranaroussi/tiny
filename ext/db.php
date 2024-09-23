@@ -327,7 +327,7 @@ class TinyDB implements DB
             $is_db_method = false;
             $value = tiny::trim($value);
 
-            if ($value === null) {
+            if (in_array($value, [null, 'null', 'NULL'])) {
                 $value = 'NULL';
             } elseif ($value === false || $value === 'false') {
                 $value = 'FALSE';
