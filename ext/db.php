@@ -302,8 +302,31 @@ class TinyDB implements DB
             unset($values['csrf_token']);
         }
 
+        $db_methods = [
+            'true',
+            'false',
+            'null',
+            'localtime',
+            'transaction_timestamp()',
+            'statement_timestamp()',
+            'clock_timestamp()',
+            'timeofday()',
+            'now()',
+        ];
+
+        $db_method_prefix = [
+            'extract(',
+            'date_',
+            'current_',
+            'timezone(',
+            'pg_'
+        ];
+
         $values = is_array($values) ? $values : [$values];
         foreach ($values as $value) {
+            $is_db_method = false;
+            $value = tiny::trim($value);
+
             if ($value === null) {
                 $value = 'NULL';
             } elseif ($value === false || $value === 'false') {
@@ -311,10 +334,16 @@ class TinyDB implements DB
             } elseif ($value === true || $value === 'true') {
                 $value = 'TRUE';
             } elseif (is_numeric($value)) {
-                $value = str_contains($value, '.') ? floatval($value) : intval($value);
-            } else {
-                $value = tiny::trim($value);
-                $value = in_array($value, ['TRUE','FALSE','NULL']) ? $value : "'{$value}'";
+                $value = str_contains((string)$value, '.') ? floatval($value) : intval($value);
+            } elseif (!in_array(strtolower($value), $db_methods)) {
+                foreach ($db_method_prefix as $db_prefix) {
+                    if (str_starts_with(strtolower($value), $db_prefix)) {
+                        $is_db_method = true;
+                    }
+                }
+                if (!$is_db_method) {
+                    $value = "'{$value}'";
+                }
             }
 
             $value = is_array($value) ? $value : (string)$value;
