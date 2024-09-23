@@ -149,10 +149,8 @@ class tiny
         ];
 
         self::$db = match ($dbType) {
-            'mysql'      => new TinyDB('mysql', $dbConfig),
-            'pgsql'      => new TinyDB('pgsql', $dbConfig),
-            'postgresql' => new TinyDB('postgresql', $dbConfig),
-            'sqlite'     => new TinyDB('sqlite', [
+            'mysql', 'pgsql', 'postgresql' => new TinyDB($dbType, $dbConfig),
+            'sqlite' => new TinyDB('sqlite', [
                 'db_path'   => $_SERVER['DB_SQLITE_FILE'] ?? self::$config->app_path . '/database.db',
                 'db_scheme' => $_SERVER['DB_SQLITE_SCHEMA'] ?? null
             ]),
@@ -316,9 +314,9 @@ class tiny
      * @param string|null $key The configuration key to retrieve (optional)
      * @return mixed The configuration value or the entire configuration object
      */
-    public static function config(string $key = null)
+    public static function config(string $key = null): mixed
     {
-        return $key === null ? self::$config : (self::$config[$key] ?? null);
+        return $key === null ? self::$config : (self::$config->$key ?? null);
     }
 
     /**
@@ -331,9 +329,11 @@ class tiny
 
         if (self::$cache === null) {
             $config = self::$config->memcached ?? [];
-            $host = $config['host'] ?? 'localhost';
-            $port = $config['port'] ?? 11211;
-            self::$cache = new TinyCache($engine, $host, $port);
+            self::$cache = new TinyCache(
+                $engine,
+                $config['host'] ?? 'localhost',
+                $config['port'] ?? 11211
+            );
         }
         return self::$cache;
     }
@@ -354,7 +354,7 @@ class tiny
      * @param string|null $key The router key to retrieve (optional)
      * @return mixed The router value or the entire router object
      */
-    public static function router(string $key = null)
+    public static function router(string $key = null): mixed
     {
         return $key === null ? self::$router : (self::$router->$key ?? null);
     }
@@ -521,7 +521,7 @@ class tiny
      */
     public static function csrf(): TinyCSRF
     {
-        static $csrf = null;
+        static $csrf;
         return $csrf ??= new TinyCSRF();
     }
 
@@ -532,7 +532,7 @@ class tiny
      */
     public static function http(): TinyHTTP
     {
-        static $http = null;
+        static $http;
         return $http ??= new TinyHTTP();
     }
 
@@ -544,7 +544,7 @@ class tiny
      */
     public static function request(): TinyRequest
     {
-        static $request = null;
+        static $request;
         return $request ??= new TinyRequest();
     }
 
@@ -555,7 +555,7 @@ class tiny
      */
     public static function response(): TinyResponse
     {
-        static $response = null;
+        static $response;
         return $response ??= new TinyResponse();
     }
 
@@ -566,7 +566,7 @@ class tiny
      */
     public static function sse(): TinySSE
     {
-        static $sse = null;
+        static $sse;
         return $sse ??= new TinySSE();
     }
 
@@ -577,7 +577,7 @@ class tiny
      */
     public static function scheduler(): TinyScheduler
     {
-        static $scheduler = null;
+        static $scheduler;
         return $scheduler ??= new TinyScheduler();
     }
 
@@ -610,7 +610,7 @@ class tiny
      */
     public static function data(): object
     {
-        static $data = null;
+        static $data;
         return $data ??= new \stdClass();
     }
 
@@ -651,7 +651,7 @@ class tiny
      */
     public static function user(null|object|array $user = null): object
     {
-        static $data = null;
+        static $data;
         if ($data === null) {
             $data = new \stdClass();
         }

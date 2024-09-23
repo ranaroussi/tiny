@@ -85,11 +85,7 @@ trait TinyUtils
                 tiny::csrf()->showError(nextPage: true);
                 self::htmxRedirect($goto);
             },
-            default => function () use ($goto) {
-                if (self::$router->htmx) {
-                    self::htmxRedirect($goto);
-                }
-            }
+            default => self::$router->htmx ? self::htmxRedirect($goto) : null
         };
 
         header("Location: $goto");
@@ -193,7 +189,7 @@ trait TinyUtils
      *
      * @param string $name The name of the flash message
      * @param bool $keep Whether to keep the message after retrieval
-     * @return ?string The flash message or null if not found
+     * @return null|string|array The flash message or null if not found
      */
     public static function flashGet(string $name = 'flash_msg', bool $keep = false): null|string|array
     {
@@ -363,7 +359,7 @@ trait TinyUtils
         $str = preg_replace('/\s+/', ' ', self::trim($str));
         $str = str_replace('&', 'and', $str);
 
-        $s = preg_replace(array_keys($highASCII), array_values($highASCII), $str);
+        $s = strtr($str, $highASCII);
         $s = mb_strtolower($s);
         $s = strip_tags($s);
         $s = preg_replace('!&[^;\s]+;!', '', $s);
@@ -571,25 +567,22 @@ trait TinyUtils
      */
     public static function arrayMultiSort(array $array, string $index, string $order = 'desc', bool $natsort = false, bool $case_sensitive = false): array
     {
-        $temp = [];
-        $sorted = [];
-        if (!empty($array)) {
-            foreach (array_keys($array) as $key) {
-                $temp[$key] = $array[$key][$index];
-            }
-            if (!$natsort) {
-                $order === 'asc' ? asort($temp) : arsort($temp);
-            } else {
-                $case_sensitive ? natsort($temp) : natcasesort($temp);
-                if ($order !== 'asc') {
-                    $temp = array_reverse($temp, true);
-                }
-            }
-            foreach (array_keys($temp) as $key) {
-                is_numeric($key) ? $sorted[] = $array[$key] : $sorted[$key] = $array[$key];
+        if (empty($array)) {
+            return [];
+        }
+
+        $temp = array_column($array, $index);
+
+        if (!$natsort) {
+            $order === 'asc' ? asort($temp) : arsort($temp);
+        } else {
+            $case_sensitive ? natsort($temp) : natcasesort($temp);
+            if ($order !== 'asc') {
+                $temp = array_reverse($temp, true);
             }
         }
-        return $sorted;
+
+        return array_replace($temp, $array);
     }
 
     /**
@@ -601,14 +594,9 @@ trait TinyUtils
      */
     public static function isInArrays(mixed $needle, array $haystack_arrays): bool
     {
-        foreach ($haystack_arrays as $array) {
-            foreach ($array as $v) {
-                if ($needle == $v) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return array_reduce($haystack_arrays, function ($carry, $array) use ($needle) {
+            return $carry || in_array($needle, $array, true);
+        }, false);
     }
 
     /**
@@ -880,26 +868,19 @@ trait TinyUtils
      * @param bool $associative Whether to return an associative array (true) or an object (false) (default: true)
      * @return array|object The parsed JSON body
      */
-    public static function readJSONBody(bool $associative = true)
+    public static function readJSONBody(bool $associative = true): array|object
     {
-        // $res = json_decode(file_get_contents('php://input'), $associative);
-        // static $res;
-        // if (!isset($res)) {
-        //     $res = [];
-        //     parse_str(file_get_contents('php://input'), $res);
-        //     if (!$associative) {
-        //         $res = (object)$res;
-        //     }
-        // }
-        // return $res;
-
         static $res;
         if ($res === null) {
-            // $body = []; parse_str(file_get_contents('php://input'), $body);
-            $body = json_decode(file_get_contents('php://input'), true) ?? [];
+            $rawBody = file_get_contents('php://input') ?: '';
+            $parsedBody = [];
+            parse_str($rawBody, $parsedBody);
+            $jsonBody = json_decode($rawBody, true);
+            $body = $jsonBody ?? $parsedBody ?? [];
             if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                $body = array_merge($_POST, $body);
+                $body = [...$_POST, ...$body];
             }
+
             $res = $associative ? $body : (object) $body;
         }
         return $res;
@@ -1199,16 +1180,26 @@ trait TinyUtils
     public static function rrmdir($dir)
     {
         if (is_dir($dir)) {
-            $objects = scandir($dir);
-            foreach ($objects as $object) {
-                if ($object != "." && $object != "..") {
-                    if (is_dir($dir . DIRECTORY_SEPARATOR . $object) && !is_link($dir . "/" . $object)) {
-                        self::rrmdir($dir . DIRECTORY_SEPARATOR . $object);
-                    } else {
-                        unlink($dir . DIRECTORY_SEPARATOR . $object);
-                    }
-                }
+            // $objects = scandir($dir);
+            // foreach ($objects as $object) {
+            //     if ($object != "." && $object != "..") {
+            //         if (is_dir($dir . DIRECTORY_SEPARATOR . $object) && !is_link($dir . "/" . $object)) {
+            //             self::rrmdir($dir . DIRECTORY_SEPARATOR . $object);
+            //         } else {
+            //             unlink($dir . DIRECTORY_SEPARATOR . $object);
+            //         }
+            //     }
+            // }
+            $files = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+
+            foreach ($files as $fileinfo) {
+                $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+                $todo($fileinfo->getRealPath());
             }
+
             rmdir($dir);
         }
     }

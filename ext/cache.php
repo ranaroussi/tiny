@@ -25,36 +25,54 @@ declare(strict_types=1);
 
 class TinyCache
 {
-    private $memcached;
-    private $engine;
+    private \Memcached|null $memcached;
 
     /**
-     * Constructor for TinyCache.
-     * Initializes the cache engine (APCu or Memcached) based on the provided parameters.
+     * Initializes the TinyCache with the specified caching engine.
      *
-     * @param string $engine The cache engine to use ('apcu' or 'memcached')
+     * @param string $engine The caching engine to use ('apcu' or 'memcached')
      * @param string|null $memcached_host The Memcached host (default: 'localhost')
      * @param int|null $memcached_port The Memcached port (default: 11211)
-     * @throws RuntimeException if the specified engine or its extension is not available
+     * @throws \RuntimeException If the specified engine is invalid or unavailable
      */
-    public function __construct(string $engine = 'apcu', ?string $memcached_host = 'localhost', ?int $memcached_port = 11211)
-    {
-        $this->engine = $engine;
+    public function __construct(
+        private string $engine = 'apcu',
+        ?string $memcached_host = 'localhost',
+        ?int $memcached_port = 11211
+    ) {
+        match ($this->engine) {
+            'apcu' => $this->initApcu(),
+            'memcached' => $this->initMemcached($memcached_host, $memcached_port),
+            default => throw new \RuntimeException('Invalid cache engine specified')
+        };
+    }
 
-        if ($this->engine === 'apcu') {
-            if (!extension_loaded('apcu') || !apcu_enabled()) {
-                throw new \RuntimeException('APCu extension is not available or not enabled');
-            }
-        } elseif ($this->engine === 'memcached') {
-            if (class_exists('Memcached')) {
-                $this->memcached = new \Memcached();
-                $this->memcached->addServer($memcached_host, $memcached_port);
-            } else {
-                throw new \RuntimeException('Memcached extension is not available');
-            }
-        } else {
-            throw new \RuntimeException('Invalid cache engine specified');
+    /**
+     * Initializes the APCu caching engine.
+     *
+     * @throws \RuntimeException If APCu extension is not available or not enabled
+     */
+    private function initApcu(): void
+    {
+        if (!extension_loaded('apcu') || !apcu_enabled()) {
+            throw new \RuntimeException('APCu extension is not available or not enabled');
         }
+    }
+
+    /**
+     * Initializes the Memcached caching engine.
+     *
+     * @param string|null $host The Memcached host
+     * @param int|null $port The Memcached port
+     * @throws \RuntimeException If Memcached extension is not available
+     */
+    private function initMemcached(?string $host, ?int $port): void
+    {
+        if (!class_exists('Memcached')) {
+            throw new \RuntimeException('Memcached extension is not available');
+        }
+        $this->memcached = new \Memcached();
+        $this->memcached->addServer($host, $port);
     }
 
     /**
@@ -63,26 +81,23 @@ class TinyCache
      * @param string $key The key to retrieve
      * @param callable|null $memcached_cb Callback for Memcached (ignored for APCu)
      * @param int $get_flags Flags for Memcached get operation (ignored for APCu)
-     * @return mixed The cached value if found, null otherwise
+     * @return mixed The cached value or null if not found
      */
     public function get(string $key, ?callable $memcached_cb = null, int $get_flags = 0): mixed
     {
         if ($this->engine === 'apcu') {
-            $success = false;
-            $result = apcu_fetch($key, $success);
-            return $success ? $result : null;
+            return apcu_fetch($key, $success) ?: null;
         }
 
-        $result = $this->memcached->get($key, $memcached_cb, $get_flags);
-        return $result !== false ? $result : null;
+        return $this->memcached->get($key, $memcached_cb, $get_flags) ?: null;
     }
 
     /**
-     * Sets a value in the cache.
+     * Stores a value in the cache.
      *
-     * @param string $key The key to set
-     * @param mixed $value The value to cache
-     * @param int $ttl Time to live in seconds (0 for no expiration)
+     * @param string $key The key to store the value under
+     * @param mixed $value The value to store
+     * @param int $ttl Time-to-live in seconds (0 for no expiry)
      * @return bool True on success, false on failure
      */
     public function set(string $key, mixed $value, int $ttl = 0): bool
@@ -97,7 +112,7 @@ class TinyCache
      * Deletes a value from the cache.
      *
      * @param string $key The key to delete
-     * @return bool True if the key was deleted, false otherwise
+     * @return bool True on success, false on failure
      */
     public function delete(string $key): bool
     {
@@ -138,7 +153,7 @@ class TinyCache
     }
 
     /**
-     * Deletes all keys from the cache that match a given prefix.
+     * Deletes all values from the cache that match a given prefix.
      *
      * @param string $prefix The prefix to match
      */
@@ -163,16 +178,12 @@ class TinyCache
     }
 
     /**
-     * Retrieves a value from the cache or stores it if not present.
-     *
-     * This method attempts to retrieve a value from the cache using the given key.
-     * If the value is not found, it calls the provided callback function to generate
-     * the value, stores it in the cache with the specified TTL, and then returns it.
+     * Retrieves a value from the cache or stores it if not found.
      *
      * @param string $key The key to retrieve or store
-     * @param int $ttl Time to live in seconds for the cached value
-     * @param callable $callback Function to generate the value if not in cache
-     * @param int $delay Delay in seconds before returning the cached value
+     * @param int $ttl Time-to-live in seconds for the stored value
+     * @param callable $callback Function to generate the value if not found in cache
+     * @param int $delay Delay in seconds before returning the value (for testing purposes)
      * @return mixed The cached or newly generated value
      */
     public function remember(string $key, int $ttl, callable $callback, int $delay = 0): mixed

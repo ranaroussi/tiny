@@ -1,29 +1,29 @@
 <?php
 
-// https://stripe.com/docs/billing/subscriptions/metered
-
-/**
- * global $stripe;
- * function initStripe()
- * {
- *     global $stripe;
- *     $stripe = new \Stripe\StripeClient([
- *         "api_key" => STRIPE_SK,
- *         "stripe_version" => STRIPE_VERSION,
- *     ]);
- *     return $stripe;
- * }
- */
+declare(strict_types=1);
 
 use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\CardException;
 use Stripe\StripeClient;
+use Stripe\Subscription;
+use Stripe\Customer;
+use Stripe\Collection;
+use Stripe\SearchResult;
 
+/**
+ * StripeHelper class for handling Stripe API operations
+ */
 class StripeHelper
 {
     public StripeClient $client;
 
-    public function __construct($api_key, $api_version)
+    /**
+     * Constructor for StripeHelper
+     *
+     * @param string $api_key The Stripe API key
+     * @param string $api_version The Stripe API version to use
+     */
+    public function __construct(string $api_key, string $api_version)
     {
         $this->client = new StripeClient([
             "api_key" => $api_key,
@@ -31,39 +31,69 @@ class StripeHelper
         ]);
     }
 
-    public function getUserSubscriptions($customerId, $active_only = true)
+    /**
+     * Get user subscriptions
+     *
+     * @param string $customerId The Stripe customer ID
+     * @param bool $activeOnly Whether to retrieve only active subscriptions
+     * @return Collection A collection of user subscriptions
+     */
+    public function getUserSubscriptions(string $customerId, bool $activeOnly = true): Collection
     {
         $payload = [
             'customer' => $customerId,
             'limit' => 100,
         ];
-        if ($active_only) {
+        if ($activeOnly) {
             $payload['status'] = 'active';
         }
         return $this->client->subscriptions->all($payload);
     }
 
-    public function searchSubscriptionMetadata($key, $value)
+    /**
+     * Search subscription metadata
+     *
+     * @param string $key The metadata key to search
+     * @param string $value The metadata value to search
+     * @return SearchResult The search result containing matching subscriptions
+     */
+    public function searchSubscriptionMetadata(string $key, string $value): SearchResult
     {
         return $this->client->subscriptions->search([
             'query' => "status:'active' AND metadata['$key']:'$value'",
         ]);
     }
 
-    public function getSubscription($id)
+    /**
+     * Get a specific subscription by ID
+     *
+     * @param string $id The subscription ID
+     * @return Subscription The retrieved subscription
+     */
+    public function getSubscription(string $id): Subscription
     {
         return $this->client->subscriptions->retrieve($id);
     }
 
-    public function getCustomer($customerId)
+    /**
+     * Get a customer by ID
+     *
+     * @param string $customerId The customer ID
+     * @return Customer The retrieved customer
+     */
+    public function getCustomer(string $customerId): Customer
     {
         return $this->client->customers->retrieve($customerId);
     }
 
     /**
+     * Get a customer by email
+     *
+     * @param string $email The customer's email
+     * @return Customer|array The retrieved customer or an empty array if not found
      * @throws ApiErrorException
      */
-    public function getCustomerByEmail($email)
+    public function getCustomerByEmail(string $email): Customer|array
     {
         $customer = $this->client->customers->all([
             'email' => $email,
@@ -77,43 +107,47 @@ class StripeHelper
     }
 
     /**
+     * Create or update a customer
+     *
+     * @param array $cust Customer data
+     * @return Customer The created or updated customer
      * @throws ApiErrorException
      */
-    public function createUpdateCustomer($cust)
+    public function createUpdateCustomer(array $cust): Customer
     {
-
-        $customer = [];
-
-        // find stripe customer
-        $customer = $this->client->customers->all([
+        $customers = $this->client->customers->all([
             'email' => $cust['email'],
             'limit' => 1,
         ]);
 
-        if (count($customer->data) == 1) {
-            $customer = $customer->data[0];
-        } else {
-            // create stripe customer
-            $customer = $this->client->customers->create($cust);
-            if ($customer) {
-                return $customer;
-            }
+        if (count($customers->data) == 1) {
+            return $customers->data[0];
         }
-        return $customer;
+
+        return $this->client->customers->create($cust);
     }
 
     /**
+     * Get a payment method by ID
+     *
+     * @param string $paymentMethodId The payment method ID
+     * @return \Stripe\PaymentMethod The retrieved payment method
      * @throws ApiErrorException
      */
-    public function getPaymentMethod($paymentMethodId)
+    public function getPaymentMethod(string $paymentMethodId): \Stripe\PaymentMethod
     {
         return $this->client->paymentMethods->retrieve($paymentMethodId);
     }
 
     /**
+     * Update a payment method
+     *
+     * @param string $paymentMethodId The payment method ID
+     * @param array $data The data to update
+     * @return \Stripe\PaymentMethod The updated payment method
      * @throws ApiErrorException
      */
-    public function updatePaymentMethod($paymentMethodId, $data)
+    public function updatePaymentMethod(string $paymentMethodId, array $data): \Stripe\PaymentMethod
     {
         return $this->client->paymentMethods->update(
             $paymentMethodId,
@@ -122,9 +156,14 @@ class StripeHelper
     }
 
     /**
+     * Attach a coupon to a customer
+     *
+     * @param string $customerId The customer ID
+     * @param string $couponId The coupon ID
+     * @return Customer The updated customer
      * @throws ApiErrorException
      */
-    public function attachCustomerCoupon($customerId, $couponId)
+    public function attachCustomerCoupon(string $customerId, string $couponId): Customer
     {
         return $this->client->customers->update($customerId, [
             'coupon' => $couponId,
@@ -132,9 +171,14 @@ class StripeHelper
     }
 
     /**
+     * Attach a coupon to a subscription
+     *
+     * @param string $subscriptionsId The subscription ID
+     * @param string $couponId The coupon ID
+     * @return Subscription The updated subscription
      * @throws ApiErrorException
      */
-    public function attachSubscriptionCoupon($subscriptionsId, $couponId)
+    public function attachSubscriptionCoupon(string $subscriptionsId, string $couponId): Subscription
     {
         return $this->client->subscriptions->update($subscriptionsId, [
             'coupon' => $couponId,
@@ -142,642 +186,218 @@ class StripeHelper
     }
 
     /**
+     * Attach a payment method to a customer
+     *
+     * @param string $customerId The customer ID
+     * @param string $paymentMethodId The payment method ID
+     * @param bool $setDefault Whether to set this as the default payment method
+     * @return array The result of the operation
      * @throws ApiErrorException
      */
-    public function attachPaymentMethod($customerId, $paymentMethodId, $setDefault = true)
+    public function attachPaymentMethod(string $customerId, string $paymentMethodId, bool $setDefault = true): array
     {
-
         try {
             $payment_method = $this->client->paymentMethods->retrieve($paymentMethodId);
-            $res = $payment_method->attach([
-                'customer' => $customerId,
-            ]);
+            $res = $payment_method->attach(['customer' => $customerId]);
+
+            if ($setDefault) {
+                $this->client->customers->update($customerId, [
+                    'invoice_settings' => [
+                        'default_payment_method' => $paymentMethodId,
+                    ],
+                ]);
+            }
+
+            return ['data' => $res];
         } catch (CardException $e) {
             return ['error' => $e->getError()];
         } catch (\Exception $e) {
-            return ['error' => json_encode($e)];
+            return ['error' => $e->getMessage()];
         }
-
-        if ($setDefault) {
-            $user = $this->client->customers->update($customerId, [
-                'invoice_settings' => [
-                    'default_payment_method' => $paymentMethodId,
-                ],
-            ]);
-        }
-
-        return ['data' => $res];
     }
 
     /**
+     * Attach a subscription to a customer
+     *
+     * @param string $customerId The customer ID
+     * @param string $priceId The price ID
+     * @param int|null $anchorDate The billing cycle anchor date
+     * @param string $prorate The proration behavior
+     * @param string|null $coupon The coupon to apply
+     * @param array $metadata Additional metadata
+     * @return Subscription The created subscription
      * @throws ApiErrorException
      */
-    public function attachSubscription($customerId, $priceId)
-    {
-
-        // Create the subscription
-        return $this->client->subscriptions->create([
-            'customer' => $customerId,
-            'items' => [
-                ['price' => $priceId],
-            ],
-            'expand' => ['latest_invoice.payment_intent'],
-        ]);
-    }
-
-    /**
-     * @throws ApiErrorException
-     */
-    public function switchSubscriptionPlan($subscriptionId, $priceId, $coupon = null, $prorate = 'create_prorations', $trial_end = null)
-    {
-        // create usage items
-        // tiny::debug($subscriptionId);
-        $subscription = $this->getSubscription($subscriptionId);
+    public function attachSubscription(
+        string $customerId,
+        string $priceId,
+        ?int $anchorDate = null,
+        string $prorate = 'create_prorations',
+        ?string $coupon = null,
+        array $metadata = []
+    ): Subscription {
         $payload = [
-            'cancel_at_period_end' => false,
-            'proration_behavior' => $prorate,
+            'customer' => $customerId,
+            'items' => [['price' => $priceId]],
+            'metadata' => $metadata,
+        ];
+
+        if ($anchorDate !== null) {
+            $payload['billing_cycle_anchor'] = $anchorDate;
+            $payload['proration_behavior'] = $prorate;
+        }
+
+        if ($coupon !== null) {
+            $payload['coupon'] = $coupon;
+        }
+
+        return $this->client->subscriptions->create($payload);
+    }
+
+    /**
+     * Switch a subscription to a new plan
+     *
+     * @param string $subscriptionId The subscription ID
+     * @param string $priceId The new price ID
+     * @param string|null $coupon The coupon to apply
+     * @param string $prorate The proration behavior
+     * @param int|null $trialEnd The trial end date
+     * @return Subscription The updated subscription
+     * @throws ApiErrorException
+     */
+    public function switchSubscriptionPlan(
+        string $subscriptionId,
+        string $priceId,
+        ?string $coupon = null,
+        string $prorate = 'create_prorations',
+        ?int $trialEnd = null
+    ): Subscription {
+        $subscription = $this->client->subscriptions->retrieve($subscriptionId);
+
+        $payload = [
             'items' => [
                 [
                     'id' => $subscription->items->data[0]->id,
                     'price' => $priceId,
                 ],
             ],
+            'proration_behavior' => $prorate,
         ];
 
-        if ($trial_end != null) {
-            $payload['trial_end'] = $trial_end;
+        if ($trialEnd !== null) {
+            $payload['trial_end'] = $trialEnd;
         }
 
         if ($subscription->discount) {
             $this->client->subscriptions->deleteDiscount($subscriptionId);
         }
 
-        if ($coupon != null) {
+        if ($coupon !== null) {
             $payload['coupon'] = $coupon;
         }
 
-        // attach item to subscription
-        return $this->client->subscriptions->update(
-            $subscriptionId,
-            $payload
-        );
+        return $this->client->subscriptions->update($subscriptionId, $payload);
     }
 
     /**
+     * Attach items to a subscription
+     *
+     * @param string $subscriptionId The subscription ID
+     * @param array $priceIds The price IDs to attach
+     * @param string|null $coupon The coupon to apply
+     * @return Subscription The updated subscription
      * @throws ApiErrorException
      */
-    public function attachItemsToSubscription($subscriptionId, $priceIds, $coupon = null)
+    public function attachItemsToSubscription(string $subscriptionId, array $priceIds, ?string $coupon = null): Subscription
     {
-        if (!is_array($priceIds)) {
-            $priceIds = [$priceIds];
-        }
+        $payload = [
+            'items' => array_map(fn($priceId) => ['price' => $priceId], $priceIds)
+        ];
 
-        // create usage items
-        $items = [];
-        foreach ($priceIds as $priceId) {
-            $items[] = ['price' => $priceId];
-        }
-
-        $payload = ['items' => $items];
-
-        if ($coupon != null) {
+        if ($coupon !== null) {
             $payload['coupon'] = $coupon;
         }
 
-        // attach item to subscription
-        return $this->client->subscriptions->update(
-            $subscriptionId,
-            $payload
-        );
+        return $this->client->subscriptions->update($subscriptionId, $payload);
     }
 
     /**
+     * Cancel all subscriptions for a customer
+     *
+     * @param string $customerId The customer ID
+     * @param bool $prorate Whether to prorate the cancellation
      * @throws ApiErrorException
      */
-    public function cancelCustomerSubscriptions($customerId, $prorate = true)
+    public function cancelCustomerSubscriptions(string $customerId, bool $prorate = true): void
     {
-        $subscriptions = $this->getUserSubscriptions($customerId, $active_only = true);
+        $subscriptions = $this->getUserSubscriptions($customerId, true);
         foreach ($subscriptions->data as $subscription) {
             $this->client->subscriptions->cancel($subscription->id, ['prorate' => $prorate]);
         }
     }
 
     /**
+     * Cancel specific subscriptions
+     *
+     * @param array|string $subscriptionIds The subscription ID(s) to cancel
+     * @param bool $immediately Whether to cancel immediately or at the end of the billing period
      * @throws ApiErrorException
      */
-    public function cancelSubscriptions($subscriptionIds = [], $immediately = false)
+    public function cancelSubscriptions(array|string $subscriptionIds, bool $immediately = false): void
     {
-        if (!is_array($subscriptionIds)) {
-            $subscriptionIds = [$subscriptionIds];
-        }
-        if ($immediately) {
-            foreach ($subscriptionIds as $id) {
-                $this->client->subscriptions->cancel($id, ['prorate' => true]);
-            }
-        } else {
-            foreach ($subscriptionIds as $id) {
-                $this->client->subscriptions->update($id, ['cancel_at_period_end' => true]);
-            }
-        }
+        $subscriptionIds = (array) $subscriptionIds;
+        $action = $immediately
+            ? fn($id) => $this->client->subscriptions->cancel($id, ['prorate' => true])
+            : fn($id) => $this->client->subscriptions->update($id, ['cancel_at_period_end' => true]);
+
+        array_map($action, $subscriptionIds);
     }
 
     /**
+     * Uncancel subscriptions
+     *
+     * @param array|string $subscriptionIds The subscription ID(s) to uncancel
      * @throws ApiErrorException
      */
-    public function unCancelSubscriptions($subscriptionIds = [])
+    public function unCancelSubscriptions(array|string $subscriptionIds): void
     {
-        if (!is_array($subscriptionIds)) {
-            $subscriptionIds = [$subscriptionIds];
-        }
-
-        foreach ($subscriptionIds as $id) {
-            $this->client->subscriptions->update($id, ['cancel_at_period_end' => false]);
-        }
+        $subscriptionIds = (array) $subscriptionIds;
+        array_map(
+            fn($id) => $this->client->subscriptions->update($id, ['cancel_at_period_end' => false]),
+            $subscriptionIds
+        );
     }
 
     /**
-     * @throws ApiErrorException
+     * Create a meter event
+     *
+     * @param string $eventName The event name
+     * @param string $customerId The customer ID
+     * @param int $value The event value
+     * @param string|null $identifier An optional identifier
+     * @param int|null $timestamp An optional timestamp
      */
-    public function attachSubscriptionBundle($customerId, $priceIds, $coupon = null, $skip_recurring = false, $metadata = [])
-    {
-        // attach both plan and metered
-        if ($skip_recurring) {
-            unset($priceIds['plan']);
-        }
-
-        // create subscription plan
-        if (@$priceIds['plan']) {
-            // recurring subscriptions must be created seperatly
-            $planPriceId = @$priceIds['plan'];
-            $payload = [
-                'customer' => $customerId,
-                'items' => [['price' => $planPriceId]],
-                'expand' => ['latest_invoice.payment_intent'],
-                'metadata' => $metadata,
-            ];
-            // tiny::debug($payload);
-            $plan_subscription = $this->client->subscriptions->create($payload);
-            unset($priceIds['plan']);
-        }
-
-        // create usage items
-        $items = [];
-        foreach ($priceIds as $priceId) {
-            $items[] = ['price' => $priceId];
-        }
-
-        // only plan?
-        if (empty($items)) {
-            return $plan_subscription ?? null;
-        }
-
+    public function createMeterEvent(
+        string $eventName,
+        string $customerId,
+        int $value,
+        ?string $identifier = null,
+        ?int $timestamp = null
+    ) {
         $payload = [
-            'customer' => $customerId,
-            'items' => $items,
-            'expand' => ['latest_invoice.payment_intent'],
-            'metadata' => $metadata,
+            'event_name' => $eventName,
+            'payload' => [
+                'value' => $value,
+                'stripe_customer_id' => $customerId,
+            ]
         ];
-
-        if ($coupon != null) {
-            $payload['coupon'] = $coupon;
+        if ($identifier !== null) {
+            $payload['identifier'] = $identifier;
+        }
+        if ($timestamp !== null) {
+            $payload['timestamp'] = $timestamp;
         }
 
-        // tiny::debug($payload);
-
-        // Create the subscription
-        $subscription = $this->client->subscriptions->create($payload);
-
-        // attach recurring subscription to response
-        if (isset($plan_subscription)) {
-            $subscription->items->data[] = $plan_subscription->items->data[0];
-        }
-
-        return $subscription;
-    }
-
-    public function createMeteredSubscription($plan, $cycle = 'monthly')
-    {
-        $plan = mb_strtolower(tiny::trim(str_replace(' ', '-', $plan)));
-        $items = [];
-        foreach (@$_SERVER['STRIPE_CONFIG'][$plan] as $key => $value) {
-            if (!in_array($key, ['subscriptions', 'coupons'])) {
-                $items[$key] = $value['price_id'];
-            }
-        }
-
-        if ($plan != 'free') {
-            // add research
-            foreach (['balanced', 'cpu', 'memory', 'gpu'] as $category) {
-                foreach (@$_SERVER['STRIPE_CONFIG']['research'][$category]['price_ids'] as $key => $value) {
-                    $items['research_' . $category . '_' . $key] = $value;
-                }
-            }
-        }
-
-        $coupons = array_values(@@$_SERVER['STRIPE_CONFIG'][$plan]['coupons']);
-        $coupon = ($coupons) ? $coupons[0] : null;
-
-        return [
-            'items' => $items,
-            'coupon' => $coupon,
-        ];
-    }
-
-    public function attachMeteredSubscription($customerId, $priceIds, $coupon = null, $metadata = [])
-    {
-        // attach metered only
-
-        if (empty($priceIds)) {
-            return null;
-        }
-
-        // create usage items
-        $items = [];
-        foreach ($priceIds as $priceId) {
-            $items[] = ['price' => $priceId];
-        }
-
-        $payload = [
-            'customer' => $customerId,
-            'items' => $items,
-            'expand' => ['latest_invoice.payment_intent'],
-            'metadata' => $metadata,
-        ];
-
-        if ($coupon != null) {
-            $payload['coupon'] = $coupon;
-        }
-
-        return $this->client->subscriptions->create($payload);
-    }
-
-    /**
-     * @throws ApiErrorException
-     */
-    public function attachPlanSubscription($customerId, $priceId, $coupon = null, $metadata = [])
-    {
-        // attach plan only
-        $payload = [
-            'customer' => $customerId,
-            'items' => [['price' => $priceId]],
-            'expand' => ['latest_invoice.payment_intent'],
-            'metadata' => $metadata,
-        ];
-        // tiny::debug($payload);
-        return $this->client->subscriptions->create($payload);
-    }
-
-    /**
-     * @throws ApiErrorException
-     */
-    public function getUpcomingInvoice($customerId, $for_display = false)
-    {
-        $upcoming_invoices = [];
-
-        $upcoming_invoices[] = $this->client->invoices->upcoming([
-            'customer' => $customerId,
-        ]);
-        // tiny::debug($upcoming_invoices);
-
-        // get all invoices
-        $subs = $this->getUserSubscriptions($customerId);
-        foreach ($subs->data as $subs) {
-            $upcoming_invoices[] = $this->client->invoices->upcoming([
-                'subscription' => $subs->id,
-            ]);
-        }
-
-        // tiny::debug($upcoming_invoices);
-
-        $lineitems = [];
-        $lineitems_template = [
-            'subscription' => ['items' => []],
-            'metered' => ['items' => []],
-        ];
-
-        $amounts = [];
-        $amount_paid = 0;
-        $amount_due = 0;
-        $amount_remaining = 0;
-        $coupons = [];
-        $discounts = [];
-
-        foreach ($upcoming_invoices as $invoice) {
-
-            if (!empty($invoice->discount)) {
-                $coupons[$invoice->discount->id] = $invoice->discount->coupon;
-            }
-            $amount_due += $invoice->amount_due ?: 0;
-            $amount_paid += $invoice->amount_paid ?: 0;
-            $amount_remaining += $invoice->amount_remaining ?: 0;
-
-            foreach ($invoice->lines->autoPagingIterator() as $line) {
-                if ($line->metadata->plan) {
-                    if (!isset($lineitems[$line->metadata->plan])) {
-                        $lineitems[$line->metadata->plan] = $lineitems_template;
-                    }
-                    $lineitems[$line->metadata->plan][$line->metadata->type]['items'][$line->id] = $line;
-
-                    if (!isset($amounts[$line->metadata->plan])) {
-                        $amounts = [$line->metadata->plan => []];
-                    }
-                    $amounts[$line->metadata->plan][$line->id] = $line->amount;
-
-                    if (!isset($discounts[$line->metadata->plan])) {
-                        $discounts = [$line->metadata->plan => []];
-                    }
-                    $discounts[$line->metadata->plan][$line->id] = @$line->discount_amounts[0]->discount;
-                }
-            }
-        }
-        // die();
-
-        // uniquify
-        foreach ($discounts as $id => $plan) {
-            $discounts[$id] = array_unique(array_values($plan));
-        }
-
-        // prep return
-        $combo = [
-            'coupons' => $coupons,
-            'subscriptions' => [],
-        ];
-
-        $lineitems = tiny::cleanObjectTypes($lineitems);
-        foreach ($lineitems as $plan => $items) {
-            if (!empty($items['subscription']['items'])) {
-                $subkey = array_keys($lineitems[$plan]['subscription']['items'])[0];
-                $subscription = $this->lineItemSummary($items['subscription']['items'][$subkey]);
-
-                $metered = [];
-                foreach ($items['metered']['items'] as $key => $item) {
-                    $metered[] = $this->lineItemSummary($item);
-                }
-
-                $combo['subscriptions'][$plan] = [
-                    'name' => @$_SERVER['PLANS'][$plan]['name'],
-                    'description' => @$_SERVER['PLANS'][$plan]['desc'],
-                    'properties' => @$_SERVER['PLANS'][$plan],
-                    'amount' => @array_sum($amounts[$plan]) ?: 0,
-                    'discount' => @array_sum($discounts[$plan]) ?: 0,
-                    'plan' => $subscription,
-                    'metered' => $metered,
-                ];
-
-                $combo['subscriptions'][$plan]['properties']['actions'] *= 1000000;
-                unset($combo['subscriptions'][$plan]['properties']['name']);
-                unset($combo['subscriptions'][$plan]['properties']['desc']);
-                unset($combo['subscriptions'][$plan]['properties']['active']);
-                unset($combo['subscriptions'][$plan]['properties']['onboarding']);
-                unset($combo['subscriptions'][$plan]['properties']['extra_user']);
-            }
-        }
-
-        $combo['amount_paid'] = $amount_paid;
-        $combo['amount_due'] = $amount_due;
-        $combo['amount_remaining'] = $amount_remaining;
-        $combo = tiny::arrayToObject($combo);
-
-        if ($for_display) {
-            $combo = $this->displayUpcomingInvoice($combo);
-        }
-        return $combo;
-    }
-
-    private function lineItemSummary($line_item)
-    {
-        // return $line_item;
-        $category = explode(' (', tiny::trim(explode(' × ', $line_item['description'])[1], ')'));
-        if (!empty($category)) {
-            $category = ucwords($category[0]);
-            $subcategory = '';
-
-            $item = [
-                'category' => $category,
-                'subcategory' => $subcategory,
-                'nickname' => $line_item['price']['nickname'],
-                'description' => $line_item['description'],
-                'period' => $line_item['period'],
-                'subscription' => $line_item['subscription'],
-                'subscription_item' => $line_item['subscription_item'],
-                'quantity' => $line_item['quantity'] ?: 0,
-                'discounts' => $line_item['discount_amounts'],
-                'tier' => tiny::trim(tiny::trim(@explode('(Tier', $line_item['description'])[1], ')')),
-                'price' => [
-                    'amount' => $line_item['amount'],
-                    'unit_amount' => $line_item['price']['unit_amount'] ?: 0,
-                    'currency' => mb_strtoupper($line_item['price']['currency']),
-                    'usage_type' => ucwords($line_item['plan']['usage_type']),
-                    'billing_interval' => ucwords($line_item['plan']['interval']),
-                    'billing_interval_count' => $line_item['plan']['interval_count'],
-                    'billing_scheme' => ucwords($line_item['price']['billing_scheme']),
-
-                ],
-            ];
-
-            if ($category == 'Research Instances') {
-                $subcategory = @[
-                    'b' => 'Balanced',
-                    'c' => 'CPU-Optimized',
-                    'm' => 'Memory-Optimized',
-                    'g' => 'GPU-Optimized',
-                ][explode('.', $item['nickname'])[0]];
-            }
-            $item['subcategory'] = $subcategory;
-
-            return $item;
-        }
-    }
-
-    private function displayUpcomingInvoice($upcoming_invoice)
-    {
-        // tiny::debug($upcoming_invoice);
-        $descriptions = [
-            'Cloud Actions' => 'Overage charge for actions consumed beyond your plan-covered quota',
-            'Block Storage' => 'Charge for persistamnce block storage beyond your plan-covered quota',
-            'Live Trading' => 'Charge for broker-executed trading turnover beyond your plan-covered quota',
-            'Research Instances' => 'Browser-accesible R&amp;D machines hrs beyond your plan-covered quota',
-            'Balanced' => 'Virtual machines that offers a good balance of memory and vCPUs',
-            'CPU-Optimized' => 'Compute-optimized VMs with dedicated CPU for workloads that rely on CPU more than RAM',
-            'Memory-Optimized' => 'Virtual machines with 8GB of memory for each vCPU for RAM-intensive research',
-            'GPU-Optimized' => 'GPU compute-optimized VMs for AI/ML-focused research and machine learning model training',
-        ];
-
-        $keys = [
-            'Cloud Actions' => 'actions',
-            'Block Storage' => 'volumes',
-            'Live Trading' => 'trading',
-            'Research Instances' => 'research',
-            'Balanced' => 'balanced',
-            'CPU-Optimized' => 'cpu',
-            'Memory-Optimized' => 'memory',
-            'GPU-Optimized' => 'gpu',
-        ];
-
-        $total = 0;
-        $dues = [];
-        $usage = [];
-
-        $coupons = $upcoming_invoice->coupons;
-        foreach ($upcoming_invoice->subscriptions as $key => $group) {
-            $total += $group->plan->price->amount ? $group->plan->price->amount / 100 : 0;
-            $dues[] = $group->plan->period->start;
-            $usage[$key] = [
-                'plan' => [
-                    'name' => $group->plan->nickname ? $group->plan->nickname : ucfirst($group->name),
-                    'description' => $group->description,
-                    'amount' => $group->plan->price->amount ? $group->plan->price->amount / 100 : 0,
-                    'period' => date('M d, Y', $group->plan->period->start) . ' - ' . date('M d, Y', $group->plan->period->end),
-                    'discount' => '',
-                    'structure' => $group->plan->price->billing_interval . 'ly Subscription',
-                    'cycle' => $group->plan->price->billing_interval_count . '-' . mb_strtolower($group->plan->price->billing_interval) . ($group->plan->price->billing_interval_count > 1 ? 's' : ''),
-                ],
-            ];
-
-            if ($group->plan->price->billing_interval_count > 1) {
-                $usage[$key]['plan']['structure'] = 'Every ' . $group->plan->price->billing_interval_count . ' ' . mb_strtolower($group->plan->price->billing_interval) . 's';
-            }
-
-            $couponId = @$group->plan->discounts[0]->discount;
-            $discount = @$upcoming_invoice->coupons->$couponId;
-
-            if (@$discount->valid == 1) {
-                unset($coupons->$couponId);
-                $usage[$key]['plan']['discount'] = (@$discount->percent_off) ? number_format($discount->percent_off, 0) . '% off' : '$' . number_format($discount->amount_off, 2) . ' off';
-            }
-
-            $research = [];
-            foreach ($group->metered as $item) {
-                $amount = $item->price->amount ? $item->price->amount / 100 : 0;
-                $total += $amount;
-                $data = [
-                    'name' => $item->category, //$name,
-                    'description' => @$descriptions[$item->category],
-                    'period' => date('M d, Y', $item->period->start) . ' - ' . date('M d, Y', $item->period->end),
-                    'quantity' => $item->quantity,
-                    'tier' => $item->tier,
-                    'amount' => $amount,
-                    'structure' => $item->price->usage_type . ' (' . $item->price->billing_scheme . '), ' . $item->price->billing_interval . 'ly',
-                ];
-                $category = @$keys[$item->category];
-                if ($item->subcategory) {
-                    $usage[$key]['metered'][$category]['name'] = $data['name'];
-                    $usage[$key]['metered'][$category]['period'] = $data['period'];
-                    $usage[$key]['metered'][$category]['structure'] = $data['structure'];
-                    $usage[$key]['metered'][$category]['description'] = $data['description'];
-                    $usage[$key]['metered'][$category]['types'][$item->subcategory]['description'] = @$descriptions[$item->subcategory];
-
-                    if (!isset($usage[$key]['metered'][$category]['amount'])) {
-                        $usage[$key]['metered'][$category]['amount'] = 0;
-                    }
-                    $usage[$key]['metered'][$category]['amount'] += $amount;
-
-                    if (!isset($usage[$key]['metered'][$category]['quantity'])) {
-                        $usage[$key]['metered'][$category]['quantity'] = 0;
-                    }
-                    $usage[$key]['metered'][$category]['quantity'] += $data['quantity'];
-
-                    if (!isset($usage[$key]['metered'][$category]['types'][$item->subcategory]['amount'])) {
-                        $usage[$key]['metered'][$category]['types'][$item->subcategory]['amount'] = 0;
-                    }
-                    $usage[$key]['metered'][$category]['types'][$item->subcategory]['amount'] += $amount;
-
-                    if (!isset($usage[$key]['metered'][$category]['types'][$item->subcategory]['quantity'])) {
-                        $usage[$key]['metered'][$category]['types'][$item->subcategory]['quantity'] = 0;
-                    }
-                    $usage[$key]['metered'][$category]['types'][$item->subcategory]['quantity'] += $data['quantity'];
-
-                    $data['name'] = $item->nickname;
-                    $data['period'] = '';
-                    $data['description'] = '';
-                    $data['structure'] = '';
-                    $usage[$key]['metered'][$category]['types'][$item->subcategory]['items'][] = $data;
-                } else {
-                    $usage[$key]['metered'][$category] = $data;
-                }
-            }
-        }
-
-        $coupons = empty($coupons) ? [] : array_values(get_object_vars($coupons));
-        $coupons = (object)$coupons;
-        $active_coupons = [];
-        foreach ($coupons as $coupon) {
-            if (@$coupon->valid == 1) {
-                $name = explode(': ', $coupon->name);
-                $name = (count($name) > 1) ? $name[1] : $name[0];
-                $coupon = [
-                    'name' => ucfirst($name),
-                    'off' => (@$coupon->percent_off) ? number_format($coupon->percent_off, 0) . '% off' : '$' . number_format($coupon->amount_off, 2) . ' off',
-                ];
-                $active_coupons[] = $coupon;
-            }
-        }
-
-        // tiny::debug($payload);
-        return [
-            'due_date' => date('F d, Y', min($dues)),
-            'amount' => $total,
-            'amount_due' => $upcoming_invoice->amount_due,
-            'amount_paid' => $upcoming_invoice->amount_paid,
-            'amount_remaining' => $upcoming_invoice->amount_remaining,
-            'coupons' => $active_coupons,
-            'subscriptions' => $usage,
-        ];
-    }
-
-    /**
-     * @throws ApiErrorException
-     */
-    public function getBillingHistory($customerId, $last_invoiceId = null, $last_chargeId = null)
-    {
-        $stripe_invoice_filter = $stripe_charge_filter = [
-            // 'limit' => 100,
-            'customer' => $customerId,
-        ];
-
-        if ($last_invoiceId) {
-            $stripe_invoice_filter['ending_before'] = $last_invoiceId;
-        }
-        if ($last_chargeId) {
-            $stripe_charge_filter['ending_before'] = $last_chargeId;
-        }
-
-        $invoices = [];
-
-        $raw_invoices = $this->client->invoices->all($stripe_invoice_filter);
-        foreach ($raw_invoices->autoPagingIterator() as $invoice) {
-            $invoices[$invoice->id] = [
-                'stripe_customer_id' => $invoice->customer,
-                'stripe_invoice_id' => $invoice->id,
-                'stripe_charge_id' => $invoice->charge,
-                'invoice_created' => 'to_timestamp(' . $invoice->created . ')',
-                'amount_due' => ($invoice->amount_due) ? $invoice->amount_due : 0,
-                'amount_paid' => ($invoice->amount_paid) ? $invoice->amount_paid : 0,
-                'amount_remaining' => $invoice->amount_remaining,
-                'status' => $invoice->status,
-                'invoice_url' => $invoice->hosted_invoice_url,
-                'invoice_pdf' => $invoice->invoice_pdf,
-                'last_finalization_error' => $invoice->last_finalization_error,
-
-                // placeholders
-                'charge_created' => 'to_timestamp(' . $invoice->created . ')',
-                'amount_refunded' => 0,
-                'receipt_url' => null,
-            ];
-        }
-        // tiny::debug($invoices);
-
-        $raw_charges = $this->client->charges->all($stripe_charge_filter);
-        // tiny::debug($raw_charges);
-        foreach ($raw_charges->autoPagingIterator() as $charge) {
-            if (isset($invoices[$charge->invoice])) {
-                $invoices[$charge->invoice]['charge_created'] = 'to_timestamp(' . $charge->created . ')';
-                $invoices[$charge->invoice]['amount_refunded'] = ($charge->refunded) ? $charge->refunded : 0;
-                $invoices[$charge->invoice]['receipt_url'] = $charge->receipt_url;
-            }
-        }
-
-        // tiny::debug($invoices, 0);
-        return $invoices;
+        return $this->client->billing->meterEvents->create($payload);
     }
 }

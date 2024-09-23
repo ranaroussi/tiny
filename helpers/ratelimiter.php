@@ -66,11 +66,11 @@ class RateLimiter
         $cutoff = $now - $this->maxWindow;
 
         $attempts = tiny::cache()->get($key) ?? [];
-        $attempts = array_filter($attempts, fn($timestamp) => $timestamp > $cutoff);
+        $attempts = array_values(array_filter($attempts, fn($timestamp) => $timestamp > $cutoff));
 
         foreach ($this->limits as [$requests, $seconds]) {
             $windowCutoff = $now - $seconds;
-            $windowAttempts = count(array_filter($attempts, fn($timestamp) => $timestamp > $windowCutoff));
+            $windowAttempts = count($attempts) - $this->binarySearch($attempts, $windowCutoff);
             if ($windowAttempts >= $requests) {
                 tiny::cache()->set($key, $attempts, $this->maxWindow);
                 return false;
@@ -80,5 +80,29 @@ class RateLimiter
         $attempts[] = $now;
         tiny::cache()->set($key, $attempts, $this->maxWindow);
         return true;
+    }
+
+    /**
+     * Perform a binary search to find the index of the first element greater than the given value.
+     *
+     * @param array $arr The sorted array to search
+     * @param int $value The value to search for
+     * @return int The index of the first element greater than the given value
+     */
+    private function binarySearch(array $arr, int $value): int
+    {
+        $left = 0;
+        $right = count($arr) - 1;
+
+        while ($left <= $right) {
+            $mid = $left + (($right - $left) >> 1);
+            if ($arr[$mid] <= $value) {
+                $left = $mid + 1;
+            } else {
+                $right = $mid - 1;
+            }
+        }
+
+        return $left;
     }
 }

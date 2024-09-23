@@ -50,17 +50,20 @@ class Spaces
      * Purge cache for given file(s) from the DigitalOcean CDN.
      *
      * @param string|array $fileOrFiles File(s) to purge from cache.
-     * @return array The API response as JSON.
+     * @return mixed The API response as JSON.
      */
-    public static function purgeCache($fileOrFiles): array
+    public static function purgeCache($fileOrFiles): mixed
     {
         $files = is_array($fileOrFiles) ? $fileOrFiles : [$fileOrFiles];
-        $files = array_map([self::class, 'prefixPath'], $files);
+        $files = array_map(function($file) {
+            return '/' . ltrim(self::prefixPath($file), '/');
+        }, $files);
 
         return tiny::http()->delete(
             'https://api.digitalocean.com/v2/cdn/endpoints/' . ($_SERVER['DO_CDN_ID'] ?? '') . '/cache',
             [
-                'data' => ['files' => $files],
+                'timeout' => 30,
+                'json' => ['files' => $files],
                 'headers' => ['Authorization: Bearer ' . ($_SERVER['DO_TOKEN'] ?? '')]
             ]
         )->json;

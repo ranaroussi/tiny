@@ -25,7 +25,7 @@ declare(strict_types=1);
 
 class TinyComponent
 {
-    private array $components;
+    private array $components = [];
 
     /**
      * Constructor for the Component class.
@@ -34,7 +34,6 @@ class TinyComponent
      */
     public function __construct(private string $path = './views/components/')
     {
-        $this->components = [];
         $this->path = rtrim($path, '/');
     }
 
@@ -83,24 +82,24 @@ class TinyComponent
     /**
      * Renders a component and echoes the result.
      *
-     * @param string $_func The name of the component to render
+     * @param string $func The name of the component to render
      * @param mixed ...$props Additional properties to pass to the component
      */
-    public function render(string $_func, ...$props): void
+    public function render(string $func, ...$props): void
     {
-        echo $this->executeComponent($_func, ...$props);
+        echo $this->executeComponent($func, ...$props);
     }
 
     /**
      * Renders a component and returns the result.
      *
-     * @param string $_func The name of the component to render
+     * @param string $func The name of the component to render
      * @param mixed ...$props Additional properties to pass to the component
      * @return mixed The result of the component execution
      */
-    public function return(string $_func, ...$props): mixed
+    public function return(string $func, ...$props): mixed
     {
-        return $this->executeComponent($_func, ...$props);
+        return $this->executeComponent($func, ...$props);
     }
 
     /**

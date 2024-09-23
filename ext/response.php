@@ -29,7 +29,7 @@ class TinyResponse
      * @param string $goto The URL to redirect to
      * @param string|null $header Additional header to send (optional)
      */
-    public function redirect($goto, $header = null): void
+    public function redirect(string $goto, ?string $header = null): void
     {
         tiny::redirect($goto, $header);
     }
@@ -56,7 +56,7 @@ class TinyResponse
      * @param array $params Optional parameters to pass to the view
      * @param bool $die Whether to terminate script execution after rendering (default: true)
      */
-    public function render($file = '', $params = [], $die = true): void
+    public function render(string $file = '', array $params = [], bool $die = true): void
     {
         if (!empty($params)) {
             foreach ($params as $key => $value) {
@@ -87,7 +87,7 @@ class TinyResponse
      * @param int $code The HTTP status code (default: 200)
      * @param bool $die Whether to terminate script execution after sending (default: true)
      */
-    public function send($text, $code = 200, $die = true): void
+    public function send(mixed $text, int $code = 200, bool $die = true): void
     {
         try {
             http_response_code($code);
@@ -107,7 +107,7 @@ class TinyResponse
      * @param int $code The HTTP status code (default: 200)
      * @param bool $die Whether to terminate script execution after sending (default: true)
      */
-    public function sendFile($path, $code = 200, $die = true): void
+    public function sendFile(string $path, int $code = 200, bool $die = true): void
     {
         try {
             http_response_code($code);
@@ -127,7 +127,7 @@ class TinyResponse
      * @param int $code The HTTP status code (default: 200)
      * @param bool $die Whether to terminate script execution after sending (default: true)
      */
-    public function sendJSON($data, $code = 200, $die = true): void
+    public function sendJSON(mixed $data, int $code = 200, bool $die = true): void
     {
         try {
             header("Content-type: application/json; charset=utf-8", true, $code);

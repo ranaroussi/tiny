@@ -31,10 +31,10 @@ class TinyRequest
     public bool $htmx;
     public array $query;
     public object $path;
-    public string $csrf_token;
+    public string $csrf_token = '';
 
     private ?array $bodyCached = null;
-    private ?array $jsonCached = null;
+    private ?string $jsonCached = null;
 
     private array $req_params;
 
@@ -44,11 +44,6 @@ class TinyRequest
      */
     public function __construct()
     {
-        if (isset($_REQUEST[tiny::csrf()->getTokenName()])) {
-            $this->csrf_token = $_REQUEST[tiny::csrf()->getTokenName()];
-            unset($_REQUEST[tiny::csrf()->getTokenName()]);
-        }
-
         $router = tiny::router();
         $this->user = tiny::user();
         $this->method = $_SERVER['REQUEST_METHOD'];
@@ -77,18 +72,17 @@ class TinyRequest
     /**
      * Retrieves a request parameter value by key, with an optional fallback.
      *
-     * @param string $key The parameter key to look up.
+     * @param ?string $key The parameter key to look up.
      * @param mixed $fallback The fallback value if the key is not found.
      * @return mixed The parameter value or fallback.
      */
-    public function params(string $key, mixed $fallback = null): mixed
+    public function params(?string $key = null, mixed $fallback = null): mixed
     {
-        if ($this->req_params === null) {
-            foreach ($_REQUEST as $k => $v) {
-                $this->req_params[mb_strtolower($k)] = trim($v . '');
-            }
+        $this->req_params ??= array_change_key_case($_REQUEST, CASE_LOWER);
+        if ($key === null) {
+            return $this->req_params;
         }
-        return $this->req_params[mb_strtolower($key)] ?? $fallback;
+        return $this->req_params[strtolower($key)] ?? $fallback;
     }
 
     /**
@@ -100,15 +94,19 @@ class TinyRequest
     public function body(bool $associative = false): array|object
     {
         if ($this->bodyCached === null) {
-            // $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
-            $body = json_decode(file_get_contents('php://input'), true) ?? [];
+            $rawBody = file_get_contents('php://input') ?: '';
+            $parsedBody = [];
+            parse_str($rawBody, $parsedBody);
+            $jsonBody = json_decode($rawBody, true);
+            $body = $jsonBody ?? $parsedBody ?? [];
+
             if ($this->method === 'POST') {
-                $body = array_merge($_POST, $body);
+                $body = [...$_POST, ...$body];
             }
-            if (isset($body[tiny::csrf()->getTokenName()])) {
-                $this->csrf_token = $body[tiny::csrf()->getTokenName()];
-                unset($body[tiny::csrf()->getTokenName()]);
-            }
+
+            $this->csrf_token = $body[tiny::csrf()->getTokenName()] ?? '';
+            unset($body[tiny::csrf()->getTokenName()]);
+
             $this->bodyCached = $body;
         }
 
@@ -123,18 +121,9 @@ class TinyRequest
      */
     public function isValidCSRF($remove = true): bool
     {
-        if (!is_string($this->csrf_token)) {
-            // $body = []; parse_str(file_get_contents('php://input') ?: '', $body);
-            $body = json_decode(file_get_contents('php://input'), true);
-            if (isset($body[tiny::csrf()->getTokenName()])) {
-                $this->csrf_token = $body[tiny::csrf()->getTokenName()];
-            }
+        if ($this->csrf_token === '') {
+            $this->body();
         }
-
-        if (!is_string($this->csrf_token)) {
-            return true;
-        }
-
         return tiny::csrf()->isValid($this->csrf_token, $remove);
     }
 
@@ -142,18 +131,14 @@ class TinyRequest
     /**
      * Retrieves the JSON payload of the request as an array or object.
      *
-     * @param bool $associative Whether to return an associative array (true) or an object (false).
-     * @return array|object The JSON payload.
+     * @return string The JSON payload.
      */
-    public function json(bool $associative = true): array|object
+    public function json(): string
     {
         if ($this->jsonCached === null) {
-            $this->jsonCached = $this->method === 'GET' ? [] : tiny::readJSONBody(true);
-            if (isset($this->jsonCached[tiny::csrf()->getTokenName()])) {
-                $this->csrf_token = $this->jsonCached[tiny::csrf()->getTokenName()];
-                unset($this->jsonCached[tiny::csrf()->getTokenName()]);
-            }
+            $this->jsonCached = @file_get_contents('php://input');
+            return $this->jsonCached;
         }
-        return $associative ? $this->jsonCached : (object) $this->jsonCached;
+        return $this->jsonCached;
     }
 }
