@@ -29,7 +29,7 @@ class TinyResponse
      * @param string $goto The URL to redirect to
      * @param string|null $header Additional header to send (optional)
      */
-    public function redirect(string $goto, ?string $header = null): void
+    public function redirect(?string $goto = null, ?string $header = null): void
     {
         tiny::redirect($goto, $header);
     }

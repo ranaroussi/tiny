@@ -71,8 +71,9 @@ trait TinyUtils
      * @param mixed $header Optional header type (302, 301, 'javascript', or 'htmx')
      * @return never This function never returns
      */
-    public static function redirect(string $goto, mixed $header = null): never
+    public static function redirect(?string $goto = null, mixed $header = null): never
     {
+        $goto = $goto ?? tiny::router()->permalink;
         if (!str_starts_with($goto, 'http://') && !str_starts_with($goto, 'https://')) {
             $goto = self::getHomeURL(str_replace(self::getHomeURL(), '/', $goto));
         }
