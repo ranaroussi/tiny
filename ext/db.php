@@ -325,16 +325,18 @@ class TinyDB implements DB
         $values = is_array($values) ? $values : [$values];
         foreach ($values as $value) {
             $is_db_method = false;
-            $value = tiny::trim($value);
+            $value = is_string($value) ? tiny::trim($value) : $value;
 
-            if (in_array($value, [null, 'null', 'NULL'])) {
-                $value = 'NULL';
+            if (is_bool($value)) {
+                $value = $value ? 'TRUE' : 'FALSE';
             } elseif ($value === false || $value === 'false') {
                 $value = 'FALSE';
             } elseif ($value === true || $value === 'true') {
                 $value = 'TRUE';
             } elseif (is_numeric($value)) {
                 $value = str_contains((string)$value, '.') ? floatval($value) : intval($value);
+            } elseif (in_array($value, [null, 'null', 'NULL'])) {
+                $value = 'NULL';
             } elseif (!in_array(strtolower($value), $db_methods)) {
                 foreach ($db_method_prefix as $db_prefix) {
                     if (str_starts_with(strtolower($value), $db_prefix)) {
@@ -361,6 +363,10 @@ class TinyDB implements DB
      */
     public function execute(string $query, array $params = []): bool|int
     {
+        // used for debugging
+        // if (str_contains($query, '')) {
+        //     die(str_replace('\\?', '?', $this->prepare($query, $params)));
+        // }
         return $this->pdo->exec(str_replace('\\?', '?', $this->prepare($query, $params)));
     }
 
