@@ -253,9 +253,16 @@ function getBillingCycle($subscribedAt)
     $lookupDate = clone $subscribedDate;
 
     $currentDate = new DateTime();
-    // print($lookupDate->format('Y-m-d').'<br>');
+
+    if ($lookupDate->format('Y-m-d') == $currentDate->format('Y-m-d')) {
+        $lookupDate->modify('+1 month');
+        return [
+            'start' => $currentDate->format('Y-m-d'),
+            'end' => $lookupDate->format('Y-m-d'),
+        ];
+    }
+
     while ($lookupDate < $currentDate) {
-        // print(' - '.$lookupDate->format('Y-m-d').'<br>');
         $lookupDate->modify('+1 month');
     }
 
