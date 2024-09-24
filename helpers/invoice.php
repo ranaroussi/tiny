@@ -256,13 +256,14 @@ class InvoiceGenerator extends FPDF
         $fields = compact('quantity', 'price', 'discount');
         $itemColumns = count($p);
 
-
+        $discount = 0;
         foreach ($fields as $field => $value) {
             if ($value !== false) {
                 if ($field === 'price') {
                     $p[$field] = rtrim($this->price($value / 100, $decimals), '0');
                 } elseif ($field === 'discount') {
-                    $p[$field] = str_replace('.00', '', number_format($value, 2)) . '%';
+                    $discount = $value < 1 ? $value : $value / 100;
+                    $p[$field] = number_format($discount * 100, 2) . '%';
                 } elseif ($field === 'quantity') {
                     $p[$field] = number_format($value, 0);
                 } else {
@@ -272,7 +273,7 @@ class InvoiceGenerator extends FPDF
             }
         }
 
-        $p['total'] = $this->price($price / 100 * $quantity);
+        $p['total'] = $this->price($price / 100 * $quantity * (1 - $discount));
         $itemColumns++;
 
         if (empty($this->items)) {
@@ -287,6 +288,7 @@ class InvoiceGenerator extends FPDF
 
     public function addTotal(string $name, $value, bool $isInvoiceTotal = false): void
     {
+        $value = is_numeric($value) ? $value / 100 : $value;
         $this->totals[] = [
             'name' => $name,
             'value' => is_numeric($value) ? $this->price($value) : $value
