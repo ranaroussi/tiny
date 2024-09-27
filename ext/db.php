@@ -128,6 +128,16 @@ interface DB
     public function delete(string $table, string|array|null $conditions = null): mixed;
 
     /**
+     * Performs an upsert operation (insert or update on conflict).
+     *
+     * @param string $table The name of the table
+     * @param array $data An associative array of column-value pairs to insert or update
+     * @param string $conflict The column(s) to check for conflicts
+     * @return mixed The result of the upsert operation
+     */
+    public function upsert(string $table, array $data, string $conflict): mixed;
+
+    /**
      * Escapes a string for use in a SQL query.
      *
      * @param mixed $text The text to escape
@@ -364,7 +374,7 @@ class TinyDB implements DB
     public function execute(string $query, array $params = []): bool|int
     {
         // used for debugging
-        // if (str_contains($query, '')) {
+        // if (str_contains($query, 'ON CONFLICT')) {
         //     die(str_replace('\\?', '?', $this->prepare($query, $params)));
         // }
         return $this->pdo->exec(str_replace('\\?', '?', $this->prepare($query, $params)));
@@ -559,19 +569,26 @@ class TinyDB implements DB
      * @param string $table The name of the table
      * @param array $data An associative array of column-value pairs to insert or update
      * @param string $conflict The column(s) to check for conflicts
-     * @return PDOStatement|bool The result of the upsert operation
+     * @return mixed The result of the upsert operation
      */
-    public function upsert(string $table, array $data, string $conflict): \PDOStatement|bool
+    public function upsert(string $table, array $data, string $conflict): mixed
     {
         unset($data['csrf_token']);
 
-        if ($this->dbType === 'pgsql') {
+        if (in_array($this->dbType, ['postgresql', 'pgsql'])) {
+
             $keys = array_keys($data);
             $cols = implode(', ', $keys);
-            $update = implode('=?, ', $keys) . '=?';
+
+            $update_data = $data;
+            unset($update_data['id']);
+            reset($update_data);
+            $update_keys = array_keys($update_data);
+            $update = implode('=?, ', $update_keys) . '=?';
+
             $placeholders = implode(', ', array_fill(0, count($data), '?'));
             $query = "INSERT INTO $table ($cols) VALUES ($placeholders) ON CONFLICT ($conflict) DO UPDATE SET $update";
-            return $this->execute($query, [...array_values($data), ...array_values($data)]);
+            return $this->execute($query, [...array_values($data), ...array_values($update_data)]);
         } else {
             // For MySQL and SQLite, use REPLACE INTO as a simple upsert
             $columns = implode(', ', array_keys($data));
