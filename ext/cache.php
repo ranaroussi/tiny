@@ -54,7 +54,7 @@ class TinyCache
      */
     private function initApcu(): void
     {
-        if (!extension_loaded('apcu') || !apcu_enabled()) {
+        if (!extension_loaded('apcu') || !(apcu_enabled() || ini_get('apc.enabled'))) {
             throw new \RuntimeException('APCu extension is not available or not enabled');
         }
     }
