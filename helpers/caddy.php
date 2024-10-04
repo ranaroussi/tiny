@@ -22,6 +22,13 @@ class Caddy
 
     private static function makeRequest(string $path, string $method = 'GET', ?array $data = null): object
     {
+        if (!$_SERVER['CADDY_ADMIN_URL']) {
+            return (object) [
+                'success' => false,
+                'data' => [],
+            ];
+        }
+
         $url = ($_SERVER['CADDY_ADMIN_URL'] ?? '') . $path;
         $options = [
             'ssl' => self::getSSLConfig(),
@@ -79,6 +86,9 @@ class Caddy
     {
         $domain = mb_strtolower($domain);
         $root = self::getRootDomain(true);
+        if (!$root->success) {
+            return $root;
+        }
 
         $domains = $root->json->routes[0]->match[0]->host;
         $domains[] = explode(':', $domain)[0];
@@ -97,10 +107,7 @@ class Caddy
         $root = self::getRootDomain(true);
 
         if (!$root->success) {
-            return (object) [
-                'success' => false,
-                'data' => [],
-            ];
+            return $root;
         }
 
         $domains = array_filter(
