@@ -335,7 +335,7 @@ class TinyDB implements DB
         $values = is_array($values) ? $values : [$values];
         foreach ($values as $value) {
             $is_db_method = false;
-            $value = is_string($value) ? tiny::trim($value) : $value;
+            $value = is_string($value) ? addcslashes(tiny::trim($value), "'") : $value;
 
             if (is_bool($value)) {
                 $value = $value ? 'TRUE' : 'FALSE';
