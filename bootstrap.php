@@ -88,9 +88,9 @@ putenv('TZ=' . isset($_SERVER['TIMEZONE']) ? $_SERVER['TIMEZONE'] : 'UTC');
 @ini_set('session.cookie_httponly', 1); // Prevents session hijacking (JS XSS attacks aimed to steal the session ID)
 @ini_set('session.use_only_cookies', 1); // Prevent session fixation (session ID cannot be passed through URLs)
 @ini_set('session.cookie_secure', 1); // Uses a secure connection (HTTPS) if possible
-if (@$_SERVER['TINY_MINIFY_OUTPUT'] == 'true') {
+// if (@$_SERVER['TINY_MINIFY_OUTPUT'] == 'true') {
     @ob_start('minifyOutput'); // Minify output
-}
+// }
 
 /* -------------------------------------- */
 // Sentry stuff
@@ -102,19 +102,42 @@ if (@$_SERVER['ENV'] != 'local' && isset($_SERVER['SENTRY_DSN'])) {
 /* -------------------------------------- */
 
 // html output minifier
-function minifyOutput($buffer): array|string
+function minifyOutput($buffer): string
 {
-    $search = array(
-        '/\>[^\S ]+/s', // strip whitespaces after tags, except space
-        '/[^\S ]+\</s', // strip whitespaces before tags, except space
-        '/(\s)+/s', // shorten multiple whitespace sequences
-        '/<!--(.|\s)*?-->/', // Remove HTML comments
+    // Early return if buffer is empty
+    if (empty($buffer)) {
+        return '';
+    }
+
+    // Only minify HTML content
+    $contentType = headers_list();
+    $isHtml = false;
+    foreach ($contentType as $header) {
+        if (stripos($header, 'content-type: text/html') !== false) {
+            $isHtml = true;
+            break;
+        }
+    }
+
+    if (!$isHtml) {
+        return $buffer;
+    }
+
+    // Static regex patterns
+    static $patterns = [
+        '/<!--(?!\[if).*?-->/s' => '', // Remove HTML comments except IE conditions
+        '/\s{2,}/' => ' ', // Combine multiple spaces
+        '/>\s+</' => '><', // Remove whitespace between tags
+        '/(\r?\n)/' => '', // Remove newlines
+    ];
+
+    // Apply all patterns in one pass
+    $buffer = preg_replace(
+        array_keys($patterns),
+        array_values($patterns),
+        $buffer
     );
-    $replace = array('>', '<', '\\1', '');
-    $buffer = preg_replace($search, $replace, $buffer);
-    $buffer = str_replace('> ', '>', $buffer);
-    $buffer = str_replace(' <', '<', $buffer);
-    $buffer = str_replace("\n}", ' }', $buffer);
-    return str_replace("}\n", '} ', $buffer);
+
+    return trim($buffer);
 }
 
