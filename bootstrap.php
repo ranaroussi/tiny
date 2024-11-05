@@ -88,9 +88,9 @@ putenv('TZ=' . isset($_SERVER['TIMEZONE']) ? $_SERVER['TIMEZONE'] : 'UTC');
 @ini_set('session.cookie_httponly', 1); // Prevents session hijacking (JS XSS attacks aimed to steal the session ID)
 @ini_set('session.use_only_cookies', 1); // Prevent session fixation (session ID cannot be passed through URLs)
 @ini_set('session.cookie_secure', 1); // Uses a secure connection (HTTPS) if possible
-// if (@$_SERVER['TINY_MINIFY_OUTPUT'] == 'true') {
+if (@$_SERVER['TINY_MINIFY_OUTPUT'] == 'true') {
     @ob_start('minifyOutput'); // Minify output
-// }
+}
 
 /* -------------------------------------- */
 // Sentry stuff
