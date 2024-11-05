@@ -87,7 +87,6 @@ ini_set('session.use_only_cookies', 1);
 ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 1 : 0);
 
 if (!in_array($_SERVER['TINY_MINIFY_OUTPUT'] ?? false, ['false', false, 0, '0'])) {
-    // @ob_start('minifyOutput'); // Minify output
     ob_start(function ($buffer): string {
         // Early return if buffer is empty
         if (empty($buffer)) {
