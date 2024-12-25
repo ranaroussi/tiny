@@ -314,7 +314,7 @@ class tiny
      * @param string|null $key The configuration key to retrieve (optional)
      * @return mixed The configuration value or the entire configuration object
      */
-    public static function config(string $key = null): mixed
+    public static function config(?string $key = null): mixed
     {
         return $key === null ? self::$config : (self::$config->$key ?? null);
     }
@@ -354,7 +354,7 @@ class tiny
      * @param string|null $key The router key to retrieve (optional)
      * @return mixed The router value or the entire router object
      */
-    public static function router(string $key = null): mixed
+    public static function router(?string $key = null): mixed
     {
         return $key === null ? self::$router : (self::$router->$key ?? null);
     }
