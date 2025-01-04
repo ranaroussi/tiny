@@ -203,7 +203,7 @@ class tiny
             }
 
             if ($url !== '/') {
-                $parts = explode('/', trim(str_replace(self::$config->url_path, '', $url), '/'), 3);
+                $parts = explode('/', trim(rtrim($url, self::$config->url_path), '/'), 3);
                 $router['controller'] = $parts[0] ?: self::$config->homepage;
                 $router['section'] = $parts[1] ?? '';
                 $router['slug'] = $parts[2] ?? '';
