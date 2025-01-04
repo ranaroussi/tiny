@@ -55,7 +55,7 @@ $_SERVER['ENV'] = 'prod';
 $env_file = __DIR__ . '/../env.php';
 if (file_exists($env_file)) {
     try {
-        require $env_file;
+        require_once $env_file;
         $env = defined('ENV') ? ENV : 'prod';
         $_SERVER['ENV'] = $env;
 
