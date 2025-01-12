@@ -51,20 +51,6 @@ class StripeHelper
     }
 
     /**
-     * Search subscription metadata
-     *
-     * @param string $key The metadata key to search
-     * @param string $value The metadata value to search
-     * @return SearchResult The search result containing matching subscriptions
-     */
-    public function searchSubscriptionMetadata(string $key, string $value): SearchResult
-    {
-        return $this->client->subscriptions->search([
-            'query' => "status:'active' AND metadata['$key']:'$value'",
-        ]);
-    }
-
-    /**
      * Get a specific subscription by ID
      *
      * @param string $id The subscription ID

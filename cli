@@ -1,4 +1,5 @@
 <?php
+#!/usr/bin/env php
 
 /**
  * Tiny: PHP Framework
@@ -30,7 +31,7 @@ class tiny
 if (PHP_SAPI === 'cli' && str_ends_with(__FILE__, $argv[0])) {
 
     if ($argc < 2) {
-        echo "Usage: php tiny/cli.php [category] [?options]\n";
+        echo "Usage: php tiny/cli [category] [?options]\n";
         exit(1);
     }
 

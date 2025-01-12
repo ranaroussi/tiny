@@ -55,7 +55,7 @@ $_SERVER['ENV'] = 'prod';
 $env_file = __DIR__ . '/../env.php';
 if (file_exists($env_file)) {
     try {
-        require $env_file;
+        require_once $env_file;
         $env = defined('ENV') ? ENV : 'prod';
         $_SERVER['ENV'] = $env;
 
@@ -82,39 +82,46 @@ foreach ($_SERVER as $key => $value) {
 }
 $_SERVER['CALC_TIMER'] = $_SERVER['CALC_TIMER'] ?? true;
 putenv('TZ=' . isset($_SERVER['TIMEZONE']) ? $_SERVER['TIMEZONE'] : 'UTC');
-@ini_set('register_globals', 'off');
-@ini_set('magic_quotes_gpc', 'off');
-@ini_set('short_open_tag', 1);
-@ini_set('session.cookie_httponly', 1); // Prevents session hijacking (JS XSS attacks aimed to steal the session ID)
-@ini_set('session.use_only_cookies', 1); // Prevent session fixation (session ID cannot be passed through URLs)
-@ini_set('session.cookie_secure', 1); // Uses a secure connection (HTTPS) if possible
-if (@$_SERVER['TINY_MINIFY_OUTPUT'] == 'true') {
-    @ob_start('minifyOutput'); // Minify output
+ini_set('session.cookie_httponly', 1);
+ini_set('session.use_only_cookies', 1);
+ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 1 : 0);
+
+if (!in_array($_SERVER['TINY_MINIFY_OUTPUT'] ?? false, ['false', false, 0, '0'])) {
+    ob_start(function ($buffer): string {
+        // Early return if buffer is empty
+        if (empty($buffer)) {
+            return '';
+        }
+
+        // Only minify HTML content
+        $contentType = headers_list();
+        $isHtml = false;
+        foreach ($contentType as $header) {
+            if (stripos($header, 'content-type: text/html') !== false) {
+                $isHtml = true;
+                break;
+            }
+        }
+
+        if (!$isHtml) {
+            return $buffer;
+        }
+
+        // Static regex patterns
+        static $patterns = [
+            '/<!--(?!\[if).*?-->/s' => '', // Remove HTML comments except IE conditions
+            '/\s{2,}/' => ' ', // Combine multiple spaces
+            '/>\s+</' => '><', // Remove whitespace between tags
+            '/(\r?\n)/' => '', // Remove newlines
+        ];
+
+        // Apply all patterns in one pass
+        $buffer = preg_replace(
+            array_keys($patterns),
+            array_values($patterns),
+            $buffer
+        );
+
+        return trim($buffer);
+    });
 }
-
-/* -------------------------------------- */
-// Sentry stuff
-if (@$_SERVER['ENV'] != 'local' && isset($_SERVER['SENTRY_DSN'])) {
-    \Sentry\init(['dsn' => $_SERVER['SENTRY_DSN']]);
-    \Sentry\captureLastError();
-}
-
-/* -------------------------------------- */
-
-// html output minifier
-function minifyOutput($buffer): array|string
-{
-    $search = array(
-        '/\>[^\S ]+/s', // strip whitespaces after tags, except space
-        '/[^\S ]+\</s', // strip whitespaces before tags, except space
-        '/(\s)+/s', // shorten multiple whitespace sequences
-        '/<!--(.|\s)*?-->/', // Remove HTML comments
-    );
-    $replace = array('>', '<', '\\1', '');
-    $buffer = preg_replace($search, $replace, $buffer);
-    $buffer = str_replace('> ', '>', $buffer);
-    $buffer = str_replace(' <', '<', $buffer);
-    $buffer = str_replace("\n}", ' }', $buffer);
-    return str_replace("}\n", '} ', $buffer);
-}
-

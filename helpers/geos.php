@@ -2061,10 +2061,15 @@ function currencies_options(): string
         <option value="GBP">GBP - Pound Sterling 🇬🇧</option>
         <option value="" disabled>-----</option>
         ';
+        $no_fee_currencies = $_SERVER['NOFEE_CURRENCIES'] ? explode(',', $_SERVER['NOFEE_CURRENCIES']) : [];
         foreach (CURRENCIES as $code => $item) {
             if (in_array($code, SUPPORTED_CURRENCIES) && !in_array($code, ['USD', 'EUR', 'GBP'])) {
                 $flag = $code == 'EUR' ? '🇪🇺' : GEOS[$item['countries'][0]]['flag'];
-                $return .= "<option value=\"{$code}\">{$code} - {$item['name']} {$flag}</option>";
+                $asterisks = '';
+                if ($no_fee_currencies && !in_array($code, $no_fee_currencies)) {
+                    $asterisks = ' *';
+                }
+                $return .= "<option value=\"{$code}\">{$code} - {$item['name']} {$flag}{$asterisks}</option>";
             }
         }
         return $return;

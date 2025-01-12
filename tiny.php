@@ -203,7 +203,7 @@ class tiny
             }
 
             if ($url !== '/') {
-                $parts = explode('/', trim(str_replace(self::$config->url_path, '', $url), '/'), 3);
+                $parts = explode('/', trim(rtrim($url, self::$config->url_path), '/'), 3);
                 $router['controller'] = $parts[0] ?: self::$config->homepage;
                 $router['section'] = $parts[1] ?? '';
                 $router['slug'] = $parts[2] ?? '';
@@ -314,7 +314,7 @@ class tiny
      * @param string|null $key The configuration key to retrieve (optional)
      * @return mixed The configuration value or the entire configuration object
      */
-    public static function config(string $key = null): mixed
+    public static function config(?string $key = null): mixed
     {
         return $key === null ? self::$config : (self::$config->$key ?? null);
     }
@@ -354,7 +354,7 @@ class tiny
      * @param string|null $key The router key to retrieve (optional)
      * @return mixed The router value or the entire router object
      */
-    public static function router(string $key = null): mixed
+    public static function router(?string $key = null): mixed
     {
         return $key === null ? self::$router : (self::$router->$key ?? null);
     }

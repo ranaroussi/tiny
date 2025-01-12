@@ -78,11 +78,23 @@ trait TinyDebugger
      *
      * @param array $trace The trace information.
      * @param string $content The content to be displayed.
+     * @param bool $asHTML Whether to return HTML or plain text.
      * @return string Formatted HTML string.
      */
-    private static function formatOutput(array $trace, string $content): string
+    private static function formatOutput(array $trace, string $content, $asHTML = true): string
     {
         $content = trim($content);
+
+        if (tiny::isCLI() || !$asHTML) {
+            $output = date('[Y-m-d H:i:s] ') .
+                "{$trace['file']}:{$trace['line']}\n\n" .
+                ($trace['url'] ? "url: {$trace['url']}\n" : '') .
+                ($trace['function'] ? "in:  {$trace['function']}()\n" : '')
+                . "\n" . strip_tags($content);
+            $output .= "\n\n" . str_repeat('-', 80) . "\n\n";
+            return $output;
+        }
+
         $commonStyles = 'font-smoothing:antialiased;color:#bbb;background-color:#1c1f23;z-index:2147483647;position:relative;';
         $divStyles = $commonStyles . 'font-family:system-ui,sans-serif;font-size:14px!important;margin:20px;padding:20px 20px 15px;border-radius:5px;position:relative;z-index:2147483647;';
         $preStyles = $commonStyles . 'border-radius:0;font-family:ui-monospace,monospace;font-size:13.5px!important;padding-left:20px;border-left:2px solid #666;margin:10px 0 10px 1px;';
@@ -204,13 +216,7 @@ trait TinyDebugger
         $logFile = $_SERVER['LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
         [$trace, $content] = self::dumpOrDebug($_SERVER['LOG_MODE'] ?? 'dump', ...$vars);
 
-        $output = date('[Y-m-d H:i:s] ') .
-            "{$trace['file']}:{$trace['line']}\n\n" .
-            ($trace['url'] ? "url: {$trace['url']}\n" : '') .
-            ($trace['function'] ? "in:  {$trace['function']}()\n" : '')
-            . "\n" . strip_tags($content);
-
-        $output .= "\n\n" . str_repeat('-', 80) . "\n\n";
+        $output = self::formatOutput($trace, $content, false);
         file_put_contents($logFile, $output, FILE_APPEND);
     }
 }

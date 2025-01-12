@@ -34,7 +34,7 @@ $ git clone https://github.com/ranaroussi/tiny.git
 3. Execute the following command to create the project:
 
 ```bash
-$ php tiny/cli.php create
+$ php tiny/cli create
 ```
 
 4. Install dependencies:
@@ -268,7 +268,7 @@ Tiny includes a simple migration system to help manage database schema changes. 
 To create a new migration, use the following command:
 
 ```bash
-php tiny/cli.php migration create migration_name
+php tiny/cli migration create migration_name
 ```
 
 This will create a new migration file in the `migrations` directory with a timestamp prefix.
@@ -278,7 +278,7 @@ This will create a new migration file in the `migrations` directory with a times
 To run all pending migrations:
 
 ```bash
-php tiny/cli.php migration up
+php tiny/cli migration up
 ```
 
 This command will execute all migrations that haven't been run yet.
@@ -288,7 +288,7 @@ This command will execute all migrations that haven't been run yet.
 To roll back the last batch of migrations:
 
 ```bash
-php tiny/cli.php migration down
+php tiny/cli migration down
 ```
 
 This command will revert the most recent batch of migrations.
@@ -298,7 +298,7 @@ This command will revert the most recent batch of migrations.
 To remove a migration file that hasn't been run yet:
 
 ```bash
-php tiny/cli.php migration remove migration_name
+php tiny/cli migration remove migration_name
 ```
 
 This command will remove the specified migration file if it hasn't been applied to the database.

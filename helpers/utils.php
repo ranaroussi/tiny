@@ -247,20 +247,27 @@ function javascript_encode($arr, $allow_nulls = true)
 /**
  * @throws DateMalformedStringException
  */
-function getBillingCycle($subscribedAt)
+function getBillingCycle($subscribedAt, $billingCycle = 'monthly')
 {
     $subscribedDate = new DateTime($subscribedAt . '');
     $lookupDate = clone $subscribedDate;
-
     $currentDate = new DateTime();
-    // print($lookupDate->format('Y-m-d').'<br>');
+
+    $billingCycle = $billingCycle == 'monthly' ? 'month' : 'year';
+    if ($lookupDate->format('Y-m-d') == $currentDate->format('Y-m-d')) {
+        $lookupDate->modify("+1 $billingCycle");
+        return [
+            'start' => $currentDate->format('Y-m-d'),
+            'end' => $lookupDate->format('Y-m-d'),
+        ];
+    }
+
     while ($lookupDate < $currentDate) {
-        // print(' - '.$lookupDate->format('Y-m-d').'<br>');
-        $lookupDate->modify('+1 month');
+        $lookupDate->modify("+1 $billingCycle");
     }
 
     $next = $lookupDate->format('Y-m-d');
-    $lookupDate->modify('-1 month');
+    $lookupDate->modify("-1 $billingCycle");
     return [
         'start' => $lookupDate->format('Y-m-d'),
         'end' => $next,

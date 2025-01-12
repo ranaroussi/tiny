@@ -71,13 +71,14 @@ trait TinyUtils
      * @param mixed $header Optional header type (302, 301, 'javascript', or 'htmx')
      * @return never This function never returns
      */
-    public static function redirect(string $goto, mixed $header = null): never
+    public static function redirect(?string $goto = null, mixed $header = null): never
     {
+        $goto = $goto ?? tiny::router()->permalink;
         if (!str_starts_with($goto, 'http://') && !str_starts_with($goto, 'https://')) {
             $goto = self::getHomeURL(str_replace(self::getHomeURL(), '/', $goto));
         }
         match ($header) {
-            302 => header('HTTP/1.0 302 Moved Temporarily'),
+            302 => header('HTTP/1.1 302 Moved Temporarily'),
             301 => header('HTTP/1.1 301 Moved Permanently'),
             'javascript' => self::javascriptRedirect($goto),
             'htmx' => self::htmxRedirect($goto),
@@ -1110,6 +1111,26 @@ trait TinyUtils
             header("Content-Disposition: attachment; filename=$attachement");
             header('Pragma: no-cache');
             header('Expires: 0');
+        }
+    }
+
+    /**
+     * Sends HTTP/2 103 Early Hints header with Link preload hints.
+     *
+     * @param string $url The URL to preload
+     * @param string $rel The relationship type (default: 'preload')
+     * @param string $as The resource type hint (default: 'style')
+     * @param bool $nopush Whether to disable HTTP/2 server push (default: true)
+     * @param bool $replace Whether to replace existing headers (default: false)
+     */
+    public static function sendEarlyHints(string $url, string $rel = 'preload', string $as = 'style', bool $nopush = true, $replace = false): void
+    {
+        $url = self::getHomeUrl($url);
+        header('HTTP/2 103 Early Hints');
+        if ($nopush) {
+            header("Link: ‹$url>; rel=$rel; as=$as; nopush", $replace);
+        } else {
+            header("Link: ‹$url>; rel=$rel; as=$as", $replace);
         }
     }
 
