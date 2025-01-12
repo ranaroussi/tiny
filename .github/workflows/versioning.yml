@@ -33,9 +33,9 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v0 #.10.2
+        uses: gittools/actions/gitversion/setup@v3.0.0
         with:
-          versionSpec: '6.x'
+          versionSpec: '6.0.5'
 
       - name: Checkout Code
         uses: actions/checkout@v4
