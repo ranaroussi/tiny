@@ -157,3 +157,7 @@ class UserProfile extends TinyController
    - Use dependency injection
    - Keep code DRY
    - Document complex logic
+
+For more information:
+- See [Database Operations](../core-concepts/database.md)
+- Check [Extensions](../extensions/readme.md)

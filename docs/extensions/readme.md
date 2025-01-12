@@ -2,7 +2,7 @@
 
 Tiny PHP Framework comes with several built-in extensions that provide core functionality. These extensions are located in the `tiny/ext/` directory and are automatically loaded when needed.
 
-## Available Extensions
+## Main Extensions
 
 1. [Cache](cache.md)
    - Memory caching with APCu or Memcached
@@ -30,7 +30,7 @@ Tiny PHP Framework comes with several built-in extensions that provide core func
    - File uploads
    - SSL/TLS support
 
-5. [Layout](layout.md)
+5. [Layouts](layout.md) and [Components](components.md)
    - Template management
    - Layout inheritance
    - Section rendering
@@ -53,6 +53,24 @@ Tiny PHP Framework comes with several built-in extensions that provide core func
    - Event streaming
    - Client connection management
    - Message broadcasting
+
+9. [Debugger](debugger.md)
+   - Variable inspection
+   - Stack traces
+   - Error handling
+   - Log management
+
+10. [Flash Messages](flash.md)
+    - Session-based messages
+    - Multiple message types
+    - Message persistence
+    - Toast notifications
+
+11. [Cookie](cookie.md)
+    - Cookie management
+    - Secure cookie handling
+    - Encryption support
+    - Domain/path control
 
 ## Using Extensions
 
