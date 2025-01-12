@@ -322,7 +322,7 @@ async function deleteTodo(id) {
 
 1. Run the migration:
 ```bash
-php tiny/cli.php migrations up
+php tiny/cli migrations up
 ```
 
 2. Access your TODO application at `http://localhost/todo`

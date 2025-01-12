@@ -17,7 +17,7 @@ git clone https://github.com/ranaroussi/tiny.git
 3. Create the project structure:
 
 ```bash
-php tiny/cli.php create
+php tiny/cli create
 ```
 
 4. Install dependencies:
