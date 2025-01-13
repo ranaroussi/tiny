@@ -833,8 +833,8 @@ class tiny
 
 /* -------------------------------------- */
 // Initialize Tiny
+header_remove('Server');
 header_remove('X-Powered-By');
-// tiny::header('X-Powered-By: Tiny');
 tiny::init();
 /* -------------------------------------- */
 
