@@ -387,3 +387,7 @@ class StripeHelper
         return $this->client->billing->meterEvents->create($payload);
     }
 }
+
+tiny::registerHelper('stripe', function () {
+    return new StripeHelper($_SERVER['STRIPE_SK'], $_SERVER['STRIPE_VERSION']);
+});

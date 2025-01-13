@@ -8,7 +8,7 @@ class LogSnag
     private const API_URL = 'https://api.logsnag.com/v1';
     private const VALID_LOGSNAG_SUBMIT = ['true', true, '1', 1];
 
-    private static function headers(): array
+    private function headers(): array
     {
         return [
             'Authorization: Bearer ' . ($_SERVER['LOGSNAG_S2S_TOKEN'] ?? ''),
@@ -16,7 +16,7 @@ class LogSnag
         ];
     }
 
-    public static function identify(string $user_id, array $props = []): object|false
+    public function identify(string $user_id, array $props = []): object|false
     {
         if (!self::isLogSnagEnabled()) {
             return false;
@@ -31,7 +31,7 @@ class LogSnag
         return self::sendRequest('insight', $payload);
     }
 
-    public static function log(
+    public function log(
         string|array $channels,
         string $event,
         string $description = '',
@@ -70,7 +70,7 @@ class LogSnag
         return $responses;
     }
 
-    public static function mdlog(
+    public function mdlog(
         string|array $channels,
         string $event,
         string $description = '',
@@ -81,7 +81,7 @@ class LogSnag
         return self::log($channels, $event, $description, $tags, $icon, $notify, true);
     }
 
-    public static function insight(string $title, string $value, string $icon = '💡'): object|false
+    public function insight(string $title, string $value, string $icon = '💡'): object|false
     {
         if (!self::isLogSnagEnabled()) {
             return false;
@@ -95,12 +95,12 @@ class LogSnag
         ]);
     }
 
-    private static function isLogSnagEnabled(): bool
+    private function isLogSnagEnabled(): bool
     {
         return in_array($_SERVER['LOGSNAG_SUBMIT'] ?? '', self::VALID_LOGSNAG_SUBMIT, true);
     }
 
-    private static function sendRequest(string $endpoint, array $payload): object
+    private function sendRequest(string $endpoint, array $payload): object
     {
         return tiny::http()->post(self::API_URL . '/'. $endpoint, [
             'json' => $payload,
@@ -108,3 +108,7 @@ class LogSnag
         ]);
     }
 }
+
+tiny::registerHelper('logsnag', function () {
+    return new LogSnag();
+});

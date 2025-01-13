@@ -10,7 +10,7 @@ declare(strict_types=1);
  *
  * Example usage:
  * --------------
- * $rateLimit = new RateLimiter("api", 10, 1); // 10 requests per second
+ * $rateLimit = tiny::rateLimiter("api", 10, 1); // 10 requests per second
  * $rateLimit->add(1000, 3600); // Add another limit: 1000 requests per hour
  *
  * $userId = "user123";
@@ -106,3 +106,7 @@ class RateLimiter
         return $left;
     }
 }
+
+tiny::registerHelper('rateLimiter', function (string $name, int $requests, int $seconds) {
+    return new RateLimiter($name, $requests, $seconds);
+});

@@ -226,3 +226,7 @@ class DOCReader
         }
     }
 }
+
+tiny::registerHelper('docreader', function() {
+    return new DOCReader();
+});

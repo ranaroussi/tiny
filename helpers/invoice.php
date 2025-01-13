@@ -84,7 +84,7 @@ class InvoiceGenerator extends FPDF
         string $size = self::INVOICE_SIZE_LETTER
     ) {
         $this->items = $this->totals = $this->addText = [];
-        $this->currency = $this->convert(currency_symbol($currencyCode));
+        $this->currency = $this->convert(tiny::geos()->currencySymbol($currencyCode));
         $this->currencyCode = $this->convert(strtoupper($currencyCode));
         $this->maxImageDimensions = $this->dimensions = [56, 56];
         $this->from = $this->to = [''];

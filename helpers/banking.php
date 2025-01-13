@@ -371,3 +371,31 @@ function getSortcodeBankInfo(string $sortcode): array
         'phone' => '',
     ];
 }
+
+tiny::registerHelper('banking', function() {
+    return new class {
+        public function swiftLookup($swift) {
+            return swiftLookup($swift);
+        }
+
+        public function getBankInfo($type, $identifier) {
+            return getBankInfo($type, $identifier);
+        }
+
+        public function getSwiftBankInfo($swift) {
+            return getSwiftBankInfo($swift);
+        }
+
+        public function getIbanBankInfo($iban) {
+            return getIbanBankInfo($iban);
+        }
+
+        public function getRoutingBankInfo($routing) {
+            return getRoutingBankInfo($routing);
+        }
+
+        public function getSortcodeBankInfo($sortcode) {
+            return getSortcodeBankInfo($sortcode);
+        }
+    };
+});

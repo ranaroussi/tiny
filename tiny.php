@@ -40,6 +40,9 @@ class tiny
     private static ?DB $db = null;
     private static object $router;
     private static array $middlewares = [];
+    private static array $instances = [];
+    private static array $extensions = [];
+    private static array $customHelpers = [];
 
     /**
      * Initializes the Tiny framework.
@@ -218,6 +221,7 @@ class tiny
         });
 
         self::$router->htmx = isset($_SERVER['HTTP_HX_REQUEST']);
+        print('<pre>'); print_r(self::$router); print('</pre>');
     }
 
     /**
@@ -417,6 +421,18 @@ class tiny
     }
 
     /**
+     * Register a custom helper
+     *
+     * @param string $name Helper name
+     * @param callable $callback Function that returns helper instance
+     * @return void
+     */
+    public static function registerHelper(string $name, callable $callback): void
+    {
+        self::$customHelpers[$name] = $callback;
+    }
+
+    /**
      * Loads and executes a controller.
      *
      * @param string $file The controller file to load (optional)
@@ -425,7 +441,7 @@ class tiny
     public static function controller(string $file = '', bool $die = false): void
     {
         self::sendContentTypeHeader('auto');
-        $file = $file ?: end(self::$router->worker);
+        $file = $file ?: end(self::$router->worker ?? []);
         $filePath = self::$config->app_path . '/controllers/' . $file . '.php';
 
         if (!file_exists($filePath)) {
@@ -734,6 +750,57 @@ class tiny
     public static function swoole(): TinySwoole
     {
         return TinySwoole::getInstance();
+    }
+
+    /**
+     * Magic method to handle static calls to undefined methods.
+     * This allows dynamic loading of custom helpers and extensions.
+     *
+     * The method follows this logic:
+     * 1. First checks if a custom helper is registered with the called name
+     * 2. If no helper found, attempts to load a Tiny extension class
+     * 3. Maintains singleton instances of helpers/extensions
+     *
+     * @param string $name The name of the called method
+     * @param array $arguments Arguments passed to the method (unused)
+     * @return object The helper or extension instance
+     * @throws \Exception If extension class cannot be found
+     */
+    public static function __callStatic(string $name, ?array $arguments)
+    {
+        // First check if a custom helper exists with this name
+        if (isset(self::$customHelpers[$name])) {
+            // Create singleton instance if it doesn't exist yet
+            if (!isset(self::$instances[$name])) {
+                // Call the registered helper callback to get instance
+                if ($arguments) {
+                    self::$instances[$name] = call_user_func(self::$customHelpers[$name], ...$arguments);
+                } else {
+                    self::$instances[$name] = call_user_func(self::$customHelpers[$name]);
+                }
+            }
+            return self::$instances[$name];
+        }
+
+        // If no custom helper found, try to load a Tiny extension
+        // Extension class names are prefixed with 'Tiny'
+        $className = 'Tiny' . ucfirst($name);
+
+        // Create singleton instance if it doesn't exist
+        if (!isset(self::$instances[$name])) {
+            // Verify the extension class exists before instantiating
+            if (!class_exists($className)) {
+                throw new \Exception("Extension $className not found");
+            }
+            if ($arguments) {
+                self::$instances[$name] = new $className(...$arguments);
+            } else {
+                self::$instances[$name] = new $className();
+            }
+        }
+
+        // Return the singleton instance
+        return self::$instances[$name];
     }
 }
 

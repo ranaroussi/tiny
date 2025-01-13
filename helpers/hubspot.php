@@ -13,7 +13,7 @@ class HubSpotContact
         $this->headers = ["Authorization: Bearer $api_key"];
     }
 
-    public function retrieve(string $hsid_or_email): object
+    public function getContact(string $hsid_or_email): object
     {
         $url = self::API_URL . '/' . $hsid_or_email;
         if (str_contains($hsid_or_email, '@')) {
@@ -24,7 +24,7 @@ class HubSpotContact
         return $this->formatResponse($res, 404);
     }
 
-    public function update(string $hsid, array $props): object
+    public function updateContact(string $hsid, array $props): object
     {
         $data = ['properties' => $props];
         $res = tiny::http()->patch(self::API_URL . "/$hsid", [
@@ -36,14 +36,14 @@ class HubSpotContact
 
     public function updateByEmail(string $email, array $props): object
     {
-        $user = $this->retrieve($email);
+        $user = $this->getContact($email);
         if (!$user->success) {
             return $user;
         }
-        return $this->update($user->data->id, $props);
+        return $this->updateContact($user->data->id, $props);
     }
 
-    public function create(array $props): object
+    public function createContact(array $props): object
     {
         $data = ['properties' => $props];
         $res = tiny::http()->post(self::API_URL, [
@@ -61,11 +61,11 @@ class HubSpotContact
                 'data' => 'Email is required',
             ];
         }
-        $user = $this->retrieve($props['email']);
-        return $user->success ? $this->update($user->data->id, $props) : $this->create($props);
+        $user = $this->getContact($props['email']);
+        return $user->success ? $this->updateContact($user->data->id, $props) : $this->createContact($props);
     }
 
-    public function delete(string $hsid): object
+    public function deleteContact(string $hsid): object
     {
         $res = tiny::http()->delete(self::API_URL . "/$hsid", [
             'headers' => $this->headers,
@@ -75,8 +75,8 @@ class HubSpotContact
 
     public function deleteByEmail(string $email): object
     {
-        $user = $this->retrieve($email);
-        return $user->success ? $this->delete($user->data->id) : $user;
+        $user = $this->getContact($email);
+        return $user->success ? $this->deleteContact($user->data->id) : $user;
     }
 
     private function formatResponse(object $res, int $errorCode = 0): object
@@ -88,3 +88,7 @@ class HubSpotContact
         ];
     }
 }
+
+tiny::registerHelper('hubspot', function() {
+    return new HubSpotContact(tiny::config()->hubspot->api_key);
+});

@@ -9,12 +9,12 @@ class SendGrid
     private const MAIL_SEND_ENDPOINT = '/mail/send';
     private const MARKETING_CONTACTS_ENDPOINT = '/marketing/contacts';
 
-    private static function getApiKey(): string
+    private function getApiKey(): string
     {
         return $_SERVER['SENDGRID_API_KEY'] ?? '';
     }
 
-    private static function getHeaders(): array
+    private function getHeaders(): array
     {
         return [
             'Authorization: Bearer ' . self::getApiKey(),
@@ -22,7 +22,7 @@ class SendGrid
         ];
     }
 
-    public static function sendTemplate(
+    public function sendTemplate(
         string $to_email,
         string $to_name,
         object|array $data,
@@ -60,7 +60,7 @@ class SendGrid
         return self::sendRequest(self::MAIL_SEND_ENDPOINT, $payload);
     }
 
-    public static function addToList(string $list_id, array $contacts): bool
+    public function addToList(string $list_id, array $contacts): bool
     {
         $payload = [
             'list_ids' => [$list_id],
@@ -71,7 +71,7 @@ class SendGrid
         return $response !== false && (int)($response->status_code / 100) === 2;
     }
 
-    public static function removeFromList(string $list_id, string $email_to_delete): bool
+    public function removeFromList(string $list_id, string $email_to_delete): bool
     {
         $query = [
             'query' => sprintf('email LIKE "%s" AND CONTAINS(list_ids, "%s")', $email_to_delete, $list_id),
@@ -92,7 +92,7 @@ class SendGrid
         return $response !== false && (int)($response->status_code / 100) === 2;
     }
 
-    private static function sendRequest(string $endpoint, ?array $payload = null, string $method = 'POST'): object|bool
+    private function sendRequest(string $endpoint, ?array $payload = null, string $method = 'POST'): object|bool
     {
         $url = self::API_URL . $endpoint;
         $options = [
@@ -112,3 +112,7 @@ class SendGrid
         }
     }
 }
+
+tiny::registerHelper('sendgrid', function () {
+    return new SendGrid();
+});

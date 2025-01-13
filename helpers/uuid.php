@@ -155,3 +155,7 @@ class UUID
         return $uuid;
     }
 }
+
+tiny::registerHelper('uuidUtils', function () {
+    return new UUID();
+});

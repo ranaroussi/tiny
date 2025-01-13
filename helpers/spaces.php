@@ -14,7 +14,7 @@ class Spaces
      *
      * @return S3Client The S3Client instance.
      */
-    public static function client(): S3Client
+    public function client(): S3Client
     {
         if (self::$client === null) {
             self::$client = new S3Client([
@@ -37,7 +37,7 @@ class Spaces
      * @param string $file The key of the object to delete.
      * @return string The deleted file path.
      */
-    public static function deleteObject(string $file): string
+    public function deleteObject(string $file): string
     {
         self::client()->deleteObject([
             'Bucket' => $_SERVER['S3_BUCKET'] ?? '',
@@ -52,7 +52,7 @@ class Spaces
      * @param string|array $fileOrFiles File(s) to purge from cache.
      * @return mixed The API response as JSON.
      */
-    public static function purgeCache($fileOrFiles): mixed
+    public function purgeCache($fileOrFiles): mixed
     {
         $files = is_array($fileOrFiles) ? $fileOrFiles : [$fileOrFiles];
         $files = array_map(function($file) {
@@ -75,7 +75,7 @@ class Spaces
      * @param string $path The path to prefix.
      * @return string The prefixed path.
      */
-    public static function prefixPath(string $path): string
+    public function prefixPath(string $path): string
     {
         $path = ltrim($path, '/');
         $prefix = $_SERVER['S3_PATH_PREFIX'] ?? '';
@@ -95,7 +95,7 @@ class Spaces
      * @param array $headers Additional headers for the S3 object.
      * @return string The uploaded file path.
      */
-    public static function uploadFromDisk(string $file, string $path, bool $gzip = true, bool $public = true, array $headers = []): string
+    public function uploadFromDisk(string $file, string $path, bool $gzip = true, bool $public = true, array $headers = []): string
     {
         $path = self::prefixPath($path);
         $payload = [
@@ -137,7 +137,7 @@ class Spaces
      * @param array $headers Additional headers for the S3 object.
      * @return string The uploaded file path.
      */
-    public static function uploadDataURL(string $data, string $path, ?string $ext = null, bool $gzip = true, bool $public = true, array $headers = []): string
+    public function uploadDataURL(string $data, string $path, ?string $ext = null, bool $gzip = true, bool $public = true, array $headers = []): string
     {
         $ext = $ext ?? explode('+', explode('/', explode(';', $data)[0])[1])[0];
         $mimetype = explode(':', explode(';', $data)[0])[1];
@@ -160,7 +160,7 @@ class Spaces
      * @param array $headers Additional headers for the S3 object.
      * @return string|false The uploaded file path or false on failure.
      */
-    public static function uploadRemoteFile(string $url, string $path, bool $gzip = true, bool $public = true, array $headers = []): string|false
+    public function uploadRemoteFile(string $url, string $path, bool $gzip = true, bool $public = true, array $headers = []): string|false
     {
         $temp_file = str_replace('//', '/', sys_get_temp_dir() . '/' . preg_replace('/[^0-9]/', '', microtime()));
 
@@ -203,7 +203,7 @@ class Spaces
      * @param bool $useCache Whether to use the cache.
      * @return string The full URL to the object.
      */
-    public static function buildURL(?string $path, bool $useCDN = true, bool $useCache = true): string
+    public function buildURL(?string $path, bool $useCDN = true, bool $useCache = true): string
     {
         $path = $path == '' ? $path : '/' . ltrim($path, '/');
         if ($useCache) {
@@ -229,7 +229,7 @@ class Spaces
      * @param bool $useCache Whether to use the cache.
      * @return string The extracted path.
      */
-    public static function pathURL(string $path, bool $useCDN = true, bool $useCache = true): string
+    public function pathURL(string $path, bool $useCDN = true, bool $useCache = true): string
     {
         if ($useCache) {
             return tiny::cache()->remember('spaces:path:' . md5($path . $useCDN), 3600, function () use ($path, $useCDN) {
@@ -251,7 +251,7 @@ class Spaces
      *
      * @return string JavaScript code for the tiny.getSpacesURL function.
      */
-    public static function buildURLJS(): string
+    public function buildURLJS(): string
     {
         if ($_SERVER['S3_CDN'] ?? '') {
             return 'tiny.getSpacesURL = (path) => `' . $_SERVER['S3_CDN'] . '${path.slice(0, 1) === "/" ? "" : "/"}${path}`';
@@ -311,3 +311,7 @@ function detectContentType(string $file): ?string
         return null;
     }
 }
+
+tiny::registerHelper('spaces', function() {
+    return new Spaces();
+});

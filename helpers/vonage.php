@@ -31,3 +31,12 @@ function send_text(string $to, string $msg): bool
         return false;
     }
 }
+
+tiny::registerHelper('vonage', function () {
+    return new class {
+        public function sendText(string $to, string $msg): bool
+        {
+            return send_text($to, $msg);
+        }
+    };
+});

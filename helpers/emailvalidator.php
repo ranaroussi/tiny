@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 
-function isValidEmail(string $email, bool $verbose = false): bool|array
-{
-    $validator = new EmailValidator($email);
-    return $validator->isValid($verbose);
-}
+// function isValidEmail(string $email, bool $verbose = false): bool|array
+// {
+//     $validator = new EmailValidator($email);
+//     return $validator->isValid($verbose);
+// }
 
 class EmailValidator
 {
@@ -191,3 +191,8 @@ class EmailValidator
                str_ends_with($host, 'outlook.com');
     }
 }
+
+
+tiny::registerHelper('emailValidator', function($email) {
+    return new EmailValidator($email);
+});

@@ -22,3 +22,12 @@ function executeShellCommand(string $cmd, bool $async = false): void
         exec($command);
     }
 }
+
+tiny::registerHelper('shell', function () {
+    return new class {
+        public function execute(string $cmd, bool $async = false): void
+        {
+            executeShellCommand($cmd, $async);
+        }
+    };
+});
