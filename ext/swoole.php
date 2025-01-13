@@ -10,6 +10,9 @@ class TinySwoole
 
     private function __construct()
     {
+        if (!extension_loaded('swoole')) {
+            throw new \RuntimeException('Swoole extension is required for coroutines');
+        }
         $this->config = [
             'host' => $_ENV['SWOOLE_HOST'] ?? '127.0.0.1',
             'port' => $_ENV['SWOOLE_PORT'] ?? 9501,
