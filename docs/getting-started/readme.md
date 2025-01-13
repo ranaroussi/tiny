@@ -93,7 +93,7 @@ DB_PASS=
 DB_PORT=3306
 
 # Cache
-CACHE_ENGINE=apcu
+CACHE_ENGINE=apcu # or memcached
 MEMCACHED_HOST=localhost
 MEMCACHED_PORT=11211
 
@@ -101,6 +101,13 @@ MEMCACHED_PORT=11211
 COOKIE_DOMAIN=localhost
 COOKIE_PATH=/
 COOKIE_TTL=86400
+COOKIE_SECURE=true
+COOKIE_HTTPONLY=true
+COOKIE_SAMESITE=Lax
+
+# Session
+SESSION_NAME=tiny_session
+SESSION_TTL=86400
 ```
 
 3. Configure your web server to point to the `html` directory as the document root.

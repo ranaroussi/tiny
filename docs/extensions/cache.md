@@ -9,7 +9,7 @@ The Cache extension provides a simple interface for storing and retrieving data 
 Configure caching in your `.env` file:
 
 ```env
-CACHE_ENGINE=apcu     # or memcached
+CACHE_ENGINE=apcu # or memcached
 MEMCACHED_HOST=localhost
 MEMCACHED_PORT=11211
 ```
@@ -55,21 +55,6 @@ $keys = tiny::cache()->getByPrefix('user_');
 
 // Delete all items matching a prefix
 tiny::cache()->deleteByPrefix('user_');
-```
-
-### Multiple Items
-
-Store or retrieve multiple items at once:
-
-```php
-// Store multiple
-tiny::cache()->setMultiple([
-    'key1' => 'value1',
-    'key2' => 'value2'
-], 3600);
-
-// Get multiple
-$values = tiny::cache()->getMultiple(['key1', 'key2']);
 ```
 
 ## APCu vs Memcached

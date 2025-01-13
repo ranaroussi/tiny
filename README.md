@@ -8,7 +8,7 @@ Tiny is a lightweight PHP framework designed to provide a simple and efficient w
 - Routing system
 - MVC architecture
 - Database abstraction
-- Caching with Memcached
+- Caching with APCu or Memcached
 - Component-based views
 - Middleware support
 - Environment-based configuration
@@ -77,7 +77,7 @@ Key configuration options:
 
 - `DB_TYPE`: Database type (mysql, postgresql, sqlite)
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`: Database connection details
-- `MEMCACHED_HOST`, `MEMCACHED_PORT`: Memcached connection details
+- `MEMCACHED_HOST`, `MEMCACHED_PORT`: Memcached connection details (if using Memcached)
 - `AUTOLOAD_HELPERS`: Comma-separated list of helpers to autoload
 
 ## Routing
@@ -206,7 +206,7 @@ $results = tiny::db()->getQuery($query);
 
 ## Caching
 
-Tiny uses Memcached for caching. To use the cache:
+Tiny uses APCu or Memcached for caching. To use the cache:
 
 ```php
 $value = tiny::cache()->get('key');

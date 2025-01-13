@@ -2,119 +2,76 @@
 
 # Extensions
 
-Tiny PHP Framework comes with several built-in extensions that provide core functionality. These extensions are located in the `tiny/ext/` directory and are automatically loaded when needed.
+Tiny Framework comes with several built-in extensions that provide additional functionality to your application. These extensions (located in `tiny/ext`) are designed to be lightweight and easy to use.
 
-## Main Extensions
+## Available Extensions
 
-1. [Cache](cache.md)
-   - Memory caching with APCu or Memcached
-   - Key-value storage
-   - Cache invalidation
-   - Remember/recall pattern
-
-2. [CSRF Protection](csrf.md)
-   - Token generation and validation
-   - Form protection
-   - AJAX request security
-   - Token management
-
-3. [Database](database.md)
-   - PDO abstraction
-   - Query building
-   - Raw SQL support
-   - Transaction handling
-   - Migration system
-
-4. [HTTP Client](http.md)
-   - HTTP requests
-   - Response handling
-   - Header management
-   - File uploads
-   - SSL/TLS support
-
-5. [Layouts](layout.md) and [Components](components.md)
-   - Template management
-   - Layout inheritance
-   - Section rendering
-   - Component integration
-
-6. [Migration](migration.md)
-   - Database schema versioning
-   - Up/down migrations
-   - Migration tracking
-   - Batch processing
-
-7. [Scheduler](scheduler.md)
-   - Task scheduling
-   - Cron-like syntax
-   - Job management
-   - Error handling
-
-8. [SSE (Server-Sent Events)](sse.md)
-   - Real-time updates
-   - Event streaming
-   - Client connection management
-   - Message broadcasting
-
-9. [Debugger](debugger.md)
-   - Variable inspection
-   - Stack traces
-   - Error handling
-   - Log management
-
-10. [Flash Messages](flash.md)
-    - Session-based messages
-    - Multiple message types
-    - Message persistence
-    - Toast notifications
-
-11. [Cookie](cookie.md)
-    - Cookie management
-    - Secure cookie handling
-    - Encryption support
-    - Domain/path control
+- [Cache](cache.md) - APCu/Memcached integration for caching
+- [Components](components.md) - Component-based view system
+- [Cookie](cookie.md) - Cookie management
+- [CSRF](csrf.md) - Cross-Site Request Forgery protection
+- [Debugger](debugger.md) - Debugging tools and error handling
+- [Flash](flash.md) - Flash messages for user notifications
+- [HTTP](http.md) - HTTP client for making API requests
+- [Layout](layout.md) - Layout system for views
+- [Migrations](migrations.md) - Database migration system
 
 ## Using Extensions
 
-Extensions are accessed through the `tiny` class:
+Extensions are automatically loaded when needed. You can access them through the global `tiny::**extention()**` method:
 
 ```php
-// Cache example
+// Using cache extension
 tiny::cache()->set('key', 'value', 3600);
-$value = tiny::cache()->get('key');
 
-// Database example
-$users = tiny::db()->get('users', ['active' => true]);
-
-// CSRF example
-tiny::csrf()->generate();
-$token = tiny::csrf()->getToken();
-
-// HTTP client example
+// Using HTTP client
 $response = tiny::http()->get('https://api.example.com/data');
+```
+
+## Extension Configuration
+
+Most extensions can be configured through the `.env` file or environment variables. For example:
+
+```env
+# Cache configuration
+CACHE_ENGINE=apcu,memcached
+MEMCACHED_HOST=localhost
+MEMCACHED_PORT=11211
+
+# Cookie configuration
+COOKIE_DOMAIN=localhost
+COOKIE_PATH=/
+COOKIE_TTL=86400
+COOKIE_SECURE=true
+COOKIE_HTTPONLY=true
+COOKIE_SAMESITE=Lax
 ```
 
 ## Creating Custom Extensions
 
-You can create your own extensions by adding them to the `tiny/ext/` directory:
-
-1. Create a new file: `tiny/ext/myextension.php`
-2. Define your extension class:
+You can create your own extensions by adding them to the `tiny/ext` directory. Each extension should be a class that follows the Tiny naming convention:
 
 ```php
 <?php
 
-class TinyMyExtension
+declare(strict_types=1);
+
+class TinyCustom
 {
-    public function someMethod()
+    public function __construct()
     {
-        // Your extension code
+        // Extension initialization
+    }
+
+    public function doSomething()
+    {
+        // Extension functionality
     }
 }
 ```
 
-3. Use your extension:
+Then use it in your application:
 
 ```php
-tiny::myextension()->someMethod();
+tiny::custom()->doSomething();
 ```
