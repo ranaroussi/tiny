@@ -7,7 +7,7 @@ The Model-View-Controller (MVC) pattern is at the heart of Tiny PHP Framework. I
 ## Overview
 
 ```
-Request → Router → Controller → Model → Controller → View → Response
+Request → Router → Controller (+ Model) → View → Response
 ```
 
 ## Components

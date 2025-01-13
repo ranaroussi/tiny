@@ -13,9 +13,10 @@ app/controllers/
 ├── home.php          -> /
 ├── about.php         -> /about
 ├── blog.php          -> /blog
-└── settings/
-    ├── index.php     -> /settings
-    ├── billing.php   -> /settings/billing
+└── account/
+    ├── index.php     -> /account
+    ├── billing.php   -> /account/billing
+    └── settings.php  -> /account/settings
 ```
 
 ## Controller Structure

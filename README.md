@@ -4,7 +4,7 @@ Tiny is a lightweight PHP framework designed to provide a simple and efficient w
 
 ## Features
 
-- PHP 8.3 support
+- PHP 8.3+ support
 - Routing system
 - MVC architecture
 - Database abstraction
