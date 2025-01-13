@@ -1,4 +1,4 @@
-[Home](../readme.md) | [Getting Started](getting-started.md) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
 # Tiny PHP Framework Documentation
 
@@ -29,7 +29,7 @@ Tiny is a lightweight PHP framework designed to provide a simple and efficient w
 
 ## Documentation Sections
 
-1. [Getting Started](getting-started.md)
+1. [Getting Started](getting-started/readme.md)
    - Installation
    - Project Structure
    - Configuration
