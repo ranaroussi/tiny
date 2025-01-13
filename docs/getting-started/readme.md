@@ -139,4 +139,7 @@ class Hello extends TinyController
 
 ## Next Steps
 
-Learn about [Core Concepts](../core-concepts)
+Learn about
+
+- [Core Concepts](../core-concepts)
+- [Deploying using Git](git-deploy.md)
