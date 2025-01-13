@@ -85,7 +85,7 @@ class TinySwoole
         tiny::exit();
     }
 
-    public function tiny::header($url, $value)
+    public function header($url, $value)
     {
         return \Swoole\Http\Response::header($url, $value);
     }
