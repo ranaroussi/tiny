@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # User Management Example
 
 This example demonstrates how to implement a complete user management system including authentication, roles, and profile management.

@@ -7,182 +7,8 @@ use myPHPnotes\Microsoft\Models\User;
 
 /* Creating an array of providers based env */
 
-function buildOAuthConfig()
-{
-    if (defined('OAUTH_CONFIG')) {
-        return OAUTH_CONFIG;
-    }
-
-    $order = [
-        'google',
-        'github',
-        'microsoft',
-        'apple',
-        'amazon',
-        'facebook',
-        'twitter',
-        'linkedin',
-        'dropbox',
-        'gitlab',
-        'bitbucket',
-        'discord',
-        'slack',
-        'wechat',
-        'openid',
-    ];
-
-    $branding = [
-        'apple' => [
-            'name' => 'Apple',
-            'color' => '#000000',
-            'text' => '#ffffff',
-        ],
-        'amazon' => [
-            'name' => 'Amazon',
-            'color' => '#EE9400',
-            'text' => '#000000',
-        ],
-        'bitbucket' => [
-            'name' => 'BitBucket',
-            'color' => '#0052CC',
-            'text' => '#000000',
-        ],
-        'discord' => [
-            'name' => 'Discord',
-            'color' => '#5667E3',
-            'text' => '#000000',
-        ],
-        'dropbox' => [
-            'name' => 'Dropbox',
-            'color' => '#0161FE',
-            'text' => '#000000',
-        ],
-        'facebook' => [
-            'name' => 'Facebook',
-            'color' => '#4661B1',
-            'text' => '#000000',
-        ],
-        'github' => [
-            'name' => 'GitHub',
-            'color' => '#010101',
-            'text' => '#ffffff',
-        ],
-        'gitlab' => [
-            'name' => 'GitLab',
-            'color' => '#FC6D27',
-            'text' => '#000000',
-        ],
-        'google' => [
-            'name' => 'Google',
-            'color' => '#ffffff',
-            'text' => '#000000',
-            // 'color' => '#4285F5',
-            // 'text' => '#ffffff'
-        ],
-        'linkedin' => [
-            'name' => 'LinkedIn',
-            'color' => '#0A66C3',
-            'text' => '#000000',
-        ],
-        'openid' => [
-            'name' => 'OpenID',
-            'color' => '#808080',
-            'text' => '#000000',
-        ],
-        'slack' => [
-            'name' => 'Slack',
-            'color' => '#611F69',
-            'text' => '#000000',
-        ],
-        'twitter' => [
-            'name' => 'Twitter',
-            'color' => '#1F9BF0',
-            'text' => '#000000',
-        ],
-        'wechat' => [
-            'name' => 'WeChat',
-            'color' => '#2CBC00',
-            'text' => '#000000',
-        ],
-        'microsoft' => [
-            'name' => 'Microsoft',
-            'color' => '#ffffff',
-            'text' => '#000000',
-        ],
-    ];
-
-    $provides = [];
-    foreach ($_SERVER as $key => $value) {
-        if (str_starts_with($key, 'OAUTH_') && $value) {
-            $slug = explode('_', str_replace('OAUTH_', '', $key))[0];
-            $provides[mb_strtolower($slug)] = [];
-        }
-    }
-
-    foreach ($provides as $key => $value) {
-        $env_key = 'OAUTH_' . mb_strtoupper($key);
-        $provides[$key] = [
-            'enabled' => @$_SERVER[$env_key . '_ENABLED'] ? $_SERVER[$env_key . '_ENABLED'] : true,
-        ];
-
-        if ($key == 'apple') {
-            $provides[$key]['keys'] = [
-                'id' => $_SERVER['OAUTH_APPLE_ID'],
-                'team_id' => $_SERVER['OAUTH_APPLE_TEAM_ID'],
-                'key_id' => $_SERVER['OAUTH_APPLE_KEY_ID'],
-                // 'key_content' => $_SERVER['OAUTH_APPLE_KEY_CONTENT'],
-                // 'key_file' => $_SERVER['OAUTH_APPLE_KEY_FILE'],
-            ];
-            if (isset($_SERVER['OAUTH_APPLE_KEY_CONTENT'])) {
-                $provides[$key]['keys']['key_content'] = str_replace('\\n', "\n", $_SERVER['OAUTH_APPLE_KEY_CONTENT']);
-            } elseif (isset($_SERVER['OAUTH_APPLE_KEY_FILE'])) {
-                $provides[$key]['keys']['key_file'] = $_SERVER['OAUTH_APPLE_KEY_FILE'];
-            } else {
-                throw new Exception('Missing apple key content or file');
-            }
-
-            $provides[$key]['scope'] = 'name email';
-            $provides[$key]['verifyTokenSignature'] = false;
-        } elseif ($key == 'microsoft') {
-            $provides[$key]['keys'] = [
-                'tenant' => $_SERVER['OAUTH_MICROSOFT_TENANT'] ?? 'common',
-                'client_id' => $_SERVER['OAUTH_MICROSOFT_ID'],
-                'client_secret_id' => $_SERVER['OAUTH_MICROSOFT_SECRET_ID'],
-                'client_secret_value' => $_SERVER['OAUTH_MICROSOFT_SECRET_VALUE'],
-                'scopes' => ['user.read'],
-            ];
-        } else {
-            $provides[$key]['keys'] = [
-                'id' => @$_SERVER[$env_key . '_ID'],
-                'secret' => @$_SERVER[$env_key . '_SECRET'],
-            ];
-        }
-        $provides[$key]['settings'] = array_merge($branding[$key], [
-            'icon' => tiny::getStaticURL('/oauth/' . $key . '.svg', true),
-            'link' => tiny::getHomeURL('auth/oauth/' . $key, true, $_SERVER['ENV'] == 'prod' ? 'https' : 'http'),
-        ]);
-    }
-
-    $provides = array_replace(array_flip($order), $provides);
-    foreach ($provides as $key => $value) {
-        if (!is_array($value)) {
-            unset($provides[$key]);
-        }
-    }
-
-    define('OAUTH_CONFIG', [
-        'callback' => tiny::getHomeURL('auth/oauth', true, $_SERVER['ENV'] == 'prod' || @$_SERVER['HTTPS'] == 'on' ? 'https' : 'http'),
-        'providers' => $provides,
-    ]);
-
-    // tiny::debug(OAUTH_CONFIG);
-    return OAUTH_CONFIG;
-}
-
-
 class OAuth
 {
-
     private $provider;
     private $config;
 
@@ -221,8 +47,8 @@ class OAuth
                 $config['scopes']
             );
             $url = $microsoft->getAuthUrl();
-            header("Location: $url");
-            die();
+            tiny::header("Location: $url");
+            tiny::die();
         }
 
         $microsoft = new Auth(
@@ -264,3 +90,190 @@ class OAuth
         ];
     }
 }
+
+tiny::registerHelper('oauth', function () {
+    return new class {
+        public function adapter(string $provider, array $config)
+        {
+            return new OAuth($provider, $config);
+        }
+
+        public function getConfig(?string $item = null)
+        {
+            if (defined('OAUTH_CONFIG')) {
+                if ($item) {
+                    return OAUTH_CONFIG[$item];
+                }
+                return OAUTH_CONFIG;
+            }
+
+            $order = [
+                'google',
+                'github',
+                'microsoft',
+                'apple',
+                'amazon',
+                'facebook',
+                'twitter',
+                'linkedin',
+                'dropbox',
+                'gitlab',
+                'bitbucket',
+                'discord',
+                'slack',
+                'wechat',
+                'openid',
+            ];
+
+            $branding = [
+                'apple' => [
+                    'name' => 'Apple',
+                    'color' => '#000000',
+                    'text' => '#ffffff',
+                ],
+                'amazon' => [
+                    'name' => 'Amazon',
+                    'color' => '#EE9400',
+                    'text' => '#000000',
+                ],
+                'bitbucket' => [
+                    'name' => 'BitBucket',
+                    'color' => '#0052CC',
+                    'text' => '#000000',
+                ],
+                'discord' => [
+                    'name' => 'Discord',
+                    'color' => '#5667E3',
+                    'text' => '#000000',
+                ],
+                'dropbox' => [
+                    'name' => 'Dropbox',
+                    'color' => '#0161FE',
+                    'text' => '#000000',
+                ],
+                'facebook' => [
+                    'name' => 'Facebook',
+                    'color' => '#4661B1',
+                    'text' => '#000000',
+                ],
+                'github' => [
+                    'name' => 'GitHub',
+                    'color' => '#010101',
+                    'text' => '#ffffff',
+                ],
+                'gitlab' => [
+                    'name' => 'GitLab',
+                    'color' => '#FC6D27',
+                    'text' => '#000000',
+                ],
+                'google' => [
+                    'name' => 'Google',
+                    'color' => '#ffffff',
+                    'text' => '#000000',
+                    // 'color' => '#4285F5',
+                    // 'text' => '#ffffff'
+                ],
+                'linkedin' => [
+                    'name' => 'LinkedIn',
+                    'color' => '#0A66C3',
+                    'text' => '#000000',
+                ],
+                'openid' => [
+                    'name' => 'OpenID',
+                    'color' => '#808080',
+                    'text' => '#000000',
+                ],
+                'slack' => [
+                    'name' => 'Slack',
+                    'color' => '#611F69',
+                    'text' => '#000000',
+                ],
+                'twitter' => [
+                    'name' => 'Twitter',
+                    'color' => '#1F9BF0',
+                    'text' => '#000000',
+                ],
+                'wechat' => [
+                    'name' => 'WeChat',
+                    'color' => '#2CBC00',
+                    'text' => '#000000',
+                ],
+                'microsoft' => [
+                    'name' => 'Microsoft',
+                    'color' => '#ffffff',
+                    'text' => '#000000',
+                ],
+            ];
+
+            $provides = [];
+            foreach ($_SERVER as $key => $value) {
+                if (str_starts_with($key, 'OAUTH_') && $value) {
+                    $slug = explode('_', str_replace('OAUTH_', '', $key))[0];
+                    $provides[mb_strtolower($slug)] = [];
+                }
+            }
+
+            foreach ($provides as $key => $value) {
+                $env_key = 'OAUTH_' . mb_strtoupper($key);
+                $provides[$key] = [
+                    'enabled' => @$_SERVER[$env_key . '_ENABLED'] ? $_SERVER[$env_key . '_ENABLED'] : true,
+                ];
+
+                if ($key == 'apple') {
+                    $provides[$key]['keys'] = [
+                        'id' => $_SERVER['OAUTH_APPLE_ID'],
+                        'team_id' => $_SERVER['OAUTH_APPLE_TEAM_ID'],
+                        'key_id' => $_SERVER['OAUTH_APPLE_KEY_ID'],
+                        // 'key_content' => $_SERVER['OAUTH_APPLE_KEY_CONTENT'],
+                        // 'key_file' => $_SERVER['OAUTH_APPLE_KEY_FILE'],
+                    ];
+                    if (isset($_SERVER['OAUTH_APPLE_KEY_CONTENT'])) {
+                        $provides[$key]['keys']['key_content'] = str_replace('\\n', "\n", $_SERVER['OAUTH_APPLE_KEY_CONTENT']);
+                    } elseif (isset($_SERVER['OAUTH_APPLE_KEY_FILE'])) {
+                        $provides[$key]['keys']['key_file'] = $_SERVER['OAUTH_APPLE_KEY_FILE'];
+                    } else {
+                        throw new Exception('Missing apple key content or file');
+                    }
+
+                    $provides[$key]['scope'] = 'name email';
+                    $provides[$key]['verifyTokenSignature'] = false;
+                } elseif ($key == 'microsoft') {
+                    $provides[$key]['keys'] = [
+                        'tenant' => $_SERVER['OAUTH_MICROSOFT_TENANT'] ?? 'common',
+                        'client_id' => $_SERVER['OAUTH_MICROSOFT_ID'],
+                        'client_secret_id' => $_SERVER['OAUTH_MICROSOFT_SECRET_ID'],
+                        'client_secret_value' => $_SERVER['OAUTH_MICROSOFT_SECRET_VALUE'],
+                        'scopes' => ['user.read'],
+                    ];
+                } else {
+                    $provides[$key]['keys'] = [
+                        'id' => @$_SERVER[$env_key . '_ID'],
+                        'secret' => @$_SERVER[$env_key . '_SECRET'],
+                    ];
+                }
+                $provides[$key]['settings'] = array_merge($branding[$key], [
+                    'icon' => tiny::getStaticURL('/oauth/' . $key . '.svg', true),
+                    'link' => tiny::getHomeURL('auth/oauth/' . $key, true, $_SERVER['ENV'] == 'prod' ? 'https' : 'http'),
+                ]);
+            }
+
+            $provides = array_replace(array_flip($order), $provides);
+            foreach ($provides as $key => $value) {
+                if (!is_array($value)) {
+                    unset($provides[$key]);
+                }
+            }
+
+            define('OAUTH_CONFIG', [
+                'callback' => tiny::getHomeURL('auth/oauth', true, $_SERVER['ENV'] == 'prod' || @$_SERVER['HTTPS'] == 'on' ? 'https' : 'http'),
+                'providers' => $provides,
+            ]);
+
+            // tiny::debug(OAUTH_CONFIG);
+            if ($item) {
+                return OAUTH_CONFIG[$item];
+            }
+            return OAUTH_CONFIG;
+        }
+    };
+});

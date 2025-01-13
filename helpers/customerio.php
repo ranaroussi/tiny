@@ -8,24 +8,24 @@ use GuzzleHttp\Exception\GuzzleException;
 
 class CustomerIO
 {
-    private static ?Client $clientInstance = null;
+    private ?Client $clientInstance = null;
 
-    public static function client(): Client
+    public function client(): Client
     {
-        if (self::$clientInstance === null) {
-            self::$clientInstance = new Client(
+        if ($this->clientInstance === null) {
+            $this->clientInstance = new Client(
                 $_SERVER['CIO_TRACK_API_KEY'] ?? '',
                 $_SERVER['CIO_TRACK_SITE_ID'] ?? '',
                 ['region' => $_SERVER['CIO_REGION'] ?? '']
             );
-            self::$clientInstance->setAppAPIKey($_SERVER['CIO_APP_API_KEY'] ?? '');
+            $this->clientInstance->setAppAPIKey($_SERVER['CIO_APP_API_KEY'] ?? '');
         }
-        return self::$clientInstance;
+        return $this->clientInstance;
     }
 
-    public static function identify(string $emailOrId, array $attributes = []): object
+    public function identify(string $emailOrId, array $attributes = []): object
     {
-        $client = self::client();
+        $client = $this->client();
         $updateMode = false;
 
         if (str_contains($emailOrId, '@')) {
@@ -49,7 +49,7 @@ class CustomerIO
         }
 
         if (!$updateMode && isset($attributes['email'])) {
-            $attributes['cio_id'] = self::findCustomerId($attributes['email']);
+            $attributes['cio_id'] = $this->findCustomerId($attributes['email']);
             if (!$attributes['cio_id']) {
                 return (object)['success' => false, 'data' => 'Contact not found'];
             }
@@ -58,9 +58,9 @@ class CustomerIO
         return (object)['success' => true, 'data' => $attributes];
     }
 
-    public static function track(string $emailOrId, string $event, array $attributes = []): object
+    public function track(string $emailOrId, string $event, array $attributes = []): object
     {
-        $client = self::client();
+        $client = $this->client();
 
         $payload = [
             'name' => $event,
@@ -76,7 +76,7 @@ class CustomerIO
         }
     }
 
-    public static function sendTransactional(string $email, string $messageId, array $data = []): bool|string
+    public function sendTransactional(string $email, string $messageId, array $data = []): bool|string
     {
         $endpoint = 'https://api' . ($_SERVER['CIO_REGION'] === 'eu' ? '-eu' : '') . '.customer.io/v1/send/email';
 
@@ -110,9 +110,9 @@ class CustomerIO
         return $err ? false : $response;
     }
 
-    private static function findCustomerId(string $email): ?string
+    private function findCustomerId(string $email): ?string
     {
-        $client = self::client();
+        $client = $this->client();
         for ($tries = 0; $tries < 3; $tries++) {
             sleep(1);
             $cio = $client->customers->get(['email' => $email]);
@@ -123,3 +123,7 @@ class CustomerIO
         return null;
     }
 }
+
+tiny::registerHelper('customerio', function() {
+    return new CustomerIO();
+});

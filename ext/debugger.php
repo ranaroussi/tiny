@@ -167,12 +167,12 @@ trait TinyDebugger
     public static function dd(mixed ...$vars): never
     {
         if (!self::canDebug()) {
-            exit(1);
+            tiny::exit(1);
         }
 
         [$trace, $content] = self::dumpOrDebug('debug', ...$vars);
         echo self::formatOutput($trace, $content);
-        exit(1);
+        tiny::exit(1);
     }
 
     /**
@@ -198,12 +198,12 @@ trait TinyDebugger
     public static function ddump(mixed ...$vars): never
     {
         if (!self::canDebug()) {
-            exit(1);
+            tiny::exit(1);
         }
 
         [$trace, $content] = self::dumpOrDebug('dump', ...$vars);
         echo self::formatOutput($trace, $content);
-        exit(1);
+        tiny::exit(1);
     }
 
     /**

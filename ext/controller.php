@@ -97,6 +97,6 @@ class TinyController
     public function options(): void
     {
         http_response_code(204);
-        header('Access-Control-Allow-Methods: ' . implode(', ', $this->allowedMethods));
+        tiny::header('Access-Control-Allow-Methods: ' . implode(', ', $this->allowedMethods));
     }
 }

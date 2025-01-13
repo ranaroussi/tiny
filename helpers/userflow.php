@@ -50,3 +50,7 @@ class UserFlow
         return self::BASE_URL . '/' . ltrim($path, '/');
     }
 }
+
+tiny::registerHelper('userflow', function () {
+    return new UserFlow($_SERVER['USERFLOW_API_KEY']);
+});

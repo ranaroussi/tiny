@@ -1,3 +1,5 @@
+[Home](readme.md) | [Getting Started](getting-started) | [Core Concepts](core-concepts) | [Helpers](helpers) | [Extensions](extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Tiny PHP Framework Documentation
 
 Tiny is a lightweight PHP framework designed to provide a simple and efficient way to build web applications with minimal setup and configuration. It was developed by [Ran Aroussi](https://x.com/aroussi) for internal projects and offers a range of features to streamline development while maintaining flexibility.
@@ -10,8 +12,8 @@ Tiny is a lightweight PHP framework designed to provide a simple and efficient w
 - PHP 8.3+ support
 - MVC architecture
 - Routing system
-- Database abstraction
-- Caching with Memcached
+- Database abstraction with raw SQL support
+- APCu or Memcached integration
 - Component-based views
 - Middleware support
 - Environment-based configuration
@@ -24,10 +26,12 @@ Tiny is a lightweight PHP framework designed to provide a simple and efficient w
 - OAuth authentication
 - Cookie management
 - HTTP client
+- Flash messages
+- Layout system
 
 ## Documentation Sections
 
-1. [Getting Started](getting-started.md)
+1. [Getting Started](getting-started/readme.md)
    - Installation
    - Project Structure
    - Configuration
@@ -72,8 +76,10 @@ Tiny is a lightweight PHP framework designed to provide a simple and efficient w
 - PHP 8.3 or higher
 - Composer
 - PDO PHP Extension
-- Memcached (optional)
+- APCu or Memcached PHP Extension
 - OpenSSL PHP Extension
+- JSON PHP Extension
+- Mbstring PHP Extension
 
 ## License
 

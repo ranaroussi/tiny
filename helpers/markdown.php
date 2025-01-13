@@ -281,3 +281,7 @@ class Markdown
         return $text;
     }
 }
+
+tiny::registerHelper('markdown', function () {
+    return new Markdown();
+});

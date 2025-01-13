@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Understanding Routing
 
 Tiny PHP uses a simple and intuitive routing system based on the file structure in your `app/controllers` directory.
@@ -11,9 +13,10 @@ app/controllers/
 ├── home.php          -> /
 ├── about.php         -> /about
 ├── blog.php          -> /blog
-└── user/
-    ├── profile.php   -> /user/profile
-    └── settings.php  -> /user/settings
+└── account/
+    ├── index.php     -> /account
+    ├── billing.php   -> /account/billing
+    └── settings.php  -> /account/settings
 ```
 
 ## Controller Structure

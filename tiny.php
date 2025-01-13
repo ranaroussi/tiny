@@ -40,6 +40,9 @@ class tiny
     private static ?DB $db = null;
     private static object $router;
     private static array $middlewares = [];
+    private static array $instances = [];
+    private static array $extensions = [];
+    private static array $customHelpers = [];
 
     /**
      * Initializes the Tiny framework.
@@ -70,7 +73,9 @@ class tiny
         $_POST = self::cleanObjectTypes($_POST);
 
         // Setup router
-        self::routerSetup();
+        if (!self::isUsingSwoole()) {
+            self::routerSetup();
+        }
 
         // Load helpers and middleware
         self::loadHelpers();
@@ -162,9 +167,9 @@ class tiny
      * Sets up the router for handling HTTP requests.
      * Parses the URL and determines the appropriate controller and action.
      */
-    private static function routerSetup(): void
+    public static function routerSetup(): void
     {
-        if (self::isCLI()) {
+        if (self::isCLI() && !self::isUsingSwoole()) {
             return;
         }
 
@@ -254,7 +259,7 @@ class tiny
      */
     private static function loadHelpers(): void
     {
-        // die('asd');
+        // tiny::die('asd');
         $helpers = $_SERVER['AUTOLOAD_HELPERS'] ?? '';
         if ($helpers === '*') {
             self::requireAll('/helpers/');
@@ -417,6 +422,18 @@ class tiny
     }
 
     /**
+     * Register a custom helper
+     *
+     * @param string $name Helper name
+     * @param callable $callback Function that returns helper instance
+     * @return void
+     */
+    public static function registerHelper(string $name, callable $callback): void
+    {
+        self::$customHelpers[$name] = $callback;
+    }
+
+    /**
      * Loads and executes a controller.
      *
      * @param string $file The controller file to load (optional)
@@ -425,6 +442,7 @@ class tiny
     public static function controller(string $file = '', bool $die = false): void
     {
         self::sendContentTypeHeader('auto');
+        self::$router->worker ??= [];
         $file = $file ?: end(self::$router->worker);
         $filePath = self::$config->app_path . '/controllers/' . $file . '.php';
 
@@ -433,9 +451,9 @@ class tiny
             if (file_exists(self::$config->app_path . '/controllers/404.php')) {
                 require_once self::$config->app_path . '/controllers/404.php';
             } else {
-                die(self::data()->error);
+                tiny::die(self::data()->error);
             }
-            exit;
+            tiny::exit();
         }
 
         if ($file !== end(self::$router->worker)) {
@@ -447,7 +465,6 @@ class tiny
         try {
             $class = str_replace([' ', '-', '_', '.'], '', ucwords(str_replace('/', ' ', $file)));
             $class = preg_replace('/Index$/', '', $class);
-
             if (class_exists($class)) {
                 $method = mb_strtolower($_SERVER['REQUEST_METHOD'] ?? 'GET');
                 $instance = new $class();
@@ -460,7 +477,7 @@ class tiny
         }
 
         if ($die) {
-            exit;
+            tiny::exit();
         }
     }
 
@@ -479,7 +496,7 @@ class tiny
             if (file_exists(self::$config->app_path . '/views/404.php')) {
                 self::render('404', true);
             } else {
-                die(self::data()->error);
+                tiny::die(self::data()->error);
             }
         }
 
@@ -490,7 +507,7 @@ class tiny
         require $filePath;
         if ($die) {
             self::timer(true);
-            exit;
+            tiny::exit();
         }
     }
 
@@ -505,12 +522,12 @@ class tiny
         $filePath = self::$config->app_path . '/' . rtrim($file, '.php') . '.php';
 
         if (!file_exists($filePath)) {
-            die("<code>ERROR: File /$filePath cannot be found on the server</code>");
+            tiny::die("<code>ERROR: File /$filePath cannot be found on the server</code>");
         }
 
         require $filePath;
         if ($die) {
-            exit;
+            tiny::exit();
         }
     }
 
@@ -725,9 +742,99 @@ class tiny
     {
         return tiny::getHomeURL(tiny::config()->static_dir . '/' . ltrim($file, '/'), $full, $scheme);
     }
+
+    /**
+     * Returns the swoole object for handling HTTP SSE.
+     *
+     * @return Swoole The swoole object
+     */
+    public static function swoole(): TinySwoole
+    {
+        return TinySwoole::getInstance();
+    }
+
+    /**
+     * Magic method to handle static calls to undefined methods.
+     * This allows dynamic loading of custom helpers and extensions.
+     *
+     * The method follows this logic:
+     * 1. First checks if a custom helper is registered with the called name
+     * 2. If no helper found, attempts to load a Tiny extension class
+     * 3. Maintains singleton instances of helpers/extensions
+     *
+     * @param string $name The name of the called method
+     * @param array $arguments Arguments passed to the method (unused)
+     * @return object The helper or extension instance
+     * @throws \Exception If extension class cannot be found
+     */
+    public static function __callStatic(string $name, ?array $arguments)
+    {
+        // First check if a custom helper exists with this name
+        if (isset(self::$customHelpers[$name])) {
+            // Create singleton instance if it doesn't exist yet
+            if (!isset(self::$instances[$name])) {
+                // Call the registered helper callback to get instance
+                if ($arguments) {
+                    self::$instances[$name] = call_user_func(self::$customHelpers[$name], ...$arguments);
+                } else {
+                    self::$instances[$name] = call_user_func(self::$customHelpers[$name]);
+                }
+            }
+            return self::$instances[$name];
+        }
+
+        // If no custom helper found, try to load a Tiny extension
+        // Extension class names are prefixed with 'Tiny'
+        $className = 'Tiny' . ucfirst($name);
+
+        // Create singleton instance if it doesn't exist
+        if (!isset(self::$instances[$name])) {
+            // Verify the extension class exists before instantiating
+            if (!class_exists($className)) {
+                throw new \Exception("Extension $className not found");
+            }
+            if ($arguments) {
+                self::$instances[$name] = new $className(...$arguments);
+            } else {
+                self::$instances[$name] = new $className();
+            }
+        }
+
+        // Return the singleton instance
+        return self::$instances[$name];
+    }
+
+    public static function isUsingSwoole(): bool
+    {
+        return tiny::cache()->remember('is-using-swoole', 3600, function () {
+            return extension_loaded('swoole') && php_sapi_name() === 'cli' && isset($_SERVER['USE_SWOOLE']);
+        });
+    }
+
+    public static function die(mixed $data = null): void
+    {
+        if (self::isUsingSwoole()) {
+            echo $data;
+            throw new ExitException("Stopping coroutine");
+        } else {
+            die($data);
+        }
+    }
+
+    public static function exit(?int $code = 0): void
+    {
+        if (self::isUsingSwoole()) {
+            throw new ExitException("Stopping coroutine", $code);
+        } else {
+            exit($code);
+        }
+    }
 }
 
 /* -------------------------------------- */
 // Initialize Tiny
+header_remove('Server');
+header_remove('X-Powered-By');
 tiny::init();
 /* -------------------------------------- */
+

@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Getting Started with Tiny PHP
 
 ## Installation
@@ -11,7 +13,7 @@ mkdir my-project && cd my-project
 2. Clone the Tiny framework repository:
 
 ```bash
-git clone https://github.com/ranaroussi/tiny.git
+git clone https://github.com/ranaroussi/tiny.git .
 ```
 
 3. Create the project structure:
@@ -91,7 +93,7 @@ DB_PASS=
 DB_PORT=3306
 
 # Cache
-CACHE_ENGINE=apcu
+CACHE_ENGINE=apcu # or memcached
 MEMCACHED_HOST=localhost
 MEMCACHED_PORT=11211
 
@@ -99,6 +101,13 @@ MEMCACHED_PORT=11211
 COOKIE_DOMAIN=localhost
 COOKIE_PATH=/
 COOKIE_TTL=86400
+COOKIE_SECURE=true
+COOKIE_HTTPONLY=true
+COOKIE_SAMESITE=Lax
+
+# Session
+SESSION_NAME=tiny_session
+SESSION_TTL=86400
 ```
 
 3. Configure your web server to point to the `html` directory as the document root.
@@ -130,7 +139,4 @@ class Hello extends TinyController
 
 ## Next Steps
 
-- Learn about [MVC Architecture](../core-concepts/mvc.md)
-- Explore [Database Operations](../core-concepts/database.md)
-- Understand [Routing](../core-concepts/routing.md)
-- Work with [Extensions](../extensions/readme.md)
+Learn about [Core Concepts](../core-concepts)

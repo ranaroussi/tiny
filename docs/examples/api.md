@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Building an API
 
 This example demonstrates how to build a RESTful API using Tiny PHP Framework.
@@ -58,8 +60,8 @@ class ApiV1Auth extends TinyController
 return [
     'api/*' => function($request, $response) {
         // CORS headers
-        header('Access-Control-Allow-Origin: *');
-        header('Content-Type: application/json');
+        tiny::header('Access-Control-Allow-Origin: *');
+        tiny::header('Content-Type: application/json');
 
         // Rate limiting
         if (!tiny::rateLimit()->allow('api', 60, 100)) {

@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # MVC Architecture
 
 The Model-View-Controller (MVC) pattern is at the heart of Tiny PHP Framework. It provides a clean separation of concerns and helps organize your code effectively.
@@ -5,7 +7,7 @@ The Model-View-Controller (MVC) pattern is at the heart of Tiny PHP Framework. I
 ## Overview
 
 ```
-Request → Router → Controller → Model → Controller → View → Response
+Request → Router → Controller (+ Model) → View → Response
 ```
 
 ## Components

@@ -11,7 +11,7 @@ class Caddy
         DNS_SRV, DNS_NAPTR, DNS_A6, DNS_ALL, DNS_ANY
     ];
 
-    private static function getSSLConfig(): array
+    private function getSSLConfig(): array
     {
         return [
             'cert' => $_SERVER['CADDY_CERT_FILE'] ?? null,
@@ -20,7 +20,7 @@ class Caddy
         ];
     }
 
-    private static function makeRequest(string $path, string $method = 'GET', ?array $data = null): object
+    private function makeRequest(string $path, string $method = 'GET', ?array $data = null): object
     {
         if (!$_SERVER['CADDY_ADMIN_URL']) {
             return (object) [
@@ -46,7 +46,7 @@ class Caddy
         ];
     }
 
-    public static function getDNS(string $domain, int $type = DNS_NS): array
+    public function getDNS(string $domain, int $type = DNS_NS): array
     {
         if (!in_array($type, self::DNS_TYPES, true)) {
             throw new InvalidArgumentException('Invalid DNS type');
@@ -56,17 +56,17 @@ class Caddy
         return array_map(fn($record) => $record['target'] ?? $record['ip'] ?? '', $dns ?: []);
     }
 
-    public static function getConfig(string $path = '/'): object
+    public function getConfig(string $path = '/'): object
     {
         return self::makeRequest($path);
     }
 
-    public static function listCustomDomains(): object
+    public function listCustomDomains(): object
     {
         return self::makeRequest('/apps/http/servers');
     }
 
-    public static function getRootDomain(bool $internal = false): object
+    public function getRootDomain(bool $internal = false): object
     {
         $response = self::makeRequest('/apps/http/servers');
 
@@ -82,7 +82,7 @@ class Caddy
             : (object) ['success' => true, 'data' => $rootData];
     }
 
-    public static function setCustomDomain(string $domain): object
+    public function setCustomDomain(string $domain): object
     {
         $domain = mb_strtolower($domain);
         $root = self::getRootDomain(true);
@@ -101,7 +101,7 @@ class Caddy
         return self::updateDomains($root->key, $domains);
     }
 
-    public static function deleteCustomDomain(string $domain): object
+    public function deleteCustomDomain(string $domain): object
     {
         $domain = mb_strtolower($domain);
         $root = self::getRootDomain(true);
@@ -118,9 +118,13 @@ class Caddy
         return self::updateDomains($root->key, $domains);
     }
 
-    private static function updateDomains(string $rootKey, array $domains): object
+    private function updateDomains(string $rootKey, array $domains): object
     {
         $path = "/apps/http/servers/{$rootKey}/routes/0/match/0/host";
         return self::makeRequest($path, 'PATCH', $domains);
     }
 }
+
+tiny::registerHelper('caddy', function() {
+    return new Caddy();
+});

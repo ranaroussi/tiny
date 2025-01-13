@@ -82,3 +82,7 @@ class Mixpanel
         ]);
     }
 }
+
+tiny::registerHelper('mixpanel', function () {
+    return new Mixpanel();
+});

@@ -29,3 +29,10 @@ class GetResponse
         ]);
     }
 }
+
+tiny::registerHelper('getresponse', function() {
+    return new GetResponse();
+});
+
+// Usage
+// tiny::getresponse()->addContact('test@test.com', 'test', '123.123.123.123');

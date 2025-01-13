@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Debugger Extension
 
 The Debugger extension provides powerful debugging tools to help you inspect variables, handle errors, and manage logs during development.

@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Helpers
 
 Tiny PHP Framework comes preloaded with several helper functions and utilities to simplify common programming tasks. These helpers are designed to make your code more readable and maintainable.

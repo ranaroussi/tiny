@@ -63,7 +63,7 @@ class TinyResponse
                 tiny::data()->$key = $value;
             }
         }
-        header('HX-Push-Url: ' . tiny::router()->permalink);
+        tiny::header('HX-Push-Url: ' . tiny::router()->permalink);
         tiny::render($file, $die);
     }
 
@@ -96,7 +96,7 @@ class TinyResponse
         }
         echo json_encode($text);
         if ($die) {
-            die();
+            tiny::die();
         }
     }
 
@@ -116,7 +116,7 @@ class TinyResponse
         }
         echo file_get_contents($path);
         if ($die) {
-            die();
+            tiny::die();
         }
     }
 
@@ -130,7 +130,7 @@ class TinyResponse
     public function sendJSON(mixed $data, int $code = 200, bool $die = true): void
     {
         try {
-            header("Content-type: application/json; charset=utf-8", true, $code);
+            tiny::header("Content-type: application/json; charset=utf-8", true, $code);
         } catch (\Exception $e) {
             // Silently ignore exceptions when setting headers
         }
@@ -140,7 +140,7 @@ class TinyResponse
             echo $data;
         }
         if ($die) {
-            die();
+            tiny::die();
         }
     }
 }
