@@ -130,7 +130,4 @@ class Hello extends TinyController
 
 ## Next Steps
 
-- Learn about [MVC Architecture](../core-concepts/mvc.md)
-- Explore [Database Operations](../core-concepts/database.md)
-- Understand [Routing](../core-concepts/routing.md)
-- Work with [Extensions](../extensions/readme.md)
+Learn about [Core Concepts](../core-concepts)
