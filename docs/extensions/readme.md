@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Extensions
 
 Tiny PHP Framework comes with several built-in extensions that provide core functionality. These extensions are located in the `tiny/ext/` directory and are automatically loaded when needed.

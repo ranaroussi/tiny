@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Utils Helper
 
 The Utils helper provides a collection of commonly used utility functions for string manipulation, array handling, date formatting, and more.

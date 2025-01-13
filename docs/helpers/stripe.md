@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Stripe Helper
 
 The Stripe helper provides a simple interface for integrating Stripe payment processing into your application.
