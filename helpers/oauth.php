@@ -47,8 +47,8 @@ class OAuth
                 $config['scopes']
             );
             $url = $microsoft->getAuthUrl();
-            header("Location: $url");
-            die();
+            tiny::header("Location: $url");
+            tiny::die();
         }
 
         $microsoft = new Auth(

@@ -73,7 +73,9 @@ class tiny
         $_POST = self::cleanObjectTypes($_POST);
 
         // Setup router
-        self::routerSetup();
+        if (!self::isUsingSwoole()) {
+            self::routerSetup();
+        }
 
         // Load helpers and middleware
         self::loadHelpers();
@@ -165,9 +167,9 @@ class tiny
      * Sets up the router for handling HTTP requests.
      * Parses the URL and determines the appropriate controller and action.
      */
-    private static function routerSetup(): void
+    public static function routerSetup(): void
     {
-        if (self::isCLI()) {
+        if (self::isCLI() && !self::isUsingSwoole()) {
             return;
         }
 
@@ -221,7 +223,6 @@ class tiny
         });
 
         self::$router->htmx = isset($_SERVER['HTTP_HX_REQUEST']);
-        print('<pre>'); print_r(self::$router); print('</pre>');
     }
 
     /**
@@ -258,7 +259,7 @@ class tiny
      */
     private static function loadHelpers(): void
     {
-        // die('asd');
+        // tiny::die('asd');
         $helpers = $_SERVER['AUTOLOAD_HELPERS'] ?? '';
         if ($helpers === '*') {
             self::requireAll('/helpers/');
@@ -441,7 +442,8 @@ class tiny
     public static function controller(string $file = '', bool $die = false): void
     {
         self::sendContentTypeHeader('auto');
-        $file = $file ?: end(self::$router->worker ?? []);
+        self::$router->worker ??= [];
+        $file = $file ?: end(self::$router->worker);
         $filePath = self::$config->app_path . '/controllers/' . $file . '.php';
 
         if (!file_exists($filePath)) {
@@ -449,9 +451,9 @@ class tiny
             if (file_exists(self::$config->app_path . '/controllers/404.php')) {
                 require_once self::$config->app_path . '/controllers/404.php';
             } else {
-                die(self::data()->error);
+                tiny::die(self::data()->error);
             }
-            exit;
+            tiny::exit();
         }
 
         if ($file !== end(self::$router->worker)) {
@@ -463,7 +465,6 @@ class tiny
         try {
             $class = str_replace([' ', '-', '_', '.'], '', ucwords(str_replace('/', ' ', $file)));
             $class = preg_replace('/Index$/', '', $class);
-
             if (class_exists($class)) {
                 $method = mb_strtolower($_SERVER['REQUEST_METHOD'] ?? 'GET');
                 $instance = new $class();
@@ -476,7 +477,7 @@ class tiny
         }
 
         if ($die) {
-            exit;
+            tiny::exit();
         }
     }
 
@@ -495,7 +496,7 @@ class tiny
             if (file_exists(self::$config->app_path . '/views/404.php')) {
                 self::render('404', true);
             } else {
-                die(self::data()->error);
+                tiny::die(self::data()->error);
             }
         }
 
@@ -506,7 +507,7 @@ class tiny
         require $filePath;
         if ($die) {
             self::timer(true);
-            exit;
+            tiny::exit();
         }
     }
 
@@ -521,12 +522,12 @@ class tiny
         $filePath = self::$config->app_path . '/' . rtrim($file, '.php') . '.php';
 
         if (!file_exists($filePath)) {
-            die("<code>ERROR: File /$filePath cannot be found on the server</code>");
+            tiny::die("<code>ERROR: File /$filePath cannot be found on the server</code>");
         }
 
         require $filePath;
         if ($die) {
-            exit;
+            tiny::exit();
         }
     }
 
@@ -802,9 +803,36 @@ class tiny
         // Return the singleton instance
         return self::$instances[$name];
     }
+
+    public static function isUsingSwoole(): bool
+    {
+        return tiny::cache()->remember('is-using-swoole', 3600, function () {
+            return extension_loaded('swoole') && php_sapi_name() === 'cli' && isset($_SERVER['USE_SWOOLE']);
+        });
+    }
+
+    public static function die(mixed $data = null): void
+    {
+        if (self::isUsingSwoole()) {
+            echo $data;
+            throw new ExitException("Stopping coroutine");
+        } else {
+            die($data);
+        }
+    }
+
+    public static function exit(?int $code = 0): void
+    {
+        if (self::isUsingSwoole()) {
+            throw new ExitException("Stopping coroutine", $code);
+        } else {
+            exit($code);
+        }
+    }
 }
 
 /* -------------------------------------- */
 // Initialize Tiny
 tiny::init();
 /* -------------------------------------- */
+

@@ -389,7 +389,7 @@ class TinyDB implements DB
     {
         // used for debugging
         // if (str_contains($query, 'ON CONFLICT')) {
-        //     die(str_replace('\\?', '?', $this->prepare($query, $params)));
+        //     tiny::die(str_replace('\\?', '?', $this->prepare($query, $params)));
         // }
         return $this->pdo->exec(str_replace('\\?', '?', $this->prepare($query, $params)));
     }

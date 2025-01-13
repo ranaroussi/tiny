@@ -114,8 +114,8 @@ class Utils {
             $first = false;
         }
         fseek($f, 0);
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '";');
+        tiny::header('Content-Type: text/csv');
+        tiny::header('Content-Disposition: attachment; filename="' . $filename . '";');
         fpassthru($f);
     }
 
@@ -148,13 +148,13 @@ class Utils {
         $headers = self::getRequestHeaders();
 
         if (!isset($headers[$header])) {
-            header('HTTP/1.1 401 Unauthorized');
-            die('Unauthorized');
+            tiny::header('HTTP/1.1 401 Unauthorized');
+            tiny::die('Unauthorized');
         }
 
         if ($headers[$header] !== $value) {
-            header('HTTP/1.1 401 Unauthorized');
-            die('Bad credentials');
+            tiny::header('HTTP/1.1 401 Unauthorized');
+            tiny::die('Bad credentials');
         }
     }
 

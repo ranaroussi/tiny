@@ -60,8 +60,8 @@ class ApiV1Auth extends TinyController
 return [
     'api/*' => function($request, $response) {
         // CORS headers
-        header('Access-Control-Allow-Origin: *');
-        header('Content-Type: application/json');
+        tiny::header('Access-Control-Allow-Origin: *');
+        tiny::header('Content-Type: application/json');
 
         // Rate limiting
         if (!tiny::rateLimit()->allow('api', 60, 100)) {

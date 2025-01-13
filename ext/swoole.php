@@ -52,20 +52,49 @@ class TinySwoole
     {
         $_SERVER['REQUEST_METHOD'] = $request->server['request_method'];
         $_SERVER['REQUEST_URI'] = $request->server['request_uri'];
+        $_SERVER['HOMEPAGE'] = 'home';
+
+        $_SERVER['USE_SWOOLE'] = true;
         $_GET = $request->get ?? [];
         $_POST = $request->post ?? [];
         $_FILES = $request->files ?? [];
         $_COOKIE = $request->cookie ?? [];
 
-        ob_start();
-        tiny::controller();
-        $content = ob_get_clean();
 
+        ob_start();
+        try {
+            tiny::routerSetup();
+            tiny::controller();
+        } catch (ExitException $e) {
+            // print('<pre>'); print_r($e); print('</pre>');
+        } catch (Exception $e) {
+        }
+
+        $content = ob_get_clean();
         $response->end($content);
     }
 
     public function co(callable $callback)
     {
         return \Swoole\Coroutine::create($callback);
+    }
+
+    public function redirect($goto, $header = null)
+    {
+        $this->server->redirect($goto, $header);
+        tiny::exit();
+    }
+
+    public function tiny::header($url, $value)
+    {
+        return \Swoole\Http\Response::header($url, $value);
+    }
+}
+
+class ExitException extends Exception
+{
+    public function __construct($message = "Stopping coroutine", $code = 0, ?Exception $previous = null)
+    {
+        parent::__construct($message, $code, $previous);
     }
 }

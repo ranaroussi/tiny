@@ -329,7 +329,7 @@ class InvoiceGenerator extends FPDF
         return $this->Output($destination, $name);
     }
 
-    public function Header()
+    public function tiny::header()
     {
         $this->setupHeaderStyle();
         $this->drawLogo();

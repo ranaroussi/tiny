@@ -57,7 +57,7 @@ class TinySSE
         ignore_user_abort(false);
 
         foreach (self::HEADERS as $header) {
-            header($header);
+            tiny::header($header);
         }
 
         if (function_exists('apache_setenv')) {
@@ -271,7 +271,7 @@ class TinySSE
             if (connection_aborted()) {
                 $this->send('[DONE]');
                 $this->flush();
-                exit();
+                tiny::exit();
             }
             $data = $func();
             if ($data !== null) {

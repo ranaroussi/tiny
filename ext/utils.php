@@ -78,8 +78,8 @@ trait TinyUtils
             $goto = self::getHomeURL(str_replace(self::getHomeURL(), '/', $goto));
         }
         match ($header) {
-            302 => header('HTTP/1.1 302 Moved Temporarily'),
-            301 => header('HTTP/1.1 301 Moved Permanently'),
+            302 => self::header('HTTP/1.1 302 Moved Temporarily'),
+            301 => self::header('HTTP/1.1 301 Moved Permanently'),
             'javascript' => self::javascriptRedirect($goto),
             'htmx' => self::htmxRedirect($goto),
             'csrf' => function () use ($goto) {
@@ -89,8 +89,12 @@ trait TinyUtils
             default => self::$router->htmx ? self::htmxRedirect($goto) : null
         };
 
-        header("Location: $goto");
-        exit;
+        if (self::isUsingSwoole()) {
+            self::swoole()->redirect($goto, $header);
+        } else {
+            self::header("Location: $goto");
+            tiny::exit();
+        }
     }
 
     /**
@@ -105,7 +109,7 @@ trait TinyUtils
         <script>window.onload=function(){try{window.location.replace(\"$goto\");}catch(err){window.location.href=\"$goto\";}}</script>
         <style>@keyframes spinner{to{transform:rotate(360deg);}} .spinner{position:absolute;top:50%;left:50%;width:20px;height:20px;margin-top:-10px;margin-left:-10px;border-radius:50%;border:2px solid #ccc;border-top-color:#000;animation:spinner .6s linear infinite;}</style>
         </head><body style=\"height:100%;background:#fff;\"><div class=\"spinner\"></div></body></html>";
-        exit;
+        tiny::exit();
     }
 
     /**
@@ -116,8 +120,8 @@ trait TinyUtils
      */
     private static function htmxRedirect(string $goto): never
     {
-        header("HX-Redirect: $goto");
-        exit;
+        self::header("HX-Redirect: $goto");
+        tiny::exit();
     }
 
     /**
@@ -900,7 +904,7 @@ trait TinyUtils
         http_response_code($code);
         echo $text;
         if ($die) {
-            exit;
+            tiny::exit();
         }
     }
 
@@ -917,7 +921,7 @@ trait TinyUtils
         http_response_code($code);
         echo file_get_contents($path);
         if ($die) {
-            exit;
+            tiny::exit();
         }
     }
 
@@ -931,10 +935,10 @@ trait TinyUtils
      */
     public static function jsonResponse(mixed $data, int $code = 200, bool $die = true): never
     {
-        header("Content-type: application/json; charset=utf-8", true, $code);
+        tiny::header("Content-type: application/json; charset=utf-8", true, $code);
         echo json_encode($data, JSON_THROW_ON_ERROR);
         if ($die) {
-            exit;
+            tiny::exit();
         }
     }
 
@@ -1105,12 +1109,12 @@ trait TinyUtils
             default => "text/html",
         };
 
-        header("Content-type: $ctype; charset=utf-8", true, 200);
+        // tiny::header("Content-type: $ctype; charset=utf-8", true, 200);
 
         if ($attachement) {
-            header("Content-Disposition: attachment; filename=$attachement");
-            header('Pragma: no-cache');
-            header('Expires: 0');
+            tiny::header("Content-Disposition: attachment; filename=$attachement");
+            tiny::header('Pragma: no-cache');
+            tiny::header('Expires: 0');
         }
     }
 
@@ -1126,11 +1130,11 @@ trait TinyUtils
     public static function sendEarlyHints(string $url, string $rel = 'preload', string $as = 'style', bool $nopush = true, $replace = false): void
     {
         $url = self::getHomeUrl($url);
-        header('HTTP/2 103 Early Hints');
+        tiny::header('HTTP/2 103 Early Hints');
         if ($nopush) {
-            header("Link: ‹$url>; rel=$rel; as=$as; nopush", $replace);
+            tiny::header("Link: ‹$url>; rel=$rel; as=$as; nopush", $replace);
         } else {
-            header("Link: ‹$url>; rel=$rel; as=$as", $replace);
+            tiny::header("Link: ‹$url>; rel=$rel; as=$as", $replace);
         }
     }
 
@@ -1141,7 +1145,7 @@ trait TinyUtils
      */
     public static function allowOrigin(string $allow = '*'): void
     {
-        header("Access-Control-Allow-Origin: $allow", true);
+        tiny::header("Access-Control-Allow-Origin: $allow", true);
     }
 
 
@@ -1223,5 +1227,14 @@ trait TinyUtils
 
             rmdir($dir);
         }
+    }
+
+    public static function header(string $header): void
+    {
+        if (self::isUsingSwoole()) {
+            $header = explode(':', $header);
+            self::swoole()->header($header[0], $header[1], true);
+        }
+        header($header);
     }
 }
