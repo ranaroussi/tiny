@@ -27,7 +27,7 @@ $ nano /home/webapp/.git/hooks/post-receive
 Put the below code into `.git/hooks/post-receive`:
 
 ```bash
-!/bin/bash
+#!/bin/bash
 
 WORKDIR=/home/bell/html_html/WEBSITE_DIR_NAME
 PUBLIC_DIR_NAME=public
