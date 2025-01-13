@@ -150,6 +150,7 @@ class TinyDB implements DB
 {
     private \PDO $pdo;
     private string $dbType;
+    private bool $useSwoole;
 
     /**
      * Constructor for the TinyDB class.
@@ -162,6 +163,7 @@ class TinyDB implements DB
     public function __construct(string $dbType, array $config)
     {
         $this->dbType = mb_strtolower($dbType);
+        $this->useSwoole = extension_loaded('swoole') && php_sapi_name() === 'cli';
 
         try {
             match ($this->dbType) {
@@ -191,14 +193,6 @@ class TinyDB implements DB
         $timeout = $config['timeout'] ?? 5;
         $persistent = $config['persistent'] ?? false;
 
-        if (!is_array($host)) {
-            $host = $host ? explode(',', tiny::trim(str_replace(' ', '', $host), ',')) : [];
-        }
-
-        if (empty($host)) {
-            throw new \Exception('No MySQL servers provided.');
-        }
-
         $options = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
@@ -207,9 +201,13 @@ class TinyDB implements DB
             ...($persistent ? [\PDO::ATTR_PERSISTENT => true] : [])
         ];
 
-        $dsn = "mysql:host=" . tiny::trim($host) . ";dbname=" . tiny::trim($dbname) . ";port={$port};charset=utf8mb4";
+        $dsn = "mysql:host=" . $host . ";dbname=" . $dbname . ";port={$port};charset=utf8mb4";
         try {
-            $this->pdo = new \PDO($dsn, tiny::trim($user), tiny::trim($password), $options);
+            if ($this->useSwoole) {
+                $this->pdo = new \PDO($dsn, $user, $password, $options);
+            } else {
+                $this->createSwooleConnection($dsn, $user, $password, $options);
+            }
         } catch (\PDOException $e) {
             throw new \Exception('Unable to connect to any MySQL server.');
         }
@@ -241,7 +239,11 @@ class TinyDB implements DB
 
         $dsn = "pgsql:host=$host;port=$port;dbname=$dbname";
         try {
-            $this->pdo = new \PDO($dsn, $user, $password, $options);
+            if ($this->useSwoole) {
+                $this->pdo = new \PDO($dsn, $user, $password, $options);
+            } else {
+                $this->createSwooleConnection($dsn, $user, $password, $options);
+            }
         } catch (\PDOException $e) {
             throw new \Exception('Unable to open database: ' . $e->getMessage());
         }
@@ -263,8 +265,20 @@ class TinyDB implements DB
         }
 
         $existing_db = file_exists($db_path);
+        $options = [
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+            \PDO::SQLITE_ATTR_OPEN_FLAGS => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
+        ];
+
         try {
-            $this->pdo = new \PDO('sqlite:' . $db_path, null, null, [
+            if (!$this->useSwoole) {
+                $this->pdo = new \PDO('sqlite:' . $db_path, null, null, $options);
+            } else {
+                $this->createSwooleConnection('sqlite:' . $db_path, null, null, $options);
+            }
+
+            $this->createSwooleConnection('sqlite:' . $db_path, null, null, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
                 \PDO::SQLITE_ATTR_OPEN_FLAGS => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
@@ -595,6 +609,43 @@ class TinyDB implements DB
             $placeholders = implode(', ', array_fill(0, count($data), '?'));
             $query = "REPLACE INTO $table ($columns) VALUES ($placeholders)";
             return $this->execute($query, array_values($data));
+        }
+    }
+
+    /**
+     * Executes a SQL query asynchronously.
+     *
+     * @param string $sql The SQL query to execute
+     * @param array $params Optional parameters for the query
+     * @return mixed The result of the query or false on failure
+     */
+    public function asyncQuery($sql, $params = []): mixed
+    {
+        if ($this->useSwoole) {
+            // Use existing Swoole PDO connection
+            $stmt = $this->pdo->prepare($sql);
+            return $stmt->execute($params) ? $stmt->fetchAll() : false;
+        }
+
+        // Fallback to regular query
+        return $this->query($sql);
+    }
+
+    /**
+     * Handles Swoole PDO connection.
+     *
+     * @param string $dsn The DSN string for the connection
+     * @param ?string $user The username for the connection
+     * @param ?string $password The password for the connection
+     * @param array $options The options for the connection
+     * @throws \PDOException If unable to connect to the database
+     */
+    private function createSwooleConnection(string $dsn, ?string $user = null, ?string $password = null, array $options = []): void
+    {
+        if ($this->useSwoole) {
+            $this->pdo = new \Swoole\Runtime\PDO($dsn, $user, $password, $options);
+        } else {
+            $this->pdo = new \PDO($dsn, $user, $password, $options);
         }
     }
 }

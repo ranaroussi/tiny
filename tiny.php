@@ -725,6 +725,16 @@ class tiny
     {
         return tiny::getHomeURL(tiny::config()->static_dir . '/' . ltrim($file, '/'), $full, $scheme);
     }
+
+    /**
+     * Returns the swoole object for handling HTTP SSE.
+     *
+     * @return Swoole The swoole object
+     */
+    public static function swoole(): TinySwoole
+    {
+        return TinySwoole::getInstance();
+    }
 }
 
 /* -------------------------------------- */

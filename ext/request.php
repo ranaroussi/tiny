@@ -141,4 +141,39 @@ class TinyRequest
         }
         return $this->jsonCached;
     }
+
+    /**
+     * Determines if the current request is asynchronous/AJAX.
+     * Checks multiple conditions to determine if request is async:
+     * 1. Running under Swoole server
+     * 2. Has X-Requested-With header set to AsyncRequest
+     * 3. Has async=true query parameter
+     *
+     * @return bool True if request is async, false otherwise
+     */
+    public function isAsync(): bool
+    {
+        // First check: Is this running under Swoole server in CLI mode?
+        // This indicates an async server environment
+        if (extension_loaded('swoole') && php_sapi_name() === 'cli') {
+            return true;
+        }
+
+        // Second check: Look for custom X-Requested-With header
+        // Modern async requests set this header to 'AsyncRequest'
+        if (isset($this->headers['X-Requested-With']) &&
+            $this->headers['X-Requested-With'] === 'AsyncRequest') {
+            return true;
+        }
+
+        // Third check: Check URL query string for async=true parameter
+        // Allows forcing async mode via URL parameter
+        if (isset($this->query['async']) &&
+            filter_var($this->query['async'], FILTER_VALIDATE_BOOLEAN)) {
+            return true;
+        }
+
+        // If none of the above conditions are met, this is not an async request
+        return false;
+    }
 }
