@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](getting-started.md) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Tiny PHP Framework Documentation
 
 Tiny is a lightweight PHP framework designed to provide a simple and efficient way to build web applications with minimal setup and configuration. It was developed by [Ran Aroussi](https://x.com/aroussi) for internal projects and offers a range of features to streamline development while maintaining flexibility.

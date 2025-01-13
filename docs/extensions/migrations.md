@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](getting-started.md) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Database Migrations
 
 The Migration extension helps you manage database schema changes in a version-controlled way.

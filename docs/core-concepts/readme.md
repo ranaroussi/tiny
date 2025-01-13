@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](getting-started.md) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Core Concepts
 
 Tiny PHP Framework follows a clean and intuitive architecture based on the MVC (Model-View-Controller) pattern. This section covers the core concepts that make up the framework.

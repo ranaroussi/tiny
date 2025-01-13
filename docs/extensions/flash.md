@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](getting-started.md) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Flash Messages Extension
 
 The Flash extension provides a way to store temporary messages between requests, commonly used for user notifications and feedback.

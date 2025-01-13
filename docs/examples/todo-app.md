@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](getting-started.md) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Building a TODO Application
 
 This example demonstrates how to build a simple TODO application using the Tiny PHP Framework. We'll cover database operations, authentication, validation, and more.

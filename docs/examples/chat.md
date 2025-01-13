@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](getting-started.md) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # Real-Time Chat Example
 
 This example demonstrates how to build a real-time chat application using Tiny PHP Framework's SSE extension and database integration.

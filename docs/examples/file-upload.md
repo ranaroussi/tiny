@@ -1,3 +1,5 @@
+[Home](../readme.md) | [Getting Started](getting-started.md) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
 # File Upload Example
 
 This example demonstrates how to handle file uploads in Tiny PHP Framework, including validation, storage, and image processing.
