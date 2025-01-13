@@ -69,7 +69,7 @@ class TinySwoole
 
     public function handleRequest($request, $response): void
     {
-        $response->header('Server', 'Tiny[Swoole]');
+        $response->header('Server', 'TinySwoole');
         $response->header('X-Powered-By', 'Tiny');
 
         $this->initializeGlobalsFromRequest($request);
