@@ -172,7 +172,7 @@ trait TinyDebugger
 
         [$trace, $content] = self::dumpOrDebug('debug', ...$vars);
         echo self::formatOutput($trace, $content);
-        // tiny::exit(1);
+        tiny::exit(1);
     }
 
     /**
