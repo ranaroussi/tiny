@@ -227,6 +227,6 @@ class DOCReader
     }
 }
 
-tiny::registerHelper('docreader', function() {
+tiny::registerHelper('docReader', function() {
     return new DOCReader();
 });
