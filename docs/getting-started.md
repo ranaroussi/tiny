@@ -11,7 +11,7 @@ mkdir my-project && cd my-project
 2. Clone the Tiny framework repository:
 
 ```bash
-git clone https://github.com/ranaroussi/tiny.git
+git clone https://github.com/ranaroussi/tiny.git .
 ```
 
 3. Create the project structure:
