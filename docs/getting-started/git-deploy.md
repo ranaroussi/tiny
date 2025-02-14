@@ -1,3 +1,6 @@
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+
+
 # Deploy using `git push`
 
 Push into a remote repository with a detached work tree and a post-receive hook that runs `git checkout -f`.
@@ -24,7 +27,7 @@ $ nano /home/webapp/.git/hooks/post-receive
 Put the below code into `.git/hooks/post-receive`:
 
 ```bash
-!/bin/bash
+#!/bin/bash
 
 WORKDIR=/home/bell/html_html/WEBSITE_DIR_NAME
 PUBLIC_DIR_NAME=public

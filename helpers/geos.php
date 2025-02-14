@@ -1942,6 +1942,7 @@ class Geos {
                     $countries[$info['name']] = [$geo, $info['flag']];
                 }
             }
+            ksort($countries);
             return $countries;
         });
         return $val;

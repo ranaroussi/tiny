@@ -817,7 +817,7 @@ class tiny
             echo $data;
             throw new ExitException("Stopping coroutine");
         } else {
-            die($data);
+            die($data ?? '');
         }
     }
 
@@ -826,7 +826,7 @@ class tiny
         if (self::isUsingSwoole()) {
             throw new ExitException("Stopping coroutine", $code);
         } else {
-            exit($code);
+            exit($code ?? 0);
         }
     }
 }
