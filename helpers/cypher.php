@@ -5,6 +5,7 @@ declare(strict_types=1);
 class Cypher
 {
     private const NONCE_TTL = 60; // nonce time to live in seconds
+    private const DEFAULT_CRYPTO_ALGO = 'aes-256-cbc';
 
     private function urlsafe_b64encode(string $string): string
     {
@@ -26,7 +27,9 @@ class Cypher
     {
         $key = md5($secret);
         $iv = substr(strrev($key), 0, 16);
-        return $this->urlsafe_b64encode(@openssl_encrypt($data, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv));
+
+        $algo = @$_SERVER['CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
+        return $this->urlsafe_b64encode(@openssl_encrypt($data, $algo, $key, OPENSSL_RAW_DATA, $iv));
     }
 
     public function decrypt(string $data, string $secret): false|string
@@ -34,7 +37,9 @@ class Cypher
         $data = $this->urlsafe_b64decode($data);
         $key = md5($secret);
         $iv = substr(strrev($key), 0, 16);
-        return @openssl_decrypt($data, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+
+        $algo = @$_SERVER['CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
+        return @openssl_decrypt($data, $algo, $key, OPENSSL_RAW_DATA, $iv);
     }
 
     private function nonce(): string
