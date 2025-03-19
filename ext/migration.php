@@ -295,14 +295,14 @@ class {$className}
 
     public function up(): void
     {
-        \$this->db->exec("
+        \$this->db->exec("--sql
             -- Your SQL for the 'up' migration
         ");
     }
 
     public function down(): void
     {
-        \$this->db->exec("
+        \$this->db->exec("--sql
             -- Your SQL for the 'down' migration
         ");
     }
