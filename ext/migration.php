@@ -92,12 +92,16 @@ class TinyMigration
 
             try {
                 $this->db->beginTransaction();
-                $instance->up();
+                $instance->up($this->db);
+                if ($this->db->inTransaction()) {
+                    $this->db->commit();
+                }
                 $this->markMigrationAsRun($migration, $batch);
-                $this->db->commit();
                 echo "Migrated: " . basename($migration) . "\n";
             } catch (PDOException $e) {
-                $this->db->rollBack();
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
                 echo "Error migrating " . basename($migration) . ": " . $e->getMessage() . "\n";
             }
         }
@@ -118,12 +122,16 @@ class TinyMigration
 
             try {
                 $this->db->beginTransaction();
-                $instance->down();
+                $instance->down($this->db);
+                if ($this->db->inTransaction()) {
+                    $this->db->commit();
+                }
                 $this->removeMigrationRecord($migration);
-                $this->db->commit();
                 echo "Rolled back: " . basename($migration) . "\n";
             } catch (PDOException $e) {
-                $this->db->rollBack();
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
                 echo "Error rolling back " . basename($migration) . ": " . $e->getMessage() . "\n";
             }
         }
