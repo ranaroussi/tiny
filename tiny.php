@@ -599,6 +599,24 @@ class tiny
     }
 
     /**
+     * Returns the response object for handling http requests.
+     *
+     * @return TinyClickhouse The TinyClickhouse object
+     */
+    public static function clickhouse(): TinyClickhouse
+    {
+        static $clickhouse;
+        return $clickhouse ??= new TinyClickhouse([
+            'host' => $_SERVER['CLICKHOUSE_HOST'],
+            'port' => $_SERVER['CLICKHOUSE_PORT'],
+            'username' => $_SERVER['CLICKHOUSE_USERNAME'],
+            'password' => $_SERVER['CLICKHOUSE_PASSWORD'],
+            'https' => $_SERVER['CLICKHOUSE_HTTPS'] ?? false,
+            'timeout' => $_SERVER['CLICKHOUSE_TIMEOUT'] ?? 30
+        ]);
+    }
+
+    /**
      * Sets a value in the data object.
      *
      * @param string $key The key to set
