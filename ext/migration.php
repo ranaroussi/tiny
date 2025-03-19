@@ -40,7 +40,6 @@ class TinyMigration
         if (!is_dir($this->path)) {
             mkdir($this->path, 0777, true);
         }
-        $this->db = tiny::db()->getPdo();
         $this->initSqliteDb();
     }
 
