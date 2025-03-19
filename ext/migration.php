@@ -41,6 +41,7 @@ class TinyMigration
             mkdir($this->path, 0777, true);
         }
         $this->initSqliteDb();
+        $this->db = tiny::db()->getPdo();
     }
 
     /**
@@ -261,7 +262,9 @@ class TinyMigration
      */
     private function getMigrationClassName(string $migration): string
     {
-        return pathinfo(basename($migration), PATHINFO_FILENAME);
+        $file_name = pathinfo(basename($migration), PATHINFO_FILENAME);
+        $file_name = substr($file_name, 15);
+        return str_replace(' ', '', ucwords(str_replace('_', ' ', $file_name)));
     }
 
     /**
@@ -277,7 +280,6 @@ class TinyMigration
         return <<<PHP
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../bootstrap.php';
 
 /**
  * @migration: $className
