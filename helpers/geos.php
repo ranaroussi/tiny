@@ -1932,6 +1932,24 @@ class Geos {
         return $val;
     }
 
+    public function areaCodesSelectOptions(): string
+    {
+        $val = tiny::cache()->remember('geo_areacodes_options', 3600, function () {
+            $codes = '';
+            foreach (self::GEOS as $geo => $info) {
+                foreach ($info['phone'] as $code) {
+                    $codes .= "<option value=\"{$code}\">{$geo} (+{$code})</option>";
+                }
+            }
+            return '
+                <option value="US">US (+1)</option>
+                <option value="GB">GB (+44)</option>
+                <option value="--" disabled>-----</option>
+            ' . $codes;
+        });
+        return $val;
+    }
+
     public function geoCountries(bool $hideUnsupported = true): array
     {
         $key = $hideUnsupported ? 'geo_countries_no_unsupported' : 'geo_countries';
