@@ -49,7 +49,7 @@ class TinyRequest
         $this->method = $_SERVER['REQUEST_METHOD'];
         $this->headers = getallheaders() ?: [];
         $this->htmx = $router->htmx;
-        $this->query = $router->query;
+        $this->query = $_GET;
         $this->path = $this->buildPath($router);
     }
 
