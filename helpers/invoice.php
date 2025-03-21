@@ -260,7 +260,7 @@ class InvoiceGenerator extends FPDF
         foreach ($fields as $field => $value) {
             if ($value !== false) {
                 if ($field === 'price') {
-                    $p[$field] = rtrim($this->price($value / 100, $decimals), '0');
+                    $p[$field] = ltrim($this->price($value / 100, $decimals), '0');
                 } elseif ($field === 'discount') {
                     $discount = $value < 1 ? $value : $value / 100;
                     $p[$field] = number_format($discount * 100, 2) . '%';
@@ -348,8 +348,8 @@ class InvoiceGenerator extends FPDF
     private function setupHeaderStyle()
     {
         $this->SetLineWidth(3);
-        $this->Line(0, 0, $this->document['w'], 0);
         $this->SetDrawColor(...$this->color);
+        $this->Line(0, 0, $this->document['w'], 0);
         $this->SetLineWidth(0.3);
     }
 
@@ -463,7 +463,7 @@ class InvoiceGenerator extends FPDF
 
         $this->Ln(9);
         $this->SetLineWidth(0.2);
-        $this->SetDrawColor(...$this->color);
+        $this->SetDrawColor(0, 0, 0);
         $this->Line($this->margins['l'] + 1, $this->GetY(), $this->document['w'] - $this->margins['r'] - 1, $this->GetY());
         $this->Ln(2);
     }
