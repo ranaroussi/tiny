@@ -37,6 +37,7 @@ class tiny
 
     private static object $config;
     private static ?TinyCache $cache = null;
+    private static ?TinyClickhouse $clickhouse = null;
     private static ?DB $db = null;
     private static object $router;
     private static array $middlewares = [];
@@ -605,8 +606,7 @@ class tiny
      */
     public static function clickhouse(): TinyClickhouse
     {
-        static $clickhouse;
-        return $clickhouse ??= new TinyClickhouse([
+        return self::$clickhouse ??= new TinyClickhouse([
             'host' => $_SERVER['CLICKHOUSE_HOST'],
             'port' => $_SERVER['CLICKHOUSE_PORT'],
             'username' => $_SERVER['CLICKHOUSE_USERNAME'],
