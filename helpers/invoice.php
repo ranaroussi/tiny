@@ -430,7 +430,7 @@ class InvoiceGenerator extends FPDF
         $this->SetFont($this->font, '', 8);
         $this->Ln(5);
 
-        $maxLines = max(count($this->from ?? []), count($this->to ?? []));
+        $maxLines = max(count($this->from ?? []), count($this->to ?? [])) + 1;
         for ($i = 1; $i < $maxLines; $i++) {
             $this->Cell($width, 5, $this->convert($this->from[$i] ?? ''), 0, 0, 'L');
             $this->Cell(0, 5, $this->convert($this->to[$i - 1] ?? ''), 0, 0, 'L');
