@@ -413,6 +413,9 @@ class TinyDB implements DB
      */
     public function getQuery($query): array
     {
+        if (str_starts_with($query, '--sql')) {
+            $query = substr($query, 6);
+        }
         $stmt = $this->pdo->query(str_replace('\\?', '?', $query));
         return $stmt ? $stmt->fetchAll() : [];
     }
