@@ -931,9 +931,9 @@ trait TinyUtils
      * @param mixed $data The data to be encoded as JSON
      * @param int $code The HTTP status code (default: 200)
      * @param bool $die Whether to terminate the script after sending the response (default: true)
-     * @return never
+     * @return void
      */
-    public static function jsonResponse(mixed $data, int $code = 200, bool $die = true): never
+    public static function jsonResponse(mixed $data, int $code = 200, bool $die = true): void
     {
         tiny::header("Content-type: application/json; charset=utf-8", true, $code);
         echo json_encode($data, JSON_THROW_ON_ERROR);
