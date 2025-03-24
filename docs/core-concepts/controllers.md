@@ -116,7 +116,7 @@ public function get($request, $response)
     ]);
 
     // Redirect
-    $response->redirect('/dashboard');
+    $response->redirect('/');
 
     // Redirect back with error
     $response->back()->withError('Invalid input');
