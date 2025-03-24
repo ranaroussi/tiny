@@ -375,7 +375,7 @@ class TinyDB implements DB
             $value = is_array($value) ? $value : (string)$value;
             $query = preg_replace('/(?<!\\\)\?/', $value, $query, 1);
         }
-        return $query;
+        return str_starts_with($query, '--sql') ? substr($query, 6) : $query;
     }
 
     /**
