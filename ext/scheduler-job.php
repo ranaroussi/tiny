@@ -33,6 +33,9 @@ class Job
     private CronExpression $executionTime;
     private ?int $executionYear = null;
 
+    private bool $isSecondJob = false;
+    private ?int $secondInterval = null;
+
     /**
      * Constructor for the Job class.
      * Initializes a new job with the given command and arguments.
@@ -72,20 +75,38 @@ class Job
         }
 
         // Handle second-level scheduling
-        if (isset($this->isSecondJob) && $this->isSecondJob) {
-            // First check if the minute-level cron is due
-            if (!$this->executionTime->isDue($date)) {
-                return false;
-            }
-
-            // If no specific interval, run every second
-            if ($this->secondInterval === null) {
+        if ($this->isSecondJob) {
+            if ($this->secondInterval === null || $this->secondInterval === 0) {
                 return true;
             }
 
-            // Otherwise, check if we should run based on current second
-            $currentSecond = (int)$date->format('s');
-            return ($currentSecond % $this->secondInterval) === 0;
+            // Create a unique identifier for this job
+            $jobId = md5(($this->class ?? '') . $this->command . serialize($this->args));
+            $stateFile = sys_get_temp_dir() . "/tiny_scheduler_job_{$jobId}.txt";
+
+            $now = time();
+            $lastRun = 0;
+
+            // Only read the file if it exists to avoid unnecessary I/O
+            if (file_exists($stateFile)) {
+                $lastRun = (int)file_get_contents($stateFile);
+            }
+
+            // First run - initialize the state file and skip execution
+            if ($lastRun === 0) {
+                // Align to the next interval boundary
+                $nextRun = floor($now / $this->secondInterval) * $this->secondInterval;
+                file_put_contents($stateFile, $nextRun);
+                return false;
+            }
+            // Calculate if enough time has passed since last run
+            $elapsedTime = $now - $lastRun;
+            if ($elapsedTime >= $this->secondInterval) {
+                // Update the last run time
+                file_put_contents($stateFile, $now);
+                return true;
+            }
+            return false;
         }
 
         // Regular minute-level (and up) cron jobs
