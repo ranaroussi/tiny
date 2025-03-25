@@ -71,23 +71,23 @@ interface DB
      * Retrieves rows from a table based on specified conditions.
      *
      * @param string $table The name of the table
-     * @param string|null $where The WHERE clause (optional)
+     * @param string|array|null $where The WHERE clause (optional)
      * @param string|array $fields The fields to select (default: '*')
      * @param string|null $orderby The ORDER BY clause (optional)
      * @param int|null $limit The LIMIT clause (optional)
      * @return array The result set as an array of associative arrays
      */
-    public function get(string $table, ?string $where = null, ?string $fields = '*', ?string $orderby = null, ?int $limit = null): array;
+    public function get(string $table, string|array|null $where = null, ?string $fields = '*', ?string $orderby = null, ?int $limit = null): array;
 
     /**
      * Retrieves a single row from a table based on specified conditions.
      *
      * @param string $table The name of the table
-     * @param string|null $where The WHERE clause (optional)
+     * @param string|array|null $where The WHERE clause (optional)
      * @param string|array $fields The fields to select (default: '*')
      * @return mixed The first row of the result set or false if no rows found
      */
-    public function getOne(string $table, ?string $where = null, string|array $fields = "*"): mixed;
+    public function getOne(string $table, string|array|null $where = null, string|array $fields = "*"): mixed;
 
     /**
      * Retrieves all rows from a table.
@@ -424,14 +424,24 @@ class TinyDB implements DB
      * Retrieves rows from a table based on specified conditions.
      *
      * @param string $table The name of the table
-     * @param string|null $where The WHERE clause (optional)
+     * @param string|array|null $where The WHERE clause (optional)
      * @param string|array $fields The fields to select (default: '*')
      * @param string|null $orderby The ORDER BY clause (optional)
      * @param int|null $limit The LIMIT clause (optional)
      * @return array The result set as an array of associative arrays
      */
-    public function get(string $table, ?string $where = null, ?string $fields = '*', ?string $orderby = null, ?int $limit = null): array
+    public function get(string $table, string|array|null $where = null, ?string $fields = '*', ?string $orderby = null, ?int $limit = null): array
     {
+
+        if (is_array($where)) {
+            $where_array = [];
+            $values_array = [];
+            foreach ($where as $key => $value) {
+                $where_array[] = "$key=?";
+                $values_array[] = $value;
+            }
+            $where = $this->prepare(implode(' AND ', $where_array), $values_array);
+        }
         $where = ($where) ? ' WHERE ' . $where : '';
         $orderby = ($orderby) ? ' ORDER BY ' . $orderby : '';
         $limit = ($limit) ? ' LIMIT ' . $limit : '';
@@ -445,11 +455,11 @@ class TinyDB implements DB
      * Retrieves a single row from a table based on specified conditions.
      *
      * @param string $table The name of the table
-     * @param string|null $where The WHERE clause (optional)
+     * @param string|array|null $where The WHERE clause (optional)
      * @param string|array $fields The fields to select (default: '*')
      * @return mixed The first row of the result set or false if no rows found
      */
-    public function getOne(string $table, ?string $where = null, string|array $fields = "*"): mixed
+    public function getOne(string $table, string|array|null $where = null, string|array $fields = "*"): mixed
     {
         $res = $this->get($table, $where, $fields, '', 1);
         return $res ? $res[0] : false;
