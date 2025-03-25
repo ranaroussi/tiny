@@ -71,6 +71,24 @@ class Job
             return false;
         }
 
+        // Handle second-level scheduling
+        if (isset($this->isSecondJob) && $this->isSecondJob) {
+            // First check if the minute-level cron is due
+            if (!$this->executionTime->isDue($date)) {
+                return false;
+            }
+
+            // If no specific interval, run every second
+            if ($this->secondInterval === null) {
+                return true;
+            }
+
+            // Otherwise, check if we should run based on current second
+            $currentSecond = (int)$date->format('s');
+            return ($currentSecond % $this->secondInterval) === 0;
+        }
+
+        // Regular minute-level (and up) cron jobs
         return $this->executionTime->isDue($date);
     }
 
@@ -129,6 +147,24 @@ class Job
         $this->executionYear = (int)$date->format('Y');
 
         return $this->at("{$date->format('i')} {$date->format('H')} {$date->format('d')} {$date->format('m')} *");
+    }
+
+    /**
+     * Sets the job to run every second or at specific second intervals.
+     *
+     * @param int|null $seconds The interval in seconds (default: null for every second)
+     * @return static
+     */
+    public function everySecond(?int $seconds = null): static
+    {
+        // Flag this job for per-second execution
+        $this->isSecondJob = true;
+
+        // Store the second interval (null means every second)
+        $this->secondInterval = $seconds;
+
+        // Set standard cron to run every minute
+        return $this->at('* * * * *');
     }
 
     /**
