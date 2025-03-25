@@ -63,9 +63,10 @@ interface DB
      * Executes a SQL query and returns the result set.
      *
      * @param string $query The SQL query to execute
+     * @param array|null $params Optional parameters for the query
      * @return array The result set as an array of associative arrays
      */
-    public function getQuery(string $query): bool|array;
+    public function getQuery(string $query, ?array $params = []): bool|array;
 
     /**
      * Retrieves rows from a table based on specified conditions.
@@ -409,12 +410,16 @@ class TinyDB implements DB
      * Executes a SQL query and returns the result set.
      *
      * @param string $query The SQL query to execute
+     * @param array|null $params Optional parameters for the query
      * @return array The result set as an array of associative arrays
      */
-    public function getQuery($query): array
+    public function getQuery(string $query, ?array $params = []): bool|array
     {
         if (str_starts_with($query, '--sql')) {
             $query = substr($query, 6);
+        }
+        if (!empty($params)) {
+            $query = $this->prepare($query, $params);
         }
         $stmt = $this->pdo->query(str_replace('\\?', '?', $query));
         return $stmt ? $stmt->fetchAll() : [];
