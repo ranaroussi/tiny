@@ -164,7 +164,7 @@ trait TinyDebugger
      *
      * @param mixed ...$vars Variables to be dumped.
      */
-    public static function dd(mixed ...$vars): never
+    public static function dd(mixed ...$vars): void
     {
         if (!self::canDebug()) {
             tiny::exit(1);
@@ -195,7 +195,7 @@ trait TinyDebugger
      *
      * @param mixed ...$vars Variables to be dumped.
      */
-    public static function ddump(mixed ...$vars): never
+    public static function ddump(mixed ...$vars): void
     {
         if (!self::canDebug()) {
             tiny::exit(1);
