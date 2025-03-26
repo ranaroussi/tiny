@@ -263,7 +263,7 @@ class Job
      * Sets the job to run monthly on a specific day and time.
      *
      * @param int|string $month The month (1-12 or '*' for every month)
-     * @param int|string $day The day of the month
+     * @param int|string $day The day of the month (-1 for last day)
      * @param int|string $hour The hour to run the job
      * @param int|string $minute The minute to run the job
      * @return static
@@ -274,6 +274,11 @@ class Job
             $parts = explode(':', $hour);
             $hour = $parts[0];
             $minute = $parts[1] ?? '0';
+        }
+
+        // Handle -1 as last day of month
+        if ($day === -1) {
+            $day = 'L'; // 'L' is a special character in cron that means "last day of month"
         }
 
         $c = $this->validateCronSequence($minute, $hour, $day, $month);
@@ -558,13 +563,13 @@ class Job
      */
     private function validateCronRange(int|string|null $value, int $min, int $max): string|int
     {
-        if ($value === null || $value === '*') {
-            return '*';
+        if ($value === null || $value === '*' || $value === 'L') {
+            return $value ?? '*';
         }
 
-        if (!is_numeric($value) || $value < $min || $value > $max) {
+        if (!is_numeric($value) || ($value < $min && $value !== -1) || $value > $max) {
             throw new \InvalidArgumentException(
-                "Invalid value: it should be '*' or between {$min} and {$max}."
+                "Invalid value: it should be '*', 'L', -1, or between {$min} and {$max}."
             );
         }
 
