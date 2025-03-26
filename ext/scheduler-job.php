@@ -33,6 +33,9 @@ class Job
     private CronExpression $executionTime;
     private ?int $executionYear = null;
 
+    private bool $isSecondJob = false;
+    private ?int $secondInterval = null;
+
     /**
      * Constructor for the Job class.
      * Initializes a new job with the given command and arguments.
@@ -71,6 +74,42 @@ class Job
             return false;
         }
 
+        // Handle second-level scheduling
+        if ($this->isSecondJob) {
+            if ($this->secondInterval === null || $this->secondInterval === 0) {
+                return true;
+            }
+
+            // Create a unique identifier for this job
+            $jobId = md5(($this->class ?? '') . $this->command . serialize($this->args));
+            $stateFile = sys_get_temp_dir() . "/tiny_scheduler_job_{$jobId}.txt";
+
+            $now = time();
+            $lastRun = 0;
+
+            // Only read the file if it exists to avoid unnecessary I/O
+            if (file_exists($stateFile)) {
+                $lastRun = (int)file_get_contents($stateFile);
+            }
+
+            // First run - initialize the state file and skip execution
+            if ($lastRun === 0) {
+                // Align to the next interval boundary
+                $nextRun = floor($now / $this->secondInterval) * $this->secondInterval;
+                file_put_contents($stateFile, $nextRun);
+                return false;
+            }
+            // Calculate if enough time has passed since last run
+            $elapsedTime = $now - $lastRun;
+            if ($elapsedTime >= $this->secondInterval) {
+                // Update the last run time
+                file_put_contents($stateFile, $now);
+                return true;
+            }
+            return false;
+        }
+
+        // Regular minute-level (and up) cron jobs
         return $this->executionTime->isDue($date);
     }
 
@@ -129,6 +168,24 @@ class Job
         $this->executionYear = (int)$date->format('Y');
 
         return $this->at("{$date->format('i')} {$date->format('H')} {$date->format('d')} {$date->format('m')} *");
+    }
+
+    /**
+     * Sets the job to run every second or at specific second intervals.
+     *
+     * @param int|null $seconds The interval in seconds (default: null for every second)
+     * @return static
+     */
+    public function everySecond(?int $seconds = null): static
+    {
+        // Flag this job for per-second execution
+        $this->isSecondJob = true;
+
+        // Store the second interval (null means every second)
+        $this->secondInterval = $seconds;
+
+        // Set standard cron to run every minute
+        return $this->at('* * * * *');
     }
 
     /**
@@ -206,7 +263,7 @@ class Job
      * Sets the job to run monthly on a specific day and time.
      *
      * @param int|string $month The month (1-12 or '*' for every month)
-     * @param int|string $day The day of the month
+     * @param int|string $day The day of the month (-1 for last day)
      * @param int|string $hour The hour to run the job
      * @param int|string $minute The minute to run the job
      * @return static
@@ -217,6 +274,11 @@ class Job
             $parts = explode(':', $hour);
             $hour = $parts[0];
             $minute = $parts[1] ?? '0';
+        }
+
+        // Handle -1 as last day of month
+        if ($day === -1) {
+            $day = 'L'; // 'L' is a special character in cron that means "last day of month"
         }
 
         $c = $this->validateCronSequence($minute, $hour, $day, $month);
@@ -501,13 +563,13 @@ class Job
      */
     private function validateCronRange(int|string|null $value, int $min, int $max): string|int
     {
-        if ($value === null || $value === '*') {
-            return '*';
+        if ($value === null || $value === '*' || $value === 'L') {
+            return $value ?? '*';
         }
 
-        if (!is_numeric($value) || $value < $min || $value > $max) {
+        if (!is_numeric($value) || ($value < $min && $value !== -1) || $value > $max) {
             throw new \InvalidArgumentException(
-                "Invalid value: it should be '*' or between {$min} and {$max}."
+                "Invalid value: it should be '*', 'L', -1, or between {$min} and {$max}."
             );
         }
 

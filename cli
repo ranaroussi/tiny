@@ -21,12 +21,8 @@
  *
  */
 
-require_once __DIR__ . '/ext/utils.php';
-
-class tiny
-{
-    use TinyUtils;
-}
+ require_once __DIR__ . '/ext/utils.php';
+ require_once __DIR__ . '/tiny.php';
 
 if (PHP_SAPI === 'cli' && str_ends_with(__FILE__, $argv[0])) {
 

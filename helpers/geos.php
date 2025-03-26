@@ -1932,6 +1932,24 @@ class Geos {
         return $val;
     }
 
+    public function areaCodesSelectOptions(): string
+    {
+        $val = tiny::cache()->remember('geo_areacodes_options', 3600, function () {
+            $codes = '';
+            foreach (self::GEOS as $geo => $info) {
+                foreach ($info['phone'] as $code) {
+                    $codes .= "<option value=\"{$code}\">{$geo} (+{$code})</option>";
+                }
+            }
+            return '
+                <option value="US">US (+1)</option>
+                <option value="GB">GB (+44)</option>
+                <option value="--" disabled>-----</option>
+            ' . $codes;
+        });
+        return $val;
+    }
+
     public function geoCountries(bool $hideUnsupported = true): array
     {
         $key = $hideUnsupported ? 'geo_countries_no_unsupported' : 'geo_countries';
@@ -2018,9 +2036,7 @@ class Geos {
             return substr($number, 1);
         }
 
-        if (substr($number, 0, 1) == '0') {
-            $number = substr($number, 1);
-        }
+        $number = ltrim($number, '0');
 
         foreach (self::GEOS as $geo => $data) {
             if ($geo == $country) {
@@ -2030,6 +2046,34 @@ class Geos {
                     return $number;
                 }
                 return $prefix . $number;
+            }
+        }
+
+        return $number;
+    }
+
+    public function stripCountryFromPhoneNumber(string $number, string $country): string
+    {
+        if (!isset(self::GEOS[$country])) {
+            return $number;
+        }
+
+        if (substr($number, 0, 1) == '+') {
+            return substr($number, 1);
+        }
+
+        if (substr($number, 0, 1) == '0') {
+            $number = substr($number, 1);
+        }
+
+        foreach (self::GEOS as $geo => $data) {
+            if ($geo == $country) {
+                $prefix = $data['phone'][0];
+                $prefixLen = strlen($prefix);
+                if (substr($number, 0, $prefixLen) == $prefix) {
+                    return ltrim(substr($number, $prefixLen), '0');
+                }
+                return ltrim($number, '0');
             }
         }
 

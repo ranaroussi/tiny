@@ -37,6 +37,7 @@ class tiny
 
     private static object $config;
     private static ?TinyCache $cache = null;
+    private static ?TinyClickhouse $clickhouse = null;
     private static ?DB $db = null;
     private static object $router;
     private static array $middlewares = [];
@@ -599,6 +600,23 @@ class tiny
     }
 
     /**
+     * Returns the response object for handling http requests.
+     *
+     * @return TinyClickhouse The TinyClickhouse object
+     */
+    public static function clickhouse(): TinyClickhouse
+    {
+        return self::$clickhouse ??= new TinyClickhouse([
+            'host' => $_SERVER['CLICKHOUSE_HOST'],
+            'port' => $_SERVER['CLICKHOUSE_PORT'],
+            'username' => $_SERVER['CLICKHOUSE_USERNAME'],
+            'password' => $_SERVER['CLICKHOUSE_PASSWORD'],
+            'https' => $_SERVER['CLICKHOUSE_HTTPS'] ?? false,
+            'timeout' => $_SERVER['CLICKHOUSE_TIMEOUT'] ?? 30
+        ]);
+    }
+
+    /**
      * Sets a value in the data object.
      *
      * @param string $key The key to set
@@ -828,6 +846,51 @@ class tiny
         } else {
             exit($code ?? 0);
         }
+    }
+
+    /**
+     * Initializes the test environment for scheduler jobs
+     *
+     * This function allows developers to test scheduler jobs in a local environment
+     * without needing to set up and run cron jobs. It provides an autoloader for job classes
+     * and ensures this functionality only works in local environments for security.
+     *
+     * WORKS ONLY IN LOCAL ENVIRONMENT
+     *
+     * Usage:
+     * 1. create a new controller: /app/controllers/test-scheduler.php
+     * 2. add this line to the top of the file: tiny::initTestScheduler();
+     * 3. call your job:
+     * $job = new Job();
+     * $job->someFunction();
+     *
+     * @return void
+     */
+    public static function initTestScheduler(): void
+    {
+        // Security check: Only allow this function to run in local environments
+        // Redirect to homepage if attempted in production or other environments
+        if ($_SERVER['ENV'] !== 'local') {
+            tiny::redirect('/');
+        }
+
+        // Determine the jobs directory path by replacing '/controllers' with '/jobs' in current path
+        $JOBS_PATH = str_replace('/controllers', '/jobs', __DIR__);
+        $JOBS_PATH = str_replace('/tiny', '/app/jobs', __DIR__);
+
+        // Register an autoloader to automatically include job class files when referenced
+        spl_autoload_register(function ($class) use ($JOBS_PATH) {
+            // Convert class name to lowercase and build the full file path
+            $classFile = $JOBS_PATH . '/' . mb_strtolower($class) . '.php';
+
+            // Debug output to show which file is being loaded
+            // tiny::dd($classFile);
+
+            // Include the file if it exists
+            if (file_exists($classFile)) {
+                include $classFile;
+            }
+        });
     }
 }
 

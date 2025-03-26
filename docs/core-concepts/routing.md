@@ -121,7 +121,7 @@ public function get($request, $response)
     $response->render('blog/post');
 
     // Redirect
-    $response->redirect('/dashboard');
+    $response->redirect('/');
 
     // JSON response
     $response->sendJSON([
@@ -144,7 +144,7 @@ Apply middleware to your routes:
 
 return [
     'auth' => [
-        '/dashboard',
+        '/',
         '/settings',
         '/profile'
     ],

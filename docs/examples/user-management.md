@@ -162,7 +162,7 @@ class Login extends TinyController
             tiny::auth()->rememberMe();
         }
 
-        return $response->redirect('/dashboard');
+        return $response->redirect('/');
     }
 }
 
@@ -192,7 +192,7 @@ class Register extends TinyController
         // Auto login
         tiny::auth()->login($user);
 
-        return $response->redirect('/dashboard')
+        return $response->redirect('/')
             ->with('success', 'Account created successfully');
     }
 }
@@ -264,7 +264,7 @@ return [
     'role' => function($role) {
         return function($request, $response) use ($role) {
             if (!tiny::user()->hasRole($role)) {
-                return $response->redirect('/dashboard')
+                return $response->redirect('/')
                     ->with('error', 'Unauthorized access');
             }
         };
