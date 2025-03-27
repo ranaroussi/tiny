@@ -254,13 +254,13 @@ class Utils {
     /**
      * @throws DateMalformedStringException
      */
-    public static function getBillingCycle($subscribedAt, $billingCycle = 'monthly')
+    public static function getBillingCycle($subscribedAt, $billingCycle = 'month')
     {
         $subscribedDate = new DateTime($subscribedAt . '');
         $lookupDate = clone $subscribedDate;
         $currentDate = new DateTime();
 
-        $billingCycle = $billingCycle == 'monthly' ? 'month' : 'year';
+        $billingCycle = $billingCycle == 'month' ? 'month' : 'year';
         if ($lookupDate->format('Y-m-d') == $currentDate->format('Y-m-d')) {
             $lookupDate->modify("+1 $billingCycle");
             return [
