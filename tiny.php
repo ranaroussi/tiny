@@ -45,6 +45,9 @@ class tiny
     private static array $extensions = [];
     private static array $customHelpers = [];
 
+    public static ?TinyComponent $components = null;
+    public static ?TinyLayout $layouts = null;
+
     /**
      * Initializes the Tiny framework.
      * Sets up configuration, database, router, and loads helpers and middleware.
@@ -307,12 +310,65 @@ class tiny
 
     /**
      * Sets up components and layouts for views.
+     *
+     * This method initializes the component and layout systems by:
+     * 1. Creating instances of TinyComponent and TinyLayout with appropriate paths
+     * 2. Defining global constants for easy access in view files
+     *
+     * The component system allows for reusable UI elements across views,
+     * while layouts provide consistent page structure templates.
+     *
+     * @param string|null $path Optional custom path for components and layouts.
+     * If null, defaults to app_path/views/components and app_path/views/layouts.
+     * @return void
      */
-    private static function setupComponents(): void
+    private static function setupComponents(?string $path = null): void
     {
-        define('Component', new TinyComponent(self::$config->app_path . '/views/components'));
-        define('Layout', new TinyLayout(self::$config->app_path . '/views/layouts'));
+        // Initialize the component manager with the path to component files
+        // If no custom path is provided, use the default path from config
+        self::$components = new TinyComponent($path ?? self::$config->app_path . '/views/components');
+
+        // Initialize the layout manager with the path to layout files
+        // If no custom path is provided, use the default path from config
+        self::$layouts = new TinyLayout($path ?? self::$config->app_path . '/views/layouts');
+
+        // Define global constants for convenient access in view files
+        // This allows developers to use Component->name() and Layout->name() syntax
+        // These constants provide a cleaner API for template files
+        define('Component', self::$components);
+        define('Layout', self::$layouts);
     }
+
+    /**
+     * Returns the components instance for managing view components.
+     *
+     * This method provides access to the TinyComponent instance that was
+     * initialized during framework setup. It allows components to be
+     * registered, required, and rendered throughout the application.
+     *
+     * @return TinyComponent The components manager instance
+     */
+    public static function components(): TinyComponent
+    {
+        // Return the singleton components instance
+        return self::$components;
+    }
+
+    /**
+     * Returns the layout instance for managing view layouts.
+     *
+     * This method provides access to the TinyLayout instance that was
+     * initialized during framework setup. It allows layouts to be
+     * used for consistent page structure throughout the application.
+     *
+     * @return TinyLayout The layouts manager instance
+     */
+    public static function layout(): TinyLayout
+    {
+        // Return the singleton layouts instance
+        return self::$layouts;
+    }
+
 
     /**
      * Retrieves configuration values.
