@@ -276,17 +276,17 @@ Create the views for listing and editing todos:
 <!-- app/views/components/todo-item.php -->
 <div class="flex items-center justify-between p-4 bg-white shadow rounded">
     <div>
-        <h3 class="font-bold"><?= $props->title ?></h3>
-        <p class="text-gray-600"><?= $props->description ?></p>
+        <h3 class="font-bold"><?php echo $props->title; ?></h3>
+        <p class="text-gray-600"><?php echo $props->description; ?></p>
     </div>
 
     <div class="flex space-x-2">
-        <a href="/todo/<?= $props->id ?>"
+        <a href="/todo/<?php echo $props->id; ?>"
            class="px-3 py-1 bg-blue-100 text-blue-600 rounded">
             Edit
         </a>
 
-        <button onclick="deleteTodo(<?= $props->id ?>)"
+        <button onclick="deleteTodo(<?php echo $props->id; ?>)"
                 class="px-3 py-1 bg-red-100 text-red-600 rounded">
             Delete
         </button>

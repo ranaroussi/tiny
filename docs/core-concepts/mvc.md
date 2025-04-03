@@ -52,8 +52,8 @@ Views handle the presentation layer:
 ```php
 <!-- app/views/user/profile.php -->
 <div class="profile">
-    <h1><?= tiny::data()->user->name ?></h1>
-    <p><?= tiny::data()->user->email ?></p>
+    <h1><?php echo tiny::data()->user->name; ?></h1>
+    <p><?php echo tiny::data()->user->email; ?></p>
 
     <?php tiny::component()->userStats() ?>
 </div>

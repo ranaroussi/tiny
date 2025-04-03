@@ -106,16 +106,16 @@ $messages = tiny::flash()->all();
 <!-- In your layout -->
 <?php if (tiny::flash('toast')->exists()): ?>
     <?php $toast = tiny::flash('toast')->get(); ?>
-    <div class="toast toast-<?= $toast['level'] ?>">
-        <h4><?= $toast['title'] ?></h4>
-        <p><?= $toast['message'] ?></p>
+    <div class="toast toast-<?php echo $toast['level']; ?>">
+        <h4><?php echo $toast['title']; ?></h4>
+        <p><?php echo $toast['message']; ?></p>
     </div>
 <?php endif ?>
 
 <!-- For multiple messages -->
 <?php foreach (tiny::flash()->all() as $type => $message): ?>
-    <div class="alert alert-<?= $type ?>">
-        <?= $message ?>
+    <div class="alert alert-<?php echo $type; ?>">
+        <?php echo $message; ?>
     </div>
 <?php endforeach ?>
 ```

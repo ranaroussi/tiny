@@ -204,11 +204,11 @@ class UploadModel extends TinyModel
         <h1>File Upload</h1>
 
         <?php if ($error = tiny::flash('error')->get()): ?>
-            <div class="alert alert-error"><?= $error ?></div>
+            <div class="alert alert-error"><?php echo $error; ?></div>
         <?php endif ?>
 
         <form action="/upload" method="POST" enctype="multipart/form-data">
-            <?= tiny::csrf()->field() ?>
+            <?php echo tiny::csrf()->field(); ?>
 
             <div class="form-group">
                 <label for="upload">Choose File</label>
@@ -224,7 +224,7 @@ class UploadModel extends TinyModel
         // Optional: Add client-side validation and preview
         document.getElementById('upload').onchange = function(e) {
             const file = e.target.files[0];
-            if (file.size > <?= $config['max_size'] ?>) {
+            if (file.size > <?php echo $config['max_size']; ?>) {
                 alert('File is too large');
                 e.target.value = '';
             }

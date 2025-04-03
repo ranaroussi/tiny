@@ -15,7 +15,7 @@ Create a base layout in `app/views/layouts/default.php`:
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title><?= tiny::data()->title ?? 'My App' ?></title>
+    <title><?php echo tiny::data()->title ?? 'My App'; ?></title>
     <?php tiny::layout()->head() ?>
 </head>
 <body>
@@ -53,7 +53,7 @@ Create a base layout in `app/views/layouts/default.php`:
 <?php tiny::layout()->endSection() ?>
 
 <?php tiny::layout()->section('footer') ?>
-    <p>&copy; <?= date('Y') ?> My App</p>
+    <p>&copy; <?php echo date('Y'); ?> My App</p>
 <?php tiny::layout()->endSection() ?>
 ```
 
@@ -180,11 +180,11 @@ tiny::layout()->section('sidebar', function() {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title><?= tiny::layout()->getTitle() ?></title>
+    <title><?php echo tiny::layout()->getTitle(); ?></title>
     <?php tiny::layout()->meta() ?>
     <?php tiny::layout()->head() ?>
 </head>
-<body class="<?= tiny::layout()->bodyClass() ?>">
+<body class="<?php echo tiny::layout()->bodyClass(); ?>">
     <?php tiny::component()->header() ?>
 
     <div class="container">

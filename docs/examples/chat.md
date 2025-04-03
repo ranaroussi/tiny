@@ -193,9 +193,9 @@ class Messages extends TinyController
         <div class="chat-messages" id="messages">
             <?php foreach ($messages as $message): ?>
                 <div class="message">
-                    <strong><?= $message->user->name ?>:</strong>
-                    <span><?= $message->content ?></span>
-                    <small><?= tiny::utils()->timeAgo($message->created_at) ?></small>
+                    <strong><?php echo $message->user->name; ?>:</strong>
+                    <span><?php echo $message->content; ?></span>
+                    <small><?php echo tiny::utils()->timeAgo($message->created_at); ?></small>
                 </div>
             <?php endforeach ?>
         </div>
@@ -207,8 +207,8 @@ class Messages extends TinyController
     </div>
 
     <script>
-        const roomId = <?= $room->id ?>;
-        const userId = <?= tiny::user()->id ?>;
+        const roomId = <?php echo $room->id; ?>;
+        const userId = <?php echo tiny::user()->id; ?>;
     </script>
     <script src="/js/chat.js"></script>
 <?php tiny::layout()->endSection() ?>

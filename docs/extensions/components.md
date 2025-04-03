@@ -10,8 +10,8 @@ Components are stored in `app/views/components/`:
 
 ```php
 <!-- app/views/components/alert.php -->
-<div class="alert alert-<?= $props->type ?? 'info' ?>">
-    <?= $props->message ?>
+<div class="alert alert-<?php echo $props->type ?? 'info'; ?>">
+    <?php echo $props->message; ?>
     <?php if ($props->dismissible): ?>
         <button class="close">&times;</button>
     <?php endif ?>
@@ -37,10 +37,10 @@ Components are stored in `app/views/components/`:
 <!-- app/views/components/card.php -->
 <div class="card">
     <div class="card-header">
-        <?= $props->title ?>
+        <?php echo $props->title; ?>
     </div>
     <div class="card-body">
-        <?= $slot ?>
+        <?php echo $slot; ?>
     </div>
 </div>
 
@@ -58,8 +58,8 @@ Access component properties using the `$props` object:
 ```php
 <!-- app/views/components/user-card.php -->
 <div class="user-card">
-    <img src="<?= $props->avatar ?>" alt="<?= $props->name ?>">
-    <h3><?= $props->name ?></h3>
+    <img src="<?php echo $props->avatar; ?>" alt="<?php echo $props->name; ?>">
+    <h3><?php echo $props->name; ?></h3>
     <?php if ($props->isOnline): ?>
         <span class="status-badge">Online</span>
     <?php endif ?>
@@ -76,8 +76,8 @@ Components can use other components:
     <?php tiny::component()->userAvatar(['user' => $props->author]) ?>
 
     <div class="content">
-        <h2><?= $props->title ?></h2>
-        <?= $props->content ?>
+        <h2><?php echo $props->title; ?></h2>
+        <?php echo $props->content; ?>
     </div>
 
     <?php tiny::component()->commentList(['comments' => $props->comments]) ?>
@@ -112,9 +112,9 @@ $range = range(
 
 <nav class="pagination">
     <?php foreach ($range as $page): ?>
-        <a href="?page=<?= $page ?>"
-           class="<?= $page === $currentPage ? 'active' : '' ?>">
-            <?= $page ?>
+        <a href="?page=<?php echo $page; ?>"
+           class="<?php echo $page === $currentPage ? 'active' : ''; ?>">
+            <?php echo $page; ?>
         </a>
     <?php endforeach ?>
 </nav>
@@ -127,10 +127,10 @@ Group related components:
 ```php
 <!-- app/views/components/form/input.php -->
 <div class="form-group">
-    <label><?= $props->label ?></label>
-    <input type="<?= $props->type ?? 'text' ?>"
-           name="<?= $props->name ?>"
-           value="<?= $props->value ?? '' ?>"
+    <label><?php echo $props->label; ?></label>
+    <input type="<?php echo $props->type ?? 'text'; ?>"
+           name="<?php echo $props->name; ?>"
+           value="<?php echo $props->value ?? ''; ?>"
            class="form-control">
 </div>
 

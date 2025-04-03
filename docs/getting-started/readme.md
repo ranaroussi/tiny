@@ -132,7 +132,7 @@ class Hello extends TinyController
 2. Create a view (`app/views/hello.php`):
 
 ```php
-<h1><?= tiny::data()->message ?></h1>
+<h1><?php echo tiny::data()->message; ?></h1>
 ```
 
 3. Access your page at `http://localhost/hello`

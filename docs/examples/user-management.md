@@ -283,11 +283,11 @@ return [
         <h1>Profile Settings</h1>
 
         <?php if ($message = tiny::flash()->get()): ?>
-            <div class="alert alert-success"><?= $message ?></div>
+            <div class="alert alert-success"><?php echo $message; ?></div>
         <?php endif ?>
 
         <form action="/profile" method="POST" enctype="multipart/form-data">
-            <?= tiny::csrf()->field() ?>
+            <?php echo tiny::csrf()->field(); ?>
 
             <div class="form-group">
                 <label>Avatar</label>
@@ -296,12 +296,12 @@ return [
 
             <div class="form-group">
                 <label>Name</label>
-                <input type="text" name="name" value="<?= $user->name ?>" required>
+                <input type="text" name="name" value="<?php echo $user->name; ?>" required>
             </div>
 
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" name="email" value="<?= $user->email ?>" required>
+                <input type="email" name="email" value="<?php echo $user->email; ?>" required>
             </div>
 
             <div class="form-group">
