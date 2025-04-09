@@ -102,8 +102,8 @@ Configure debugging in your `.env` file:
 
 ```env
 DEBUG=true
-DEBUG_WHITELIST=127.0.0.1,::1
-LOG_FILE=/path/to/debug.log
+TINY_DEBUG_WHITELIST=127.0.0.1,::1
+TINY_LOG_FILE=/path/to/debug.log
 LOG_LEVEL=debug
 ```
 

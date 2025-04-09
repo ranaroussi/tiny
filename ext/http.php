@@ -215,7 +215,7 @@ class TinyHTTP
         $curlOptions = self::DEFAULT_CURL_OPTIONS + [
             CURLOPT_URL => $url,
             CURLOPT_CUSTOMREQUEST => mb_strtoupper($method),
-            CURLOPT_TIMEOUT => $options['timeout'] ?? $_SERVER['CURL_TIMEOUT'] ?? 30,
+            CURLOPT_TIMEOUT => $options['timeout'] ?? $_SERVER['TINY_CURL_TIMEOUT'] ?? 30,
         ];
 
         $headers = array_merge(self::$defaultHeaders, $options['headers'] ?? []);

@@ -35,7 +35,7 @@ trait TinyDebugger
      * Determines if debugging is allowed based on the client's IP address and debug whitelist.
      *
      * This method checks if the client's IP address is allowed to access debugging features.
-     * It uses the DEBUG_WHITELIST server variable to control access. If DEBUG_WHITELIST
+     * It uses the TINY_DEBUG_WHITELIST server variable to control access. If TINY_DEBUG_WHITELIST
      * is set to '*', all IPs are allowed. Otherwise, it checks if the client's IP
      * is in the comma-separated list of allowed IPs.
      *
@@ -44,7 +44,7 @@ trait TinyDebugger
     private static function canDebug(): bool
     {
         $userIP = self::getClientRealIP();
-        $debugWhitelist = $_SERVER['DEBUG_WHITELIST'] ?? '*';
+        $debugWhitelist = $_SERVER['TINY_DEBUG_WHITELIST'] ?? '*';
         return $debugWhitelist === '*' || in_array($userIP, explode(',', $debugWhitelist));
     }
 
@@ -213,8 +213,8 @@ trait TinyDebugger
      */
     public static function log(mixed ...$vars): void
     {
-        $logFile = $_SERVER['LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
-        [$trace, $content] = self::dumpOrDebug($_SERVER['LOG_MODE'] ?? 'dump', ...$vars);
+        $logFile = $_SERVER['TINY_LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
+        [$trace, $content] = self::dumpOrDebug($_SERVER['TINY_LOG_LEVEL'] ?? 'dump', ...$vars);
 
         $output = self::formatOutput($trace, $content, false);
         file_put_contents($logFile, $output, FILE_APPEND);

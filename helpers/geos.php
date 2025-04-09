@@ -1901,8 +1901,8 @@ class Geos {
     private static array $unsupportedCountries;
 
     public function __construct() {
-        self::$supportedCurrencies = $_SERVER['SUPPORTED_CURRENCIES'] ? explode(',', $_SERVER['SUPPORTED_CURRENCIES']) : ['USD'];
-        self::$unsupportedCountries = $_SERVER['UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['UNSUPPORTED_COUNTRIES']) : [];
+        self::$supportedCurrencies = $_SERVER['GEO_SUPPORTED_CURRENCIES'] ? explode(',', $_SERVER['GEO_SUPPORTED_CURRENCIES']) : ['USD'];
+        self::$unsupportedCountries = $_SERVER['GEO_UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['GEO_UNSUPPORTED_COUNTRIES']) : [];
     }
 
     public function countriesJson(): string
@@ -2173,7 +2173,7 @@ class Geos {
 
     public static function getGeoIPInfo()
     {
-        $reader = new GeoIp2\Database\Reader(@$_SERVER['GEOIP2_CITY_PATH']);
+        $reader = new GeoIp2\Database\Reader(@$_SERVER['GEO_GEOIP2_CITY_PATH']);
         try {
             $ip = tiny::getClientRealIP();
             $record = $reader->city($ip);

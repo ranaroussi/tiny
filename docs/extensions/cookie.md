@@ -110,9 +110,9 @@ tiny::cookie('__Host-session')->set($sessionId);
 Configure default cookie settings in your `.env` file:
 
 ```env
-COOKIE_DOMAIN=example.com
-COOKIE_PATH=/
-COOKIE_TTL=86400
+TINY_COOKIE_DOMAIN=example.com
+TINY_COOKIE_PATH=/
+TINY_COOKIE_TTL=86400
 COOKIE_SECURE=true
 COOKIE_HTTPONLY=true
 COOKIE_SAMESITE=Lax

@@ -135,7 +135,7 @@ class TinySwoole
         foreach ($request->server as $key => $value) {
             $_SERVER[strtoupper($key)] = $value;
         }
-        $_SERVER['HOMEPAGE'] = $_SERVER['HOMEPAGE'] ?? 'home';
+        $_SERVER['TINY_HOMEPAGE'] = $_SERVER['TINY_HOMEPAGE'] ?? 'home';
         $_SERVER['USE_SWOOLE'] = true;
 
         $_REQUEST = [];

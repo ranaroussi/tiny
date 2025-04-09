@@ -78,7 +78,7 @@ Key configuration options:
 - `DB_TYPE`: Database type (mysql, postgresql, sqlite)
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`: Database connection details
 - `MEMCACHED_HOST`, `MEMCACHED_PORT`: Memcached connection details (if using Memcached)
-- `AUTOLOAD_HELPERS`: Comma-separated list of helpers to autoload
+- `TINY_AUTOLOAD_HELPERS`: Comma-separated list of helpers to autoload
 
 ## Routing
 
@@ -185,7 +185,7 @@ tiny::middleware('some-other-middleware');
 
 ## Helpers
 
-Tiny provides various helper functions for common tasks. You can autoload helpers by listing them in the `AUTOLOAD_HELPERS` environment variable.
+Tiny provides various helper functions for common tasks. You can autoload helpers by listing them in the `TINY_AUTOLOAD_HELPERS` environment variable.
 
 ## Database
 

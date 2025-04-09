@@ -66,7 +66,7 @@ if (file_exists($env_file)) {
         $dotenv = Dotenv\Dotenv::createImmutable(__DIR__, '../.env.' . $env);
         $dotenv->load();
     } catch (Exception $e) {
-        if (!isset($_SERVER['SITE_NAME'])) {
+        if (!isset($_SERVER['APP_SITE_NAME'])) {
             die('<code>ERROR: Missing environment variables!</code>');
         }
     }
@@ -80,8 +80,8 @@ foreach ($_SERVER as $key => $value) {
         $_SERVER[$key] = trim($value, "'");
     }
 }
-$_SERVER['CALC_TIMER'] = $_SERVER['CALC_TIMER'] ?? true;
-putenv('TZ=' . isset($_SERVER['TIMEZONE']) ? $_SERVER['TIMEZONE'] : 'UTC');
+$_SERVER['TINY_CALC_TIMER'] = $_SERVER['TINY_CALC_TIMER'] ?? true;
+putenv('TZ=' . isset($_SERVER['TINY_TIMEZONE']) ? $_SERVER['TINY_TIMEZONE'] : 'UTC');
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
 ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 1 : 0);

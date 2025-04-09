@@ -708,7 +708,7 @@ trait TinyUtils
      */
     public static function timer(bool $finish = false): void
     {
-        if (!($_SERVER['CALC_TIMER'] ?? false)) {
+        if (!($_SERVER['TINY_CALC_TIMER'] ?? false)) {
             return;
         }
 

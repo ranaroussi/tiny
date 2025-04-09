@@ -99,18 +99,18 @@ class tiny
         $cachedConfig = self::cache()->get($cacheKey);
 
         if ($cachedConfig === null) {
-            self::$config->app_dir = $_SERVER['APP_DIR'] ?? 'app';
+            self::$config->app_dir = $_SERVER['TINY_APP_DIR'] ?? 'app';
             self::$config->tiny_dir = $_SERVER['TINY_DIR'] ?? 'tiny';
-            self::$config->homepage = $_SERVER['HOMEPAGE'] ?? 'home';
-            self::$config->static_dir = $_SERVER['STATIC_DIR'] ?? 'static';
+            self::$config->homepage = $_SERVER['TINY_HOMEPAGE'] ?? 'home';
+            self::$config->static_dir = $_SERVER['TINY_STATIC_DIR'] ?? 'static';
 
             $basePath = '/' . trim(dirname(__FILE__, 2), '/') . '/';
-            self::$config->app_path = $_SERVER['APP_PATH'] ?? $basePath . self::$config->app_dir;
+            self::$config->app_path = $_SERVER['TINY_APP_PATH'] ?? $basePath . self::$config->app_dir;
             self::$config->tiny_path = $_SERVER['TINY_PATH'] ?? $basePath . self::$config->tiny_dir;
-            self::$config->public_path = $_SERVER['PUBLIC_PATH'] ?? $basePath . 'html';
+            self::$config->public_path = $_SERVER['TINY_PUBLIC_PATH'] ?? $basePath . 'html';
             self::$config->static_path = self::$config->public_path . '/' . self::$config->static_dir;
-            self::$config->url_path = $_SERVER['URL_PATH'] ?? str_replace('index.php', '', $_SERVER['SCRIPT_NAME']);
-            self::$config->cookie_path = $_SERVER['COOKIE_PATH'] ?? str_replace('.php', '', self::$config->url_path);
+            self::$config->url_path = $_SERVER['TINY_URL_PATH'] ?? str_replace('index.php', '', $_SERVER['SCRIPT_NAME']);
+            self::$config->cookie_path = $_SERVER['TINY_COOKIE_PATH'] ?? str_replace('.php', '', self::$config->url_path);
 
             self::cache()->set($cacheKey, self::$config, 3600);
         } else {
@@ -264,7 +264,7 @@ class tiny
     private static function loadHelpers(): void
     {
         // tiny::die('asd');
-        $helpers = $_SERVER['AUTOLOAD_HELPERS'] ?? '';
+        $helpers = $_SERVER['TINY_AUTOLOAD_HELPERS'] ?? '';
         if ($helpers === '*') {
             self::requireAll('/helpers/');
         } elseif ($helpers !== '') {
