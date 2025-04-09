@@ -66,9 +66,22 @@ if (file_exists($env_file)) {
         $dotenv = Dotenv\Dotenv::createImmutable(__DIR__, '../.env.' . $env);
         $dotenv->load();
     } catch (Exception $e) {
-        if (!isset($_SERVER['APP_SITE_NAME'])) {
+        if (!isset($_SERVER['TINY_DIR'])) {
             die('<code>ERROR: Missing environment variables!</code>');
         }
+    }
+} else {
+    // If the env.php file does not exist, use the environment variables from the server
+    $found = false;
+    foreach ($_SERVER as $key => $value) {
+        if (strpos($key, 'TINY_') === 0) {
+            $_SERVER[$key] = $value;
+            $found = true;
+            break;
+        }
+    }
+    if (!$found) {
+        die('<code>ERROR: Missing environment variables!</code>');
     }
 }
 error_reporting($_SERVER['ENV'] != 'prod' ? E_ALL : 0);
