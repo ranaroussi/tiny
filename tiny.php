@@ -930,9 +930,8 @@ class tiny
             tiny::redirect('/');
         }
 
-        // Determine the jobs directory path by replacing '/controllers' with '/jobs' in current path
-        $JOBS_PATH = str_replace('/controllers', '/jobs', __DIR__);
-        $JOBS_PATH = str_replace('/tiny', '/app/jobs', __DIR__);
+        // Determine the jobs directory path
+        $JOBS_PATH = explode('/tiny', __DIR__)[0] . '/app/jobs';
 
         // Register an autoloader to automatically include job class files when referenced
         spl_autoload_register(function ($class) use ($JOBS_PATH) {
@@ -940,7 +939,7 @@ class tiny
             $classFile = $JOBS_PATH . '/' . mb_strtolower($class) . '.php';
 
             // Debug output to show which file is being loaded
-            // tiny::dd($classFile);
+            // tiny::debug($class, $classFile);
 
             // Include the file if it exists
             if (file_exists($classFile)) {
