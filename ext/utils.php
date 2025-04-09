@@ -26,6 +26,26 @@ declare(strict_types=1);
 trait TinyUtils
 {
     /**
+     * Extracts the last part of a string after splitting it by a delimiter.
+     *
+     * This function splits a string by a specified delimiter and returns the last part.
+     * Useful for extracting file extensions, last path segments, or the final part of any
+     * delimited string.
+     *
+     * @param string $by The delimiter to split the string by
+     * @param string $string The input string to be split
+     * @return string The last part of the split string
+     */
+    public static function explodeAndPop(string $by, string $string): string
+    {
+        // Split the string into parts using the specified delimiter
+        $parts = explode($by, $string);
+
+        // Return the last element of the resulting array
+        return array_pop($parts);
+    }
+
+    /**
      * Gets the full file path for a given relative path.
      *
      * @param string $path The relative path
