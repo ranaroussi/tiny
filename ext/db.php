@@ -57,7 +57,7 @@ interface DB
      * @param mixed $res Unused parameter (kept for compatibility)
      * @return string The last insert ID
      */
-    public function lastInsertId($res): bool|int|string;
+    public function lastInsertId($res = null): bool|int|string|null;
 
     /**
      * Executes a SQL query and returns the result set.
