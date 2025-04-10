@@ -131,7 +131,7 @@ public function transferFunds(int $fromId, int $toId, float $amount): bool
         return true;
     } catch (Exception $e) {
         tiny::db()->getPdo()->rollBack();
-        tiny::log()->error('Transfer failed', ['error' => $e->getMessage()]);
+        tiny::log('Transfer failed', ['error' => $e->getMessage()]);
         return false;
     }
 }

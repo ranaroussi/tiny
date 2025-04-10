@@ -139,7 +139,7 @@ class LoggerMiddleware
             'timestamp' => date('Y-m-d H:i:s')
         ];
 
-        tiny::log()->info('request', $log);
+        tiny::log('Request', $log);
     }
 }
 ```

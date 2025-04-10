@@ -155,7 +155,7 @@ $query = tiny::db()->prepare(
        $result = tiny::db()->insert('users', $data);
    } catch (PDOException $e) {
        // Handle database errors
-       tiny::log()->error('Database error: ' . $e->getMessage());
+       tiny::log('Database error', $e->getMessage());
    }
    ```
 
