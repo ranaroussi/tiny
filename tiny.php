@@ -935,11 +935,15 @@ class tiny
 
         // Register an autoloader to automatically include job class files when referenced
         spl_autoload_register(function ($class) use ($JOBS_PATH) {
+
+            // Convert camel case to snake case
+            $class = mb_strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $class));
+
             // Convert class name to lowercase and build the full file path
             $classFile = $JOBS_PATH . '/' . mb_strtolower($class) . '.php';
 
             // Debug output to show which file is being loaded
-            // tiny::debug($class, $classFile);
+            tiny::debug($class, $classFile);
 
             // Include the file if it exists
             if (file_exists($classFile)) {
