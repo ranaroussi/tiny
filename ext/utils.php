@@ -89,9 +89,8 @@ trait TinyUtils
      *
      * @param string $goto The URL to redirect to
      * @param mixed $header Optional header type (302, 301, 'javascript', or 'htmx')
-     * @return never This function never returns
      */
-    public static function redirect(?string $goto = null, mixed $header = null): never
+    public static function redirect(?string $goto = null, mixed $header = null): void
     {
         $goto = $goto ?? tiny::router()->permalink;
         if (!str_starts_with($goto, 'http://') && !str_starts_with($goto, 'https://')) {
@@ -121,9 +120,8 @@ trait TinyUtils
      * Performs a JavaScript-based redirect.
      *
      * @param string $goto The URL to redirect to
-     * @return never This function never returns
      */
-    private static function javascriptRedirect(string $goto): never
+    private static function javascriptRedirect(string $goto): void
     {
         echo "<html lang=\"en\"><head><title>...</title><meta name=\"robots\" content=\"noindex\">
         <script>window.onload=function(){try{window.location.replace(\"$goto\");}catch(err){window.location.href=\"$goto\";}}</script>
@@ -136,9 +134,8 @@ trait TinyUtils
      * Performs an HTMX-based redirect.
      *
      * @param string $goto The URL to redirect to
-     * @return never This function never returns
      */
-    private static function htmxRedirect(string $goto): never
+    private static function htmxRedirect(string $goto): void
     {
         self::header("HX-Redirect: $goto");
         tiny::exit();
@@ -917,9 +914,8 @@ trait TinyUtils
      * @param string $text The text content to send
      * @param int $code The HTTP status code (default: 200)
      * @param bool $die Whether to terminate the script after sending the response (default: true)
-     * @return never
      */
-    public static function textResponse(string $text, int $code = 200, bool $die = true): never
+    public static function textResponse(string $text, int $code = 200, bool $die = true): void
     {
         http_response_code($code);
         echo $text;
@@ -934,9 +930,8 @@ trait TinyUtils
      * @param string $path The path to the file to send
      * @param int $code The HTTP status code (default: 200)
      * @param bool $die Whether to terminate the script after sending the response (default: true)
-     * @return never
      */
-    public static function fileResponse(string $path, int $code = 200, bool $die = true): never
+    public static function fileResponse(string $path, int $code = 200, bool $die = true): void
     {
         http_response_code($code);
         echo file_get_contents($path);
@@ -1249,6 +1244,12 @@ trait TinyUtils
         }
     }
 
+    /**
+     * Sets an HTTP header, handling both standard PHP and Swoole environments.
+     *
+     * @param string $header The HTTP header to set (format: "Name: Value")
+     * @return void
+     */
     public static function header(string $header): void
     {
         if (self::isUsingSwoole()) {
@@ -1256,5 +1257,19 @@ trait TinyUtils
             self::swoole()->header($header[0], $header[1], true);
         }
         header($header);
+    }
+
+    /**
+     * Wraps content in an email layout template.
+     *
+     * @param string $content The email content to wrap
+     * @param string $layout The path to the email layout template file
+     * @return string The complete email with content inserted into the layout
+     */
+    public static function emailLayout(string $content, string $layout): string
+    {
+        $email = file_get_contents(tiny::config()->app_path . '/views/'. $layout);
+        $email = str_replace('{{ content }}', $content, $email);
+        return $email;
     }
 }
