@@ -435,7 +435,7 @@ class TinyDB implements DB
      * @param int|null $limit The LIMIT clause (optional)
      * @return array The result set as an array of associative arrays
      */
-    public function get(string $table, string|array|null $where = null, ?string $fields = '*', ?string $orderby = null, ?int $limit = null): array
+    public function get(string $table, string|array|null $where = null, null|string|array $fields = '*', ?string $orderby = null, ?int $limit = null): array
     {
 
         if (is_array($where)) {
