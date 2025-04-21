@@ -205,6 +205,14 @@ class Job
         return $this->at($minuteExpression . ' * * * *');
     }
 
+    // Shorthand for everyMinute
+    public function everyTwoMinutes(): static { return $this->everyMinute(2); }
+    public function everyThreeMinutes(): static { return $this->everyMinute(3); }
+    public function everyFiveMinutes(): static { return $this->everyMinute(5); }
+    public function everyTenMinutes(): static { return $this->everyMinute(10); }
+    public function everyFifteenMinutes(): static { return $this->everyMinute(15); }
+    public function everyThirtyMinutes(): static { return $this->everyMinute(30); }
+
     /**
      * Sets the job to run hourly at a specific minute.
      *
