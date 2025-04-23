@@ -453,6 +453,7 @@ class TinyDB implements DB
      */
     public function getOneQuery(string $query, ?array $params = []): bool|array
     {
+        $query .= ' LIMIT 1';
         $result = $this->getQuery($query, $params);
         return $result ? $result[0] : [];
     }
