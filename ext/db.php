@@ -105,9 +105,19 @@ interface DB
      *
      * @param string $table The name of the table
      * @param array $data An associative array of column-value pairs to insert
+     * @param bool $ignore Whether to use IGNORE keyword for MySQL
      * @return mixed The result of the insert operation or an error message
      */
-    public function insert(string $table, array $data): mixed;
+    public function insert(string $table, array $data, bool $ignore = false): mixed;
+
+    /**
+     * Inserts a new row into a table using the IGNORE keyword.
+     *
+     * @param string $table The name of the table
+     * @param array $data An associative array of column-value pairs to insert
+     * @return mixed The result of the insert operation or an error message
+     */
+    public function insertIgnore(string $table, array $data): mixed;
 
     /**
      * Updates rows in a table based on specified conditions.
@@ -488,9 +498,10 @@ class TinyDB implements DB
      *
      * @param string $table The name of the table
      * @param array $data An associative array of column-value pairs to insert
+     * @param bool $ignore Whether to use IGNORE keyword for MySQL
      * @return mixed The result of the insert operation or an error message
      */
-    public function insert(string $table, array $data): mixed
+    public function insert(string $table, array $data, bool $ignore = false): mixed
     {
         if (isset($data['csrf_token'])) {
             unset($data['csrf_token']);
@@ -499,12 +510,32 @@ class TinyDB implements DB
         $columns = implode(', ', array_keys($data));
         $placeholders = implode(', ', array_fill(0, count($data), '?'));
         $query = "INSERT INTO $table ($columns) VALUES ($placeholders)";
+        if ($ignore) {
+            $query = "INSERT IGNORE INTO $table ($columns) VALUES ($placeholders)";
+        }
 
         try {
             return $this->execute($query, $data);
         } catch (\PDOException $e) {
             return $e->getMessage();
         }
+    }
+
+    /**
+     * Inserts a new row into a table using the IGNORE keyword.
+     * This method is a convenience wrapper around the insert() method with the ignore flag set to true.
+     * When using IGNORE, if the insertion would result in a duplicate key error, the statement is ignored
+     * and no error is returned.
+     *
+     * @param string $table The name of the table to insert into
+     * @param array $data An associative array of column-value pairs to insert
+     * @return mixed The result of the insert operation or an error message
+     */
+    public function insertIgnore(string $table, array $data): mixed
+    {
+        // Call the insert method with the ignore parameter set to true
+        // This will modify the SQL query to use INSERT IGNORE syntax
+        return $this->insert($table, $data, true);
     }
 
     /**
