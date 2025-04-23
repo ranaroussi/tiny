@@ -69,6 +69,15 @@ interface DB
     public function getQuery(string $query, ?array $params = []): bool|array;
 
     /**
+     * Executes a SQL query and returns the result set.
+     *
+     * @param string $query The SQL query to execute
+     * @param array|null $params Optional parameters for the query
+     * @return array The result set as an array of associative arrays
+     */
+    public function getOneQuery(string $query, ?array $params = []): bool|array;
+
+    /**
      * Retrieves rows from a table based on specified conditions.
      *
      * @param string $table The name of the table
@@ -433,6 +442,19 @@ class TinyDB implements DB
         }
         $stmt = $this->pdo->query(str_replace('\\?', '?', $query));
         return $stmt ? $stmt->fetchAll() : [];
+    }
+
+    /**
+     * Executes a SQL query and returns the first row of the result set.
+     *
+     * @param string $query The SQL query to execute
+     * @param array|null $params Optional parameters for the query
+     * @return bool|array The first row of the result set or false if no rows found
+     */
+    public function getOneQuery(string $query, ?array $params = []): bool|array
+    {
+        $result = $this->getQuery($query, $params);
+        return $result ? $result[0] : [];
     }
 
     /**
