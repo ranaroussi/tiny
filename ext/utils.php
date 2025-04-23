@@ -1275,7 +1275,8 @@ trait TinyUtils
     public static function emailLayout(string $content, string $layout): string
     {
         // Remove leading spaces from the beginning of each line
-        $content = preg_replace('/^\s+/m', '', $content);
+        $lines = explode("\n", $content);
+        $content = implode("\n", array_map('trim', $lines));
         $email = file_get_contents(tiny::config()->app_path . '/views/'. $layout);
         $email = str_replace('{{ content }}', $content, $email);
         return $email;
