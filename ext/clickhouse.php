@@ -331,7 +331,7 @@ class TinyClickhouse
     {
         // Add FORMAT clause if not present
         if (!preg_match('/FORMAT\s+\w+/i', $query)) {
-            $query .= " FORMAT {$format}";
+            $query = trim(trim($query), ';') . " FORMAT {$format}";
         }
 
         $response = $this->query($query);
