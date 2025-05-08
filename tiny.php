@@ -943,7 +943,7 @@ class tiny
             $classFile = $JOBS_PATH . '/' . mb_strtolower($class) . '.php';
 
             // Debug output to show which file is being loaded
-            tiny::debug($class, $classFile);
+            // tiny::debug($class, $classFile);
 
             // Include the file if it exists
             if (file_exists($classFile)) {
