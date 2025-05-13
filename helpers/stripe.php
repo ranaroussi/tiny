@@ -107,6 +107,10 @@ class StripeHelper
         ]);
 
         if (count($customers->data) == 1) {
+            try {
+                $this->client->customers->update($customers->data[0]->id, $cust);
+            } catch (\Exception $e) {
+            }
             return $customers->data[0];
         }
 
