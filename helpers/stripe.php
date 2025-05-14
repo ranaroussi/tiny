@@ -273,6 +273,9 @@ class StripeHelper
             ],
             'proration_behavior' => $prorate,
         ];
+        if ($prorate == 'create_prorations') {
+            $payload['proration_behavior'] = 'always_invoice';
+        }
 
         if ($trialEnd !== null) {
             $payload['trial_end'] = $trialEnd;
