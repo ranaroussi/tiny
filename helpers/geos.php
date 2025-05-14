@@ -1905,6 +1905,12 @@ class Geos {
         self::$unsupportedCountries = $_SERVER['GEO_UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['GEO_UNSUPPORTED_COUNTRIES']) : [];
     }
 
+
+    public function getCounttyNameFromCode(string $code): string
+    {
+        return self::GEOS[$code]['name'] ?? $code;
+    }
+
     public function countriesJson(): string
     {
         $val = tiny::cache()->remember('countries_json', 3600, function () {
