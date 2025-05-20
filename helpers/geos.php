@@ -2064,11 +2064,7 @@ class Geos {
             return $number;
         }
 
-        if (substr($number, 0, 1) == '+') {
-            return substr($number, 1);
-        }
-
-        if (substr($number, 0, 1) == '0') {
+        if (substr($number, 0, 1) == '+' || substr($number, 0, 1) == '0') {
             $number = substr($number, 1);
         }
 
