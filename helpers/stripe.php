@@ -259,7 +259,7 @@ class StripeHelper
         string $subscriptionId,
         string $priceId,
         ?string $coupon = null,
-        string $prorate = 'create_prorations',
+        string $prorate = 'none',
         ?int $trialEnd = null
     ): Subscription {
         $subscription = $this->client->subscriptions->retrieve($subscriptionId);
@@ -271,11 +271,8 @@ class StripeHelper
                     'price' => $priceId,
                 ],
             ],
-            'proration_behavior' => $prorate,
+            'proration_behavior' => $prorate == 'create_prorations' ? 'always_invoice' : $prorate,
         ];
-        if ($prorate == 'create_prorations') {
-            $payload['proration_behavior'] = 'always_invoice';
-        }
 
         if ($trialEnd !== null) {
             $payload['trial_end'] = $trialEnd;
