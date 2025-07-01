@@ -30,7 +30,6 @@ class EmailValidator
     ];
 
     private string $email;
-    private string $user;
     private string $domain;
     private int $maxConnectionTimeout = 25;
     private int $streamTimeout = 5;
@@ -43,14 +42,14 @@ class EmailValidator
         [$this->user, $this->domain] = explode('@', $this->email, 2);
     }
 
-    public function isValid(bool $verbose = false): bool|array
+    public function isValid(bool $verbose = false, bool $has_mx_records = false, bool $server_alive = false, bool $bounced = false): bool|array
     {
         $record = [
             'valid_format' => $this->isValidFormat(),
             'disposable' => !$this->isDisposable(),
-            'has_mx_records' => true,
-            'server_alive' => false,
-            'bounced' => false,
+            'has_mx_records' => $has_mx_records,
+            'server_alive' => $server_alive,
+            'bounced' => $bounced,
         ];
 
         if (!$record['valid_format'] || !$record['disposable']) {
