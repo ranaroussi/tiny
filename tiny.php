@@ -557,6 +557,7 @@ class tiny
             }
         }
 
+        // Cleanup router worker
         if (count(self::$router->worker) > 1 && $file === end(self::$router->worker)) {
             array_pop(self::$router->worker);
         }
@@ -565,6 +566,64 @@ class tiny
         if ($die) {
             self::timer(true);
             tiny::exit();
+        }
+    }
+
+    /**
+     * Renders a view file.
+     *
+     * @param string $component The component to render
+     * @param array $props The props to pass to the component
+     * @param array $meta The meta data to pass to the component
+     * @param string|null $template The template to use for the component
+     */
+    public static function renderReact(string $component = '', array $props = [], array $meta = [], ?string $template = null): void
+    {
+        $params = [
+            'component' => $component,
+            'props' => [...$props, ...['meta' => $meta]],
+        ];
+
+        // Check if this is an SPA navigation request
+        $isSpaRequest = (isset($_SERVER['HTTP_X_SPA_REQUEST']) && $_SERVER['HTTP_X_SPA_REQUEST'] === 'true') ||
+            (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest');
+
+        if ($isSpaRequest) {
+            // Return JSON for SPA navigation requests
+            header('Content-Type: application/json');
+            echo json_encode($params);
+        } else {
+
+            $renderedHTML = '';
+
+            if ($template) {
+                $file = $template ?: end(self::$router->worker);
+                $filePath = self::$config->app_path . '/views/' . $file . '.php';
+                if (!file_exists($filePath)) {
+                    self::data()->error = "View for /$file cannot be found on the server";
+                    if (file_exists(self::$config->app_path . '/views/404.php')) {
+                        self::render('404', true);
+                    } else {
+                        tiny::die(self::data()->error);
+                    }
+                }
+
+                // Cleanup router worker
+                if (count(self::$router->worker) > 1 && $file === end(self::$router->worker)) {
+                    array_pop(self::$router->worker);
+                }
+
+                ob_start();
+                require $filePath;
+                $html = ob_get_contents();
+                ob_end_clean();
+
+                $renderedHTML = '<div id="prerenderd-html">' . $html . '</div>';
+            }
+
+            // Continue with the traditional approach - embed data in HTML
+            $params = json_encode($params); // used in app.php
+            include self::$config->app_path . '/src/app.php';
         }
     }
 

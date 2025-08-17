@@ -68,6 +68,19 @@ class TinyResponse
     }
 
     /**
+     * Renders a view file.
+     *
+     * @param string $component The component to render
+     * @param array $props The props to pass to the component
+     * @param array $meta The meta data to pass to the component
+     * @param string|null $template The template to use for the component
+     */
+    public function renderReact(string $component = '', array $props = [], array $meta = [], ?string $template = null): void
+    {
+        tiny::renderReact($component, $props, $meta, $template);
+    }
+
+    /**
      * Flushes output buffer and optionally renders a view file.
      * Used for sending partial content in long-running processes.
      *
