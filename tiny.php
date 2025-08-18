@@ -577,7 +577,7 @@ class tiny
      * @param array $meta The meta data to pass to the component
      * @param string|null $template The template to use for the component
      */
-    public static function renderReact(string $component = '', array $props = [], array $meta = [], ?string $template = null): void
+    public static function renderReact(string $component, array $props = [], array $meta = [], ?string $template = null): void
     {
         $params = [
             'component' => $component,
