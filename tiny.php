@@ -521,6 +521,9 @@ class tiny
 
         try {
             $class = str_replace([' ', '-', '_', '.'], '', ucwords(str_replace('/', ' ', $file)));
+            if (is_numeric($class)) {
+                $class = "Class{$class}";
+            }
             $class = preg_replace('/Index$/', '', $class);
             if (class_exists($class)) {
                 $method = mb_strtolower($_SERVER['REQUEST_METHOD'] ?? 'GET');
