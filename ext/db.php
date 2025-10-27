@@ -392,7 +392,7 @@ class TinyDB implements DB
                 }
             }
 
-            $value = is_array($value) ? $value : (string)$value;
+            $value = is_array($value) ? $value : str_replace("?", "\?", (string)$value);
             $query = preg_replace('/(?<!\\\)\?/', $value, $query, 1);
         }
         return str_starts_with($query, '--sql') ? substr($query, 6) : $query;
@@ -409,7 +409,7 @@ class TinyDB implements DB
     {
         // used for debugging
         // if (str_contains($query, 'ON CONFLICT')) {
-        //     tiny::die(str_replace('\\?', '?', $this->prepare($query, $params)));
+            // tiny::die(str_replace('\\?', '?', $this->prepare($query, $params)));
         // }
         return $this->pdo->exec(str_replace('\\?', '?', $this->prepare($query, $params)));
     }
