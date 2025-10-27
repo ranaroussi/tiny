@@ -990,7 +990,7 @@ trait TinyUtils
     {
         try {
             $parser = new \TheIconic\NameParser\Parser();
-            return $parser->parse($name)->getAll();
+            return @$parser->parse($name)->getAll();
         } catch (\Exception) {
             return $name;
         }
