@@ -300,14 +300,23 @@ class TinyHTTP
         }
 
         $headers = self::parseHeaders(substr($response, 0, $info['header_size'] ?? 0));
-        $body = substr($response, $info['header_size'] ?? 0);
+        $body = substr($response, $info['header_size'] ?? 0) ?: $response;
+
+        $json = json_decode($body);
+        if ($json == $body || $json === null) {
+            try {
+                parse_str($body, $json);
+            } catch (Exception $e) {
+                $json = null;
+            }
+        }
 
         return (object) [
             'success' => true,
             'status_code' => $info['http_code'] ?? 0,
             'headers' => $headers,
             'body' => $body,
-            'json' => json_decode($body),
+            'json' => $json,
             'url' => $finalUrl ? ($info['url'] ?? null) : null,
         ];
     }
