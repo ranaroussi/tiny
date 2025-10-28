@@ -17,11 +17,44 @@ class GitHub
      * Initialize GitHub API client
      *
      * @param string|null $token Personal access token or OAuth token (optional)
+     * @param string|null $userAgent User agent string (optional)
      */
-    public function __construct($token = null, $userAgent = '')
+    public function __construct(?string $token = null, ?string $userAgent = 'TinyPHP-GitHub')
     {
-        $this->token = $token ?? getenv('GITHUB_TOKEN');
-        $this->userAgent = $userAgent ?? 'TinyPHP-GitHub';
+        $this->token = $token;
+        $this->userAgent = $userAgent;
+    }
+
+    /**
+     * Set the personal access token
+     *
+     * @param string $token Personal access token or OAuth token
+     * @return void
+     */
+    public function setToken(string $token): void
+    {
+        $this->token = $token;
+    }
+
+    /**
+     * Clear the personal access token
+     *
+     * @return void
+     */
+    public function clearToken(): void
+    {
+        $this->token = null;
+    }
+
+    /**
+     * Set the user agent string
+     *
+     * @param string $userAgent User agent string
+     * @return void
+     */
+    public function setUserAgent(string $userAgent): void
+    {
+        $this->userAgent = $userAgent;
     }
 
     /**
@@ -40,32 +73,26 @@ class GitHub
         $headers = [
             'Accept: application/vnd.github+json',
             'User-Agent: '. $this->userAgent,
-            'X-GitHub-Api-Version: 2022-11-28'
         ];
 
         if ($this->token) {
             $headers[] = "Authorization: Bearer {$this->token}";
         }
 
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        $response = match ($method) {
+            'POST' => tiny::http()->post($url, ['headers' => $headers, 'data' => $data]),
+            'PUT' => tiny::http()->put($url, ['headers' => $headers, 'data' => $data]),
+            'PATCH' => tiny::http()->patch($url, ['headers' => $headers, 'data' => $data]),
+            'DELETE' => tiny::http()->delete($url, ['headers' => $headers, 'data' => $data]),
+            'GET' => tiny::http()->get($url, ['headers' => $headers, 'data' => $data]),
+            default => throw new Exception("Invalid method: $method"),
+        };
 
-        if ($method === 'POST') {
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        if ($response->status_code >= 400) {
+            throw new Exception("GitHub API error: HTTP `$response->status_code`: $response->body");
         }
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode >= 400) {
-            throw new Exception("GitHub API error: HTTP $httpCode - $response");
-        }
-
-        return json_decode($response, true);
+        return $response->json;
     }
 
     /**
@@ -134,7 +161,7 @@ class GitHub
             $permission = $collab['permission'] ?? '';
 
             return in_array($permission, ['admin', 'write', 'maintain']);
-        } catch (Exception $e) {
+        } catch (Exception) {
             return false;
         }
     }
@@ -294,7 +321,6 @@ class GitHub
         $headers = [
             'Accept: application/vnd.github+json',
             'User-Agent: '. $this->userAgent,
-            'X-GitHub-Api-Version: 2022-11-28',
             'Content-Type: application/zip'
         ];
 
@@ -304,22 +330,16 @@ class GitHub
 
         $fileData = file_get_contents($filePath);
 
-        $ch = curl_init($uploadUrl);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $fileData);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        $response = tiny::http()->post($uploadUrl, [
+            'headers' => $headers,
+            'data' => $fileData
+        ]);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode >= 400) {
-            throw new Exception("GitHub asset upload error: HTTP $httpCode - $response");
+        if ($response->status_code >= 400) {
+            throw new Exception("GitHub asset upload error: HTTP `$response->status_code`: $response->body");
         }
 
-        return json_decode($response, true);
+        return $response->json;
     }
 }
 
