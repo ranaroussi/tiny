@@ -80,24 +80,36 @@ class GitHub
             $headers[] = "Authorization: Bearer {$this->token}";
         }
 
-        $response = match ($method) {
-            'POST' => tiny::http()->postJSON($url, ['headers' => $headers, 'data' => $data]),
-            'PUT' => tiny::http()->putJSON($url, ['headers' => $headers, 'data' => $data]),
-            'PATCH' => tiny::http()->patchJSON($url, ['headers' => $headers, 'data' => $data]),
-            'DELETE' => tiny::http()->delete($url, ['headers' => $headers, 'data' => $data]),
-            'GET' => tiny::http()->get($url, ['headers' => $headers, 'data' => $data]),
-            default => throw new Exception("Invalid method: $method"),
-        };
-
-        if ($response->status_code >= 400) {
-            error_log("GitHub API error: {$method} {$endpoint} -> HTTP {$response->status_code}");
-            error_log("Response body: " . substr($response->body, 0, 500));
-            error_log("Token being used: " . (isset($this->token) ? substr($this->token, 0, 10) . '...' . substr($this->token, -4) : 'NO TOKEN'));
-            error_log("Request headers: " . json_encode($headers));
-            throw new Exception("GitHub API error: HTTP `$response->status_code`: $response->body");
+        // Use direct curl for reliability
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_TIMEOUT => 30
+        ]);
+        
+        if ($data && in_array($method, ['POST', 'PUT', 'PATCH'])) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        }
+        
+        $body = curl_exec($ch);
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        
+        if ($curlError) {
+            throw new Exception("GitHub API curl error: {$curlError}");
         }
 
-        return $response->json;
+        if ($statusCode >= 400) {
+            error_log("GitHub API error: {$method} {$endpoint} -> HTTP {$statusCode}");
+            error_log("Response body: " . substr($body, 0, 500));
+            error_log("Token being used: " . (isset($this->token) ? substr($this->token, 0, 10) . '...' . substr($this->token, -4) : 'NO TOKEN'));
+            throw new Exception("GitHub API error: HTTP `$statusCode`: $body");
+        }
+
+        return json_decode($body);
     }
 
     /**
