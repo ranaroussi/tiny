@@ -207,7 +207,7 @@ class tiny
 
         foreach (@$_GET as $key => $value) {
             if (!empty($value)) {
-                self::$router->query[$key] = urldecode(trim(htmlspecialchars($value)));
+                self::$router->query[$key] = is_string($value) ? urldecode(trim(htmlspecialchars($value))) : $value;
             }
         }
 
@@ -219,7 +219,7 @@ class tiny
                 if (count($gets)) {
                     foreach ($gets as $item) {
                         @list($k, $v) = explode('=', $item);
-                        self::$router->query[$k] = urldecode(trim(htmlspecialchars($v)));
+                        self::$router->query[$k] = is_string($v) ? urldecode(trim(htmlspecialchars($v))) : $v;
                     }
                 }
                 unset(self::$router->query[self::$router->root]);
