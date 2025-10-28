@@ -25,6 +25,7 @@ class OpenAIHelper
         $payload = [
             "model" => $model,
             "max_tokens" => $maxTokens,
+            "response_format" => ["type" => "json_object"],  // Force JSON output
             "messages" => []
         ];
         if ($systemPrompt) {
@@ -49,30 +50,49 @@ class OpenAIHelper
                 ]
             ];
         }
-        $payload['messages'] = [
+        $payload['messages'][] = [
             "role" => "user",
-            "content" => [
-                "type" => "text",
-                "text" => $content
-            ]
+            "content" => $content
         ];
 
-        $res = tiny::http()->postJSON(
+        $httpResponse = tiny::http()->postJSON(
             url: 'https://api.openai.com/v1/chat/completions',
             json: $payload,
             options: [
                 "headers" => [
-                    "Authorization: Bearer " . @$_SERVER['APP_OPENAI_API_KEY'] ?? ''
-                ]
+                    "Authorization: Bearer " . (@$_SERVER['APP_OPENAI_API_KEY'] ?? '')
+                ],
+                "timeout" => 30  // 30 seconds for AI API calls
             ]
-        )->json;
+        );
+
+        // Debug logging
+        if (!$httpResponse || !isset($httpResponse->json)) {
+            error_log("OpenAI HTTP request failed. Response: " . json_encode($httpResponse));
+            error_log("HTTP Status: " . ($httpResponse->status ?? 'unknown'));
+            error_log("HTTP Body: " . ($httpResponse->body ?? 'empty'));
+        } else {
+            // Log successful response for debugging
+            error_log("OpenAI HTTP success. Status: " . ($httpResponse->status ?? 'unknown'));
+            error_log("OpenAI Response Body (first 500 chars): " . substr($httpResponse->body ?? '', 0, 500));
+            error_log("OpenAI Response JSON: " . json_encode($httpResponse->json));
+        }
+
+        $res = $httpResponse->json ?? null;
 
         // return $res;
-        if (property_exists($res, 'choices')) {
+        if ($res && is_object($res) && property_exists($res, 'choices')) {
             return json_encode([
                 'error' => false,
                 'data' => json_decode($res->choices[0]->message->content)
             ]);
+        }
+
+        // Log error for debugging
+        if (!$res) {
+            error_log("OpenAI API returned null response");
+        } else if (is_object($res) && property_exists($res, 'error')) {
+            error_log("OpenAI API error: " . json_encode($res->error));
         }
 
         return json_encode([
