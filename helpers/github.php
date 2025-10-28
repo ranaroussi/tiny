@@ -90,6 +90,8 @@ class GitHub
         };
 
         if ($response->status_code >= 400) {
+            error_log("GitHub API error: {$method} {$endpoint} -> HTTP {$response->status_code}");
+            error_log("Response body: " . substr($response->body, 0, 500));
             throw new Exception("GitHub API error: HTTP `$response->status_code`: $response->body");
         }
 
