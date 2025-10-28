@@ -300,6 +300,26 @@ class GitHub
     }
 
     /**
+     * Set repository topics (tags)
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param array $topics Array of topic strings (lowercase, hyphenated)
+     * @return array Response data
+     * @throws Exception if operation fails
+     */
+    public function setTopics($repo, $topics)
+    {
+        // Topics must be lowercase and use hyphens
+        $topics = array_map(function($topic) {
+            return strtolower(str_replace(' ', '-', trim($topic)));
+        }, $topics);
+        
+        return $this->request("/repos/$repo/topics", 'PUT', [
+            'names' => $topics
+        ]);
+    }
+    
+    /**
      * Upload asset to GitHub release
      *
      * @param string $repo Repository in format "owner/repo"
