@@ -190,27 +190,6 @@ class tiny
                 'query' => [],
             ];
 
-            foreach (@$_GET as $key => $value) {
-                if (!empty($value)) {
-                    $router['query'][$key] = $value;
-                }
-            }
-
-            // compensate for malform proxy requests
-            if (empty($router['query'])) {
-                $gets = explode('?', $_SERVER['REQUEST_URI']);
-                if (isset($gets[1])) {
-                    $gets = explode('&', $gets[1]);
-                    if (count($gets)) {
-                        foreach ($gets as $item) {
-                            @list($k, $v) = explode('=', $item);
-                            $router['query'][$k] = $v;
-                        }
-                    }
-                    unset($router['query'][$router['root']]);
-                }
-            }
-
             if ($url !== '/') {
                 $parts = explode('/', trim(rtrim($url, self::$config->url_path), '/'), 3);
                 $router['controller'] = $parts[0] ?: self::$config->homepage;
@@ -225,6 +204,27 @@ class tiny
 
             return (object)$router;
         });
+
+        foreach (@$_GET as $key => $value) {
+            if (!empty($value)) {
+                self::$router->query[$key] = urldecode(trim(htmlspecialchars($value)));
+            }
+        }
+
+        // compensate for malform proxy requests
+        if (empty(self::$router->query)) {
+            $gets = explode('?', $_SERVER['REQUEST_URI']);
+            if (isset($gets[1])) {
+                $gets = explode('&', $gets[1]);
+                if (count($gets)) {
+                    foreach ($gets as $item) {
+                        @list($k, $v) = explode('=', $item);
+                        self::$router->query[$k] = urldecode(trim(htmlspecialchars($v)));
+                    }
+                }
+                unset(self::$router->query[self::$router->root]);
+            }
+        }
 
         self::$router->htmx = isset($_SERVER['HTTP_HX_REQUEST']);
     }
