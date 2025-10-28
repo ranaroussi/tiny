@@ -63,13 +63,21 @@ class Markdown
     {
         $GLOBALS['mermaids'] = 0;
         return preg_replace_callback(
-            '/```(\w+)(\s?(\{(.+)\})?)\R((\w*|.|\R)+)\R```/m',
+            '/```(\w*)(\s?(\{(.+)\})?)\R((\w*|.|\R)+?)\R```/ms',
             function ($matches) {
                 $GLOBALS['mermaids']++;
-                if ($matches[1] == 'mermaid') {
-                    return '<pre class="mermaid-src fixed hidden invisible opacity-0" style="top:-100vh;left:-100vh;" data-mermaid-id="' . $GLOBALS['mermaids'] . '">' . $matches[5] . '</pre><pre><code class="mermaid" id="mermaid-' . $GLOBALS['mermaids'] . '" style="color:transparent">' . $matches[5] . '</code></pre>';
+                $language = $matches[1];
+                $lineHighlight = $matches[4];
+                $code = $matches[5];
+                
+                if ($language == 'mermaid') {
+                    return '<pre class="mermaid-src fixed hidden invisible opacity-0" style="top:-100vh;left:-100vh;" data-mermaid-id="' . $GLOBALS['mermaids'] . '">' . $code . '</pre><pre><code class="mermaid" id="mermaid-' . $GLOBALS['mermaids'] . '" style="color:transparent">' . $code . '</code></pre>';
                 } else {
-                    return '<pre data-prismjs-copy-timeout=1000 data-line="' . $matches[4] . '" class="line-numbers"><code class="language-' . $matches[1] . '" data-highlight="' . $matches[4] . '">' . $matches[5] . '</code></pre>';
+                    // If no language specified, use 'plaintext'
+                    $langClass = $language ? 'language-' . $language : 'language-plaintext';
+                    $highlight = $lineHighlight ? ' data-highlight="' . $lineHighlight . '"' : '';
+                    $lineAttr = $lineHighlight ? ' data-line="' . $lineHighlight . '"' : '';
+                    return '<pre data-prismjs-copy-timeout=1000' . $lineAttr . ' class="line-numbers"><code class="' . $langClass . '"' . $highlight . '>' . htmlspecialchars($code, ENT_NOQUOTES) . '</code></pre>';
                 }
             },
             $text
@@ -450,7 +458,6 @@ class Markdown
     protected $document_gamut = array(
         # Strip link definitions, store in hashes.
         "stripLinkDefinitions" => 20,
-
         "runBasicBlockGamut" => 30,
     );
 
