@@ -72,6 +72,7 @@ class GitHub
 
         $headers = [
             'Accept: application/vnd.github+json',
+            'Content-Type: application/json',
             'User-Agent: '. $this->userAgent,
         ];
 
@@ -80,9 +81,9 @@ class GitHub
         }
 
         $response = match ($method) {
-            'POST' => tiny::http()->post($url, ['headers' => $headers, 'data' => $data]),
-            'PUT' => tiny::http()->put($url, ['headers' => $headers, 'data' => $data]),
-            'PATCH' => tiny::http()->patch($url, ['headers' => $headers, 'data' => $data]),
+            'POST' => tiny::http()->postJSON($url, ['headers' => $headers, 'data' => $data]),
+            'PUT' => tiny::http()->putJSON($url, ['headers' => $headers, 'data' => $data]),
+            'PATCH' => tiny::http()->patchJSON($url, ['headers' => $headers, 'data' => $data]),
             'DELETE' => tiny::http()->delete($url, ['headers' => $headers, 'data' => $data]),
             'GET' => tiny::http()->get($url, ['headers' => $headers, 'data' => $data]),
             default => throw new Exception("Invalid method: $method"),
