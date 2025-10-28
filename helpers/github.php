@@ -92,6 +92,8 @@ class GitHub
         if ($response->status_code >= 400) {
             error_log("GitHub API error: {$method} {$endpoint} -> HTTP {$response->status_code}");
             error_log("Response body: " . substr($response->body, 0, 500));
+            error_log("Token being used: " . (isset($this->token) ? substr($this->token, 0, 10) . '...' . substr($this->token, -4) : 'NO TOKEN'));
+            error_log("Request headers: " . json_encode($headers));
             throw new Exception("GitHub API error: HTTP `$response->status_code`: $response->body");
         }
 
