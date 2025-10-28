@@ -55,44 +55,86 @@ class OpenAIHelper
             "content" => $content
         ];
 
-        $httpResponse = tiny::http()->postJSON(
-            url: 'https://api.openai.com/v1/chat/completions',
-            json: $payload,
-            options: [
-                "headers" => [
-                    "Authorization: Bearer " . (@$_SERVER['APP_OPENAI_API_KEY'] ?? '')
-                ],
-                "timeout" => 30  // 30 seconds for AI API calls
-            ]
-        );
-
-        // Debug logging
-        if (!$httpResponse || !isset($httpResponse->json)) {
-            error_log("OpenAI HTTP request failed. Response: " . json_encode($httpResponse));
-            error_log("HTTP Status: " . ($httpResponse->status ?? 'unknown'));
-            error_log("HTTP Body: " . ($httpResponse->body ?? 'empty'));
+        // Use direct curl instead of tiny::http() to avoid body truncation bug
+        $ch = curl_init('https://api.openai.com/v1/chat/completions');
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . (@$_SERVER['APP_OPENAI_API_KEY'] ?? '')
+            ],
+            CURLOPT_POSTFIELDS => json_encode($payload)
+        ]);
+        
+        $body = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        
+        // Log response details
+        if ($curlError) {
+            error_log("⚠️ Curl error: " . $curlError);
         } else {
-            // Log successful response for debugging
-            error_log("OpenAI HTTP success. Status: " . ($httpResponse->status ?? 'unknown'));
-            error_log("OpenAI Response Body (first 500 chars): " . substr($httpResponse->body ?? '', 0, 500));
-            error_log("OpenAI Response JSON: " . json_encode($httpResponse->json));
+            error_log("✅ Curl success. HTTP {$httpCode}, body length: " . strlen($body) . " bytes");
+        }
+        
+        // Parse JSON from body
+        $res = null;
+        if ($body) {
+            $res = json_decode($body, true);
+            if ($res) {
+                error_log("✅ Successfully parsed JSON from curl response");
+                if (isset($res['choices'])) {
+                    error_log("✅ Response has 'choices' key with " . count($res['choices']) . " choices");
+                } else {
+                    error_log("⚠️ Response missing 'choices' key. Top-level keys: " . implode(', ', array_keys($res)));
+                }
+            } else {
+                error_log("⚠️ Failed to parse JSON: " . json_last_error_msg());
+                error_log("Body preview: " . substr($body, 0, 500));
+            }
+        } else {
+            error_log("⚠️ Empty response body from curl");
         }
 
-        $res = $httpResponse->json ?? null;
+        // Handle both array and object response structures
+        $hasChoices = false;
+        $content = null;
+        
+        if ($res) {
+            if (is_array($res) && isset($res['choices'])) {
+                $hasChoices = true;
+                $content = $res['choices'][0]['message']['content'] ?? null;
+            } else if (is_object($res) && property_exists($res, 'choices')) {
+                $hasChoices = true;
+                $content = $res->choices[0]->message->content ?? null;
+            }
+        }
 
-        // return $res;
-        if ($res && is_object($res) && property_exists($res, 'choices')) {
-            return json_encode([
-                'error' => false,
-                'data' => json_decode($res->choices[0]->message->content)
-            ]);
+        if ($hasChoices && $content) {
+            error_log("✅ OpenAI content extracted: " . substr($content, 0, 200));
+            $parsedContent = json_decode($content, true);
+            if ($parsedContent) {
+                error_log("✅ Content parsed as JSON successfully!");
+                return json_encode([
+                    'error' => false,
+                    'data' => $parsedContent
+                ]);
+            } else {
+                error_log("⚠️ Content is not valid JSON: " . json_last_error_msg());
+            }
         }
 
         // Log error for debugging
         if (!$res) {
             error_log("OpenAI API returned null response");
-        } else if (is_object($res) && property_exists($res, 'error')) {
-            error_log("OpenAI API error: " . json_encode($res->error));
+        } else if ((is_array($res) && isset($res['error'])) || (is_object($res) && property_exists($res, 'error'))) {
+            $error = is_array($res) ? $res['error'] : $res->error;
+            error_log("OpenAI API error: " . json_encode($error));
+        } else {
+            error_log("⚠️ OpenAI response structure unexpected. Has choices: " . ($hasChoices ? 'yes' : 'no'));
         }
 
         return json_encode([
