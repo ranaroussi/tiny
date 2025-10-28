@@ -109,7 +109,7 @@ class GitHub
             throw new Exception("GitHub API error: HTTP `$statusCode`: $body");
         }
 
-        return json_decode($body);
+        return json_decode($body, true); // Return as array for consistency
     }
 
     /**
