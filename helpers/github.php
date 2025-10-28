@@ -228,7 +228,8 @@ class GitHub
         // Otherwise, assume it's an org
         try {
             $user = $this->request('/user');
-            $endpoint = ($owner === $user['login'])
+            $userLogin = is_array($user) ? $user['login'] : $user->login;
+            $endpoint = ($owner === $userLogin)
                 ? '/user/repos'
                 : "/orgs/$owner/repos";
         } catch (Exception $e) {
