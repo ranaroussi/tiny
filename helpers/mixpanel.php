@@ -23,7 +23,7 @@ class Mixpanel
         }
 
         $payload = [
-            '$token' => $_SERVER['MIXPANEL_PROJECT_TOKEN'] ?? '',
+            '$token' => $_SERVER['APP_MIXPANEL_PROJECT_TOKEN'] ?? '',
             '$distinct_id' => $distinct_id,
             '$set' => $props,
         ];
@@ -40,7 +40,7 @@ class Mixpanel
         $payload = [
             'event' => $event,
             'properties' => array_merge([
-                'token' => $_SERVER['MIXPANEL_PROJECT_TOKEN'] ?? '',
+                'token' => $_SERVER['APP_MIXPANEL_PROJECT_TOKEN'] ?? '',
                 'distinct_id' => $distinct_id,
             ], $props),
         ];
@@ -57,7 +57,7 @@ class Mixpanel
         $payload = [
             'event' => '$create_alias',
             'properties' => [
-                'token' => $_SERVER['MIXPANEL_PROJECT_TOKEN'] ?? '',
+                'token' => $_SERVER['APP_MIXPANEL_PROJECT_TOKEN'] ?? '',
                 'distinct_id' => $distinct_id,
                 'alias' => $alias,
             ],
@@ -68,7 +68,7 @@ class Mixpanel
 
     private static function isMixpanelEnabled(): bool
     {
-        return in_array($_SERVER['MIXPANEL_SUBMIT'] ?? '', self::VALID_MIXPANEL_SUBMIT, true);
+        return in_array($_SERVER['APP_MIXPANEL_SUBMIT'] ?? '', self::VALID_MIXPANEL_SUBMIT, true);
     }
 
     private static function sendRequest(string $endpoint, array $payload): object

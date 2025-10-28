@@ -11,7 +11,7 @@ class SendGrid
 
     private function getApiKey(): string
     {
-        return $_SERVER['SENDGRID_API_KEY'] ?? '';
+        return $_SERVER['APP_SENDGRID_API_KEY'] ?? '';
     }
 
     private function getHeaders(): array
@@ -34,8 +34,8 @@ class SendGrid
         $payload = [
             'template_id' => $template_id,
             'from' => [
-                'email' => $_SERVER['SENDGRID_FROM_ADDRESS'] ?? '',
-                'name' => $_SERVER['SENDGRID_FROM_NAME'] ?? '',
+                'email' => $_SERVER['APP_SENDGRID_FROM_ADDRESS'] ?? '',
+                'name' => $_SERVER['APP_SENDGRID_FROM_NAME'] ?? '',
             ],
             'personalizations' => [[
                 'to' => [[

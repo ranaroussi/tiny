@@ -28,7 +28,7 @@ class Cypher
         $key = md5($secret);
         $iv = substr(strrev($key), 0, 16);
 
-        $algo = @$_SERVER['CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
+        $algo = @$_SERVER['APP_CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
         return $this->urlsafe_b64encode(@openssl_encrypt($data, $algo, $key, OPENSSL_RAW_DATA, $iv));
     }
 
@@ -38,7 +38,7 @@ class Cypher
         $key = md5($secret);
         $iv = substr(strrev($key), 0, 16);
 
-        $algo = @$_SERVER['CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
+        $algo = @$_SERVER['APP_CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
         return @openssl_decrypt($data, $algo, $key, OPENSSL_RAW_DATA, $iv);
     }
 
@@ -58,7 +58,7 @@ class Cypher
     public function decryptWithNonce(string $data, string $secret, int $ttl = -1): false|string
     {
         if ($ttl == -1) {
-            $ttl = @$_SERVER['NONCE_TTL'] ?? self::NONCE_TTL;
+            $ttl = @$_SERVER['APP_NONCE_TTL'] ?? self::NONCE_TTL;
         }
         try {
             [$data, $nonce] = explode(';', $this->decrypt($data, $secret));

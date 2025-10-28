@@ -11,7 +11,7 @@ class MailgunSender
 {
     private function getApiKey(): string
     {
-        return $_SERVER['MAILGUN_API_KEY'] ?? '';
+        return $_SERVER['APP_MAILGUN_API_KEY'] ?? '';
     }
 
 
@@ -27,9 +27,9 @@ class MailgunSender
         // Instantiate the client using the create method
         $mailgun = Mailgun::create($this->getApiKey());
 
-        $from_email = $from_email ?? $_SERVER['MAILGUN_FROM_ADDRESS'];
-        $from_name = $from_name ?? $_SERVER['MAILGUN_FROM_NAME'];
-        $domain = $domain ?? $_SERVER['MAILGUN_DOMAIN'];
+        $from_email = $from_email ?? $_SERVER['APP_MAILGUN_FROM_ADDRESS'];
+        $from_name = $from_name ?? $_SERVER['APP_MAILGUN_FROM_NAME'];
+        $domain = $domain ?? $_SERVER['APP_MAILGUN_DOMAIN'];
 
         return $mailgun->messages()->send($domain, [
             'from' => $from_name .' <'. $from_email .'>',
@@ -64,9 +64,9 @@ class MailgunSender
         // Instantiate the client using the create method
         $mailgun = Mailgun::create($this->getApiKey());
 
-        $from_email = $from_email ?? $_SERVER['MAILGUN_FROM_ADDRESS'];
-        $from_name = $from_name ?? $_SERVER['MAILGUN_FROM_NAME'];
-        $domain = $domain ?? $_SERVER['MAILGUN_DOMAIN'];
+        $from_email = $from_email ?? $_SERVER['APP_MAILGUN_FROM_ADDRESS'];
+        $from_name = $from_name ?? $_SERVER['APP_MAILGUN_FROM_NAME'];
+        $domain = $domain ?? $_SERVER['APP_MAILGUN_DOMAIN'];
 
         $params = [
             'from' => $from_name .' <'. $from_email .'>',

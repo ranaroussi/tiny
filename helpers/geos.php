@@ -1901,8 +1901,8 @@ class Geos {
     private static array $unsupportedCountries;
 
     public function __construct() {
-        self::$supportedCurrencies = $_SERVER['GEO_SUPPORTED_CURRENCIES'] ? explode(',', $_SERVER['GEO_SUPPORTED_CURRENCIES']) : ['USD'];
-        self::$unsupportedCountries = $_SERVER['GEO_UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['GEO_UNSUPPORTED_COUNTRIES']) : [];
+        self::$supportedCurrencies = $_SERVER['APP_GEO_SUPPORTED_CURRENCIES'] ? explode(',', $_SERVER['APP_GEO_SUPPORTED_CURRENCIES']) : ['USD'];
+        self::$unsupportedCountries = $_SERVER['APP_GEO_UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['APP_GEO_UNSUPPORTED_COUNTRIES']) : [];
     }
 
 
@@ -2018,8 +2018,8 @@ class Geos {
         if (@self::GEOS[$country]) {
             return $country;
         }
-        if (@$_SERVER['GEOIP2_COUNTRY_ISO_CODE']) {
-            return @$_SERVER['GEOIP2_COUNTRY_ISO_CODE'];
+        if (@$_SERVER['APP_GEOIP2_COUNTRY_ISO_CODE']) {
+            return @$_SERVER['APP_GEOIP2_COUNTRY_ISO_CODE'];
         }
 
         $ip = tiny::getClientRealIP();
@@ -2108,7 +2108,7 @@ class Geos {
             <option value="GBP">GBP - Pound Sterling 🇬🇧</option>
             <option value="" disabled>-----</option>
             ';
-            $noFeeCurrencies = $_SERVER['NOFEE_CURRENCIES'] ? explode(',', $_SERVER['NOFEE_CURRENCIES']) : [];
+            $noFeeCurrencies = $_SERVER['APP_NOFEE_CURRENCIES'] ? explode(',', $_SERVER['APP_NOFEE_CURRENCIES']) : [];
             foreach (self::CURRENCIES as $code => $item) {
                 if (in_array($code, self::$supportedCurrencies) && !in_array($code, ['USD', 'EUR', 'GBP'])) {
                     $flag = $code == 'EUR' ? '🇪🇺' : self::GEOS[$item['countries'][0]]['flag'];
@@ -2163,8 +2163,8 @@ class Geos {
 
     public static function getUserTimezone($country_code)
     {
-        if (@$_SERVER['GEOIP2_LOCATION_TIMEZONE'] != null) {
-            return @$_SERVER['GEOIP2_LOCATION_TIMEZONE'];
+        if (@$_SERVER['APP_GEOIP2_LOCATION_TIMEZONE'] != null) {
+            return @$_SERVER['APP_GEOIP2_LOCATION_TIMEZONE'];
         }
         $timezone = DateTimeZone::listIdentifiers(DateTimeZone::PER_COUNTRY, $country_code);
         if (!empty($timezone)) {
@@ -2175,7 +2175,7 @@ class Geos {
 
     public static function getGeoIPInfo()
     {
-        $reader = new GeoIp2\Database\Reader(@$_SERVER['GEO_GEOIP2_CITY_PATH']);
+        $reader = new GeoIp2\Database\Reader(@$_SERVER['APP_GEO_GEOIP2_CITY_PATH']);
         try {
             $ip = tiny::getClientRealIP();
             $record = $reader->city($ip);

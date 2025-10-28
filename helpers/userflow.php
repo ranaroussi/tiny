@@ -52,5 +52,5 @@ class UserFlow
 }
 
 tiny::registerHelper('userflow', function () {
-    return new UserFlow($_SERVER['USERFLOW_API_KEY']);
+    return new UserFlow($_SERVER['APP_USERFLOW_API_KEY']);
 });

@@ -14,11 +14,11 @@ class CustomerIO
     {
         if ($this->clientInstance === null) {
             $this->clientInstance = new Client(
-                $_SERVER['CIO_TRACK_API_KEY'] ?? '',
-                $_SERVER['CIO_TRACK_SITE_ID'] ?? '',
-                ['region' => $_SERVER['CIO_REGION'] ?? '']
+                $_SERVER['APP_CIO_TRACK_API_KEY'] ?? '',
+                $_SERVER['APP_CIO_TRACK_SITE_ID'] ?? '',
+                ['region' => $_SERVER['APP_CIO_REGION'] ?? '']
             );
-            $this->clientInstance->setAppAPIKey($_SERVER['CIO_APP_API_KEY'] ?? '');
+            $this->clientInstance->setAppAPIKey($_SERVER['APP_CIO_APP_API_KEY'] ?? '');
         }
         return $this->clientInstance;
     }
@@ -78,7 +78,7 @@ class CustomerIO
 
     public function sendTransactional(string $email, string $messageId, array $data = []): bool|string
     {
-        $endpoint = 'https://api' . ($_SERVER['CIO_REGION'] === 'eu' ? '-eu' : '') . '.customer.io/v1/send/email';
+        $endpoint = 'https://api' . ($_SERVER['APP_CIO_REGION'] === 'eu' ? '-eu' : '') . '.customer.io/v1/send/email';
 
         $payload = [
             'transactional_message_id' => $messageId,
@@ -98,7 +98,7 @@ class CustomerIO
             CURLOPT_CUSTOMREQUEST => 'POST',
             CURLOPT_POSTFIELDS => json_encode($payload),
             CURLOPT_HTTPHEADER => [
-                'Authorization: Bearer ' . ($_SERVER['CIO_APP_API_KEY'] ?? ''),
+                'Authorization: Bearer ' . ($_SERVER['APP_CIO_APP_API_KEY'] ?? ''),
                 'Content-Type: application/json',
             ],
         ]);

@@ -11,8 +11,8 @@ class TwilioHelper
     public function __construct()
     {
         // Get credentials from environment or config
-        $sid = $_SERVER['TWILIO_ACCOUNT_SID'] ?? '';
-        $token = $_SERVER['TWILIO_AUTH_TOKEN'] ?? '';
+        $sid = $_SERVER['APP_TWILIO_ACCOUNT_SID'] ?? '';
+        $token = $_SERVER['APP_TWILIO_AUTH_TOKEN'] ?? '';
 
         // Initialize client
         $this->client = new Client($sid, $token);
@@ -29,7 +29,7 @@ class TwilioHelper
     public function send($to, $body, $from = null)
     {
         error_reporting(~E_DEPRECATED);
-        $from = $from ?? $_SERVER['TWILIO_PHONE_NUMBER'] ?? '';
+        $from = $from ?? $_SERVER['APP_TWILIO_PHONE_NUMBER'] ?? '';
 
         $to = '+' . trim(str_replace('+', '', $to));
         $from = '+' . trim(str_replace('+', '', $from));
