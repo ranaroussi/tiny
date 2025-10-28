@@ -418,6 +418,7 @@ class GitHub
     public function getInstallationToken($installationId, $appId, $privateKeyPath)
     {
         $jwt = $this->generateJWT($appId, $privateKeyPath);
+        error_log("Generated JWT for app $appId, installation $installationId");
         
         $url = "https://api.github.com/app/installations/{$installationId}/access_tokens";
         
@@ -429,11 +430,14 @@ class GitHub
         
         $response = tiny::http()->postJSON($url, ['headers' => $headers, 'data' => []]);
         
+        error_log("Installation token response: HTTP {$response->status_code}");
         if ($response->status_code >= 400) {
+            error_log("Installation token error body: " . substr($response->body, 0, 500));
             throw new Exception("GitHub App token error: HTTP `$response->status_code`: $response->body");
         }
         
         $token = is_array($response->json) ? $response->json['token'] : $response->json->token;
+        error_log("Successfully obtained installation token");
         return $token;
     }
 }
