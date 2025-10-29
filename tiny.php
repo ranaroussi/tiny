@@ -386,15 +386,15 @@ class tiny
      *
      * @return TinyCache The cache instance
      */
-    public static function cache(string $engine = 'apcu'): TinyCache
+    public static function cache(string $engine = 'apcu'): ?TinyCache
     {
-
         if (self::$cache === null) {
             $config = self::$config->memcached ?? [];
             self::$cache = new TinyCache(
                 $engine,
                 $config['host'] ?? 'localhost',
-                $config['port'] ?? 11211
+                $config['port'] ?? 11211,
+                in_array($_SERVER['TINY_CACHE_DISABLED'] ?? false, [true, 'true', 1, '1'], true)
             );
         }
         return self::$cache;

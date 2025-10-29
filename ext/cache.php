@@ -26,6 +26,7 @@ declare(strict_types=1);
 class TinyCache
 {
     private \Memcached|null $memcached;
+    private bool $disabled = false;
 
     /**
      * Initializes the TinyCache with the specified caching engine.
@@ -38,8 +39,14 @@ class TinyCache
     public function __construct(
         private string $engine = 'apcu',
         ?string $memcached_host = 'localhost',
-        ?int $memcached_port = 11211
+        ?int $memcached_port = 11211,
+        ?bool $disable = false
     ) {
+        $this->disabled = $disable ?? false;
+        if ($this->disabled) {
+            $this->disabled = true;
+            return;
+        }
         match ($this->engine) {
             'apcu' => $this->initApcu(),
             'memcached' => $this->initMemcached($memcached_host, $memcached_port),
@@ -85,6 +92,10 @@ class TinyCache
      */
     public function get(string $key, ?callable $memcached_cb = null, int $get_flags = 0): mixed
     {
+        if ($this->disabled) {
+            return null;
+        }
+
         if ($this->engine === 'apcu') {
             return apcu_fetch($key, $success) ?: null;
         }
@@ -102,6 +113,10 @@ class TinyCache
      */
     public function set(string $key, mixed $value, int $ttl = 0): bool
     {
+        if ($this->disabled) {
+            return true;
+        }
+
         if ($this->engine === 'apcu') {
             return apcu_store($key, $value, $ttl);
         }
@@ -116,6 +131,9 @@ class TinyCache
      */
     public function delete(string $key): bool
     {
+        if ($this->disabled) {
+            return true;
+        }
         if ($this->engine === 'apcu') {
             return apcu_delete($key);
         }
@@ -130,6 +148,10 @@ class TinyCache
      */
     public function getByPrefix(string $prefix): array
     {
+        if ($this->disabled) {
+            return [];
+        }
+
         $matches = [];
 
         if ($this->engine === 'apcu') {
@@ -159,6 +181,9 @@ class TinyCache
      */
     public function deleteByPrefix(string $prefix): void
     {
+        if ($this->disabled) {
+            return;
+        }
         if ($this->engine === 'apcu') {
             $iterator = new \APCUIterator('/^' . preg_quote($prefix, '/') . '/');
             foreach ($iterator as $item) {
@@ -197,6 +222,9 @@ class TinyCache
         }
 
         $value = $callback();
+        if ($this->disabled) {
+            return $value;
+        }
         $this->set($key, $value, $ttl);
         return $value;
     }
