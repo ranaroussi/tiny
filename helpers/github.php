@@ -164,6 +164,32 @@ class GitHub
     }
 
     /**
+     * Get release by ID
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param int $releaseId Release ID
+     * @return array Release data
+     * @throws Exception if release not found
+     */
+    public function getReleaseById($repo, $releaseId)
+    {
+        return $this->request("/repos/$repo/releases/{$releaseId}");
+    }
+
+    /**
+     * Delete release asset
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param int $assetId Asset ID
+     * @return void
+     * @throws Exception if deletion fails
+     */
+    public function deleteReleaseAsset($repo, $assetId)
+    {
+        $this->request("/repos/$repo/releases/assets/{$assetId}", 'DELETE');
+    }
+
+    /**
      * Check if user has push permission to repository
      *
      * @param string $repo Repository in format "owner/repo"
