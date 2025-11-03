@@ -156,4 +156,36 @@ class TinyResponse
             tiny::die();
         }
     }
+
+    /**
+     * Sends a raw response with an optional HTTP status code.
+     *
+     * @param mixed $data The data to be sent
+     * @param string $content_type The content type to send (default: 'text/plain')
+     * @param int $code The HTTP status code (default: 200)
+     * @param bool $die Whether to terminate script execution after sending (default: true)
+     */
+    public function sendRaw(mixed $data, string $content_type = 'text/plain', int $code = 200, bool $die = true): void
+    {
+        try {
+            tiny::header("Content-type: $content_type; charset=utf-8", true, $code);
+        } catch (\Exception $e) {
+            // Silently ignore exceptions when setting headers
+        }
+
+        // remove everything that's between <!-- and -->
+        $data = preg_replace('/<!--(.*?)-->/s', '', $data);
+
+        // remove multiple newlines
+        $data = preg_replace('/\n{3,}/s', "\n\n", $data);
+
+        // remove newlines
+        $data = trim($data);
+
+        echo $data;
+
+        if ($die) {
+            tiny::die();
+        }
+    }
 }
