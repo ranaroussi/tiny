@@ -7,31 +7,32 @@ class Markdown
 {
     public const MARKDOWNLIB_VERSION = "1.6.0";
 
-    public function transform(string $text): string
+    public function transform(?string $text): ?string
     {
+        if (!$text) return '';
         $text = str_replace('\n', "\n", $text);
 
-        $text = $this->processCols($text);
-        $text = $this->processTabs($text);
-        $text = $this->processSyntaxHighlighting($text);
-        $text = $this->processTabContent($text);
-        $text = $this->processNoCodeTabs($text);
-        $text = $this->processOembed($text);
-        $text = $this->processPageBreak($text);
-        $text = $this->processCenter($text);
-        $text = $this->processToggles($text);
-        $text = $this->processBoxes($text);
-        $text = $this->processCards($text);
-        $text = $this->processTOC($text);
-        $text = $this->originalTransform($text);
-        $text = $this->processCallouts($text);
-        $text = $this->cleanupHtml($text);
-        $text = $this->processBookmarks($text);
+        $text = (string)$this->processCols($text);
+        $text = (string)$this->processTabs($text);
+        $text = (string)$this->processSyntaxHighlighting($text);
+        $text = (string)$this->processTabContent($text);
+        $text = (string)$this->processNoCodeTabs($text);
+        $text = (string)$this->processOembed($text);
+        $text = (string)$this->processPageBreak($text);
+        $text = (string)$this->processCenter($text);
+        $text = (string)$this->processToggles($text);
+        $text = (string)$this->processBoxes($text);
+        $text = (string)$this->processCards($text);
+        $text = (string)$this->processTOC($text);
+        $text = (string)$this->originalTransform($text);
+        $text = (string)$this->processCallouts($text);
+        $text = (string)$this->cleanupHtml($text);
+        $text = (string)$this->processBookmarks($text);
 
         return $text;
     }
 
-    private function processCols(string $text): string
+    private function processCols(string $text): ?string
     {
         return preg_replace(
             '/(::::\s?cols=(\d))\R+((\w*|.|\R)+)\R+(::::\s?+\R?+)/m',
@@ -40,7 +41,7 @@ class Markdown
         );
     }
 
-    private function processTabs(string $text): string
+    private function processTabs(string $text): ?string
     {
         $text = preg_replace(
             '/(::::\s?tabs-code-group)\R+((\w*|.|\R)+)\R+(::::\s?+\R?+)/m',
@@ -59,7 +60,7 @@ class Markdown
         );
     }
 
-    private function processSyntaxHighlighting(string $text): string
+    private function processSyntaxHighlighting(string $text): ?string
     {
         $GLOBALS['mermaids'] = 0;
         return preg_replace_callback(
@@ -69,7 +70,7 @@ class Markdown
                 $language = $matches[1];
                 $lineHighlight = $matches[4];
                 $code = $matches[5];
-                
+
                 if ($language == 'mermaid') {
                     return '<pre class="mermaid-src fixed hidden invisible opacity-0" style="top:-100vh;left:-100vh;" data-mermaid-id="' . $GLOBALS['mermaids'] . '">' . $code . '</pre><pre><code class="mermaid" id="mermaid-' . $GLOBALS['mermaids'] . '" style="color:transparent">' . $code . '</code></pre>';
                 } else {
@@ -84,7 +85,7 @@ class Markdown
         );
     }
 
-    private function processTabContent(string $text): string
+    private function processTabContent(string $text): ?string
     {
         return preg_replace_callback(
             '/(.*|\R?)(<div class="md-tab-content">\R?)((\w*|.|\R)+)\R?(<\/div><\/div>\R?)(.*|\R?)/m',
@@ -95,7 +96,7 @@ class Markdown
         );
     }
 
-    private function processNoCodeTabs(string $text): string
+    private function processNoCodeTabs(string $text): ?string
     {
         return preg_replace_callback(
             '/((<div class="md-tab" (.*?)>\R)(?!<pre>)((\w*|.|\R)+)\R(<\/div>))/m',
@@ -106,7 +107,7 @@ class Markdown
         );
     }
 
-    private function processOembed(string $text): string
+    private function processOembed(string $text): ?string
     {
         return preg_replace_callback(
             '/(.*?[^`])\[\>\]\((https|http):\/\/(.*?)\)(\s|$)/im',
@@ -127,7 +128,7 @@ class Markdown
         );
     }
 
-    private function processAsciinema(array $matches, string $url): string
+    private function processAsciinema(array $matches, string $url): ?string
     {
         preg_match_all('/a\/(.*?)(\?(.*?))?$/m', $url, $parts, PREG_SET_ORDER, 0);
         $id = $parts[0][1] ?? '';
@@ -135,18 +136,18 @@ class Markdown
         return $matches[1] . '<div class="oembed-wrapper" style="overflow-y:hidden"><div style="margin-bottom: -16px"><script id="asciicast-' . $id . '" src="https://asciinema.org/a/' . $id . '.js' . $qs . '" async></script></div></div>' . $matches[4];
     }
 
-    private function processVimeo(array $matches, string $url, string $iframe_options): string
+    private function processVimeo(array $matches, string $url, string $iframe_options): ?string
     {
         $player = preg_replace('/https:\/\/vimeo.com\/(\d+)\/(\w+)(\??)(\&?)/m', 'https://player.vimeo.com/video/$1?h=$2&', $url);
         return $matches[1] . '<div class="oembed-wrapper"><div style="position:relative;height:0;padding-bottom:56.25%"><iframe ' . $iframe_options . ' style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;overflow:hidden" src="' . $player . '"></iframe></div></div>' . $matches[4];
     }
 
-    private function processLoom(array $matches, string $url, string $iframe_options): string
+    private function processLoom(array $matches, string $url, string $iframe_options): ?string
     {
         return $matches[1] . '<div class="oembed-wrapper"><div style="position:relative;height:0;padding-bottom:56.25%"><iframe ' . $iframe_options . ' style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;overflow:hidden" src="' . str_replace('share', 'embed', $url) . '?hideEmbedTopBar=true"></iframe></div></div>' . $matches[4];
     }
 
-    private function processYoutube(array $matches, string $url, string $iframe_options): string
+    private function processYoutube(array $matches, string $url, string $iframe_options): ?string
     {
         if (str_contains($url, 'youtube.com')) {
             preg_match_all('/v=(.*?)($|&|#)/m', $url, $parts, PREG_SET_ORDER, 0);
@@ -158,7 +159,7 @@ class Markdown
         return $matches[1] . '<div class="oembed-wrapper"><div style="position:relative;height:0;padding-bottom:56.25%"><iframe ' . $iframe_options . ' style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;overflow:hidden" src="' . $embed_url . '"></iframe></div></div>' . $matches[4];
     }
 
-    private function processPageBreak(string $text): string
+    private function processPageBreak(string $text): ?string
     {
         return preg_replace(
             '/(^|\R)(~+)($|\R)/',
@@ -167,12 +168,12 @@ class Markdown
         );
     }
 
-    private function processCenter(string $text): string
+    private function processCenter(string $text): ?string
     {
         return preg_replace('/->(.*?)<-/', '<center>$1</center>', $text);
     }
 
-    private function processToggles(string $text): string
+    private function processToggles(string $text): ?string
     {
         return preg_replace_callback(
             '/(\[\[toggle\s(.*?)\]\]\s?\R?((\w*|.|\R)+)\[\[\/toggle\]\])/m',
@@ -183,7 +184,7 @@ class Markdown
         );
     }
 
-    private function processBoxes(string $text): string
+    private function processBoxes(string $text): ?string
     {
         return preg_replace_callback(
             '/((\[\[boxed(\s?(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/boxed\]\]))/m',
@@ -194,7 +195,7 @@ class Markdown
         );
     }
 
-    private function processCards(string $text): string
+    private function processCards(string $text): ?string
     {
         $text = preg_replace_callback(
             '/(\[\[card(\s(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/card\]\])/m',
@@ -203,6 +204,10 @@ class Markdown
             },
             $text
         );
+        if (!$text || !str_contains($text, '<div class="card">')) {
+            return $text . '';
+        }
+
         return preg_replace_callback(
             '/\((.*?)\)<div class="card">((\n|.)*?)<\/div>(\s+|$)/m',
             function ($matches) {
@@ -212,7 +217,7 @@ class Markdown
         );
     }
 
-    private function processTOC(string $text): string
+    private function processTOC(string $text): ?string
     {
         return preg_replace_callback(
             '/\n(#{2,4})\s+(.*?)\n/m',
@@ -234,7 +239,7 @@ class Markdown
         );
     }
 
-    private function processCallouts(string $text): string
+    private function processCallouts(string $text): ?string
     {
         $callouts = ['tip', 'note', 'info', 'warning', 'danger'];
         foreach ($callouts as $callout) {
@@ -262,7 +267,7 @@ class Markdown
         return $text;
     }
 
-    private function cleanupHtml(string $text): string
+    private function cleanupHtml(string $text): ?string
     {
         $replacements = [
             '<p><oembed' => '<oembed',
@@ -277,7 +282,7 @@ class Markdown
         return str_replace(array_keys($replacements), array_values($replacements), $text);
     }
 
-    private function processBookmarks(string $text): string
+    private function processBookmarks(string $text): ?string
     {
         $re = '/\[\+\] <a href="(.*)">(.*)<\/a>/m';
         $subst = '<svg viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg" style="margin:-2px 6px 0 0; width:14px; height:14px; display:inline"><path fill="currentColor" d="m0 487.7v-439.7c0-26.5 21.5-48 48-48h48v322.1c0 12.8 14.2 20.4 24.9 13.3l71.1-47.4 71.1 47.4c10.6 7.1 24.9-.5 24.9-13.3v-322.1h48c26.5 0 48 21.5 48 48v439.7c0 13.4-10.9 24.3-24.3 24.3-5 0-9.9-1.5-14-4.4l-153.7-107.6-153.7 107.6c-4.1 2.9-9 4.4-14 4.4-13.4 0-24.3-10.9-24.3-24.3z"/><path fill="currentColor" d="m192 288-71.1 47.4c-10.6 7.1-24.9-.5-24.9-13.3v-322.1h192v322.1c0 12.8-14.2 20.4-24.9 13.3z" opacity=".4"/></svg><a href="$1">$2</a><br>';
@@ -413,7 +418,7 @@ class Markdown
         $this->html_hashes = array();
     }
 
-    public function originalTransform(string $text): string
+    public function originalTransform(string $text): ?string
     {
         #
         # Main function. Performs some preprocessing on the input text
