@@ -771,15 +771,16 @@ class tiny
      * Returns a model instance.
      *
      * @param string $model The name of the model
+     * @param mixed ...$args The arguments to pass to the model constructor
      * @return object The model instance
      */
-    public static function model(string $model): object
+    public static function model(string $model, ...$args): object
     {
 
         static $models = [];
         if (!isset($models[$model])) {
             require_once self::$config->app_path . '/models/' . $model . '.php';
-            $models[$model] = new $model();
+            $models[$model] = new $model(...$args);
         }
         return $models[$model];
     }
