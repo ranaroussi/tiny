@@ -20,15 +20,20 @@ class Markdown
         $text = (string)$this->processOembed($text);
         $text = (string)$this->processPageBreak($text);
         $text = (string)$this->processCenter($text);
-        $text = (string)$this->processToggles($text);
+        $text = (string)$this->processDetails($text);
         $text = (string)$this->processBoxes($text);
         $text = (string)$this->processCards($text);
         $text = (string)$this->processTOC($text);
-        $text = (string)$this->originalTransform($text);
         $text = (string)$this->processCallouts($text);
+        $text = (string)$this->processTables($text);
+
+        $text = (string)$this->originalTransform($text);
+
         $text = (string)$this->cleanupHtml($text);
         $text = (string)$this->processBookmarks($text);
 
+        // replace `text` with <code>text</code>
+        $text = preg_replace('/`(.*?)`/m', '<code>$1</code>', $text);
         return $text;
     }
 
@@ -43,46 +48,94 @@ class Markdown
 
     private function processTabs(string $text): ?string
     {
-        $text = preg_replace(
-            '/(::::\s?tabs-code-group)\R+((\w*|.|\R)+)\R+(::::\s?+\R?+)/m',
-            "<div class=\"code-group\"><div class=\"md-tab-group\"><div class=\"md-tab-toolbar\"></div>\n$2\n</div></div>",
-            $text
-        );
-        $text = preg_replace(
-            '/(::::\s?tabs)\R+((\w*|.|\R)+)\R+(::::\s?+\R?+)/m',
-            "<div class=\"md-tab-group\"><div class=\"md-tab-toolbar\"></div>\n$2\n</div>",
-            $text
-        );
-        return preg_replace(
-            '/((:::\s?tab (.*?)(\s?\{(.+)\})?)\R((\w*|.|\R)+)(\R:::\s?\R))/m',
-            "<div class=\"md-tab\" data-tab-title=\"$3\" style=\"display:none\">\n$6\n</div>",
-            $text
-        );
+        // quick exit if no tabs marker found
+        if (strpos($text, '[[tabs]]') === false) {
+            return $text;
+        }
+
+        // replace each [[tabs]] ... [[/tabs]] block
+        return preg_replace_callback('/\[\[tabs\]\](.*?)\[\[\/tabs\]\]/si', function ($m) {
+            $block = $m[1];
+
+            // find all [[tab LABEL]] ... [[/tab]] blocks
+            if (!preg_match_all('/\[\[tab(?:\s+([^\]]+))?\]\](.*?)\[\[\/tab\]\]/si', $block, $tabs, PREG_SET_ORDER)) {
+                // no inner tabs - return original block unchanged
+                return $m[0];
+            }
+
+            $buttons = [];
+            $panels  = [];
+            $count   = 0;
+
+            $firstTab = true;
+            foreach ($tabs as $t) {
+                $activeClass = $firstTab ? ' active-tab' : '';
+                $firstTab = false;
+
+                $count++;
+
+                // label: everything after [[tab ...]]
+                $rawLabel = isset($t[1]) ? trim($t[1]) : '';
+                if ($rawLabel === '') {
+                    $rawLabel = "tab-$count";
+                }
+
+                // slug for data-target/id: trim, spaces -> hyphen, collapse multiple hyphens
+                $slug = strtolower(trim(preg_replace('/\s+/', '-', $rawLabel)));
+                $slug = preg_replace('/-+/', '-', $slug);
+
+                // button text: readable label (match your example: lowercase, remove spaces)
+                $buttonText = strtolower(preg_replace('/\s+/', '', $rawLabel));
+
+                // content stays exactly as-is
+                $content = $t[2];
+
+                $buttons[] = '  <button class="' . $activeClass . '" type="button" data-target="' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '">' .
+                    htmlspecialchars($buttonText, ENT_QUOTES, 'UTF-8') . '</button>';
+
+                $panels[]  = '<div class="' . $activeClass . '" data-id="' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '">' . $content . '</div>';
+            }
+
+            // assemble html
+            $html  = "<div class=\"tab-group\">\n";
+            $html .= "<nav>\n" . implode("\n", $buttons) . "\n</nav>\n";
+            $html .= implode("\n", $panels) . "\n";
+            $html .= "</div>";
+
+            return $html;
+        }, $text);
     }
 
     private function processSyntaxHighlighting(string $text): ?string
     {
-        $GLOBALS['mermaids'] = 0;
-        return preg_replace_callback(
-            '/```(\w*)(\s?(\{(.+)\})?)\R((\w*|.|\R)+?)\R```/ms',
-            function ($matches) {
-                $GLOBALS['mermaids']++;
-                $language = $matches[1];
-                $lineHighlight = $matches[4];
-                $code = $matches[5];
+        // Matches: ```lang{1,3-5}\nCODE\n```
+        // - lang is optional
+        // - {…} is optional and may be adjacent or spaced
+        $pattern = '~^```(?P<lang>[a-zA-Z0-9_-]+)?(?:[ \t]*\{(?P<hl>[^\}]+)\})?\R(?P<code>[\s\S]*?)\R```~m';
 
-                if ($language == 'mermaid') {
-                    return '<pre class="mermaid-src fixed hidden invisible opacity-0" style="top:-100vh;left:-100vh;" data-mermaid-id="' . $GLOBALS['mermaids'] . '">' . $code . '</pre><pre><code class="mermaid" id="mermaid-' . $GLOBALS['mermaids'] . '" style="color:transparent">' . $code . '</code></pre>';
-                } else {
-                    // If no language specified, use 'plaintext'
-                    $langClass = $language ? 'language-' . $language : 'language-plaintext';
-                    $highlight = $lineHighlight ? ' data-highlight="' . $lineHighlight . '"' : '';
-                    $lineAttr = $lineHighlight ? ' data-line="' . $lineHighlight . '"' : '';
-                    return '<pre data-prismjs-copy-timeout=1000' . $lineAttr . ' class="line-numbers"><code class="' . $langClass . '"' . $highlight . '>' . htmlspecialchars($code, ENT_NOQUOTES) . '</code></pre>';
-                }
-            },
-            $text
-        );
+        return preg_replace_callback($pattern, function ($m) {
+            static $mermaids = 0;
+
+            $language     = $m['lang'] ?? '';
+            $lineHighlight = isset($m['hl']) ? trim($m['hl']) : '';
+            $code         = $m['code'];
+
+            if ($language === 'mermaid') {
+                $mermaids++;
+                return '<pre class="mermaid-src fixed hidden invisible opacity-0" style="top:-100vh;left:-100vh;" data-mermaid-id="' . $mermaids . '">' . $code . '</pre>'
+                    . '<pre><code class="mermaid" id="mermaid-' . $mermaids . '" style="color:transparent">' . $code . '</code></pre>';
+            }
+
+            // Prism classes/attrs
+            $langClass = $language ? 'language-' . $language : 'language-plaintext';
+            $lineAttr  = $lineHighlight !== '' ? ' data-line="' . htmlspecialchars($lineHighlight, ENT_QUOTES) . '"' : '';
+            $copyAttr  = ' data-prismjs-copy-timeout="1000"'; // optional: Prism copy-to-clipboard plugin
+            $codeEsc   = htmlspecialchars($code, ENT_NOQUOTES);
+
+            return '<pre class="line-numbers"' . $lineAttr . $copyAttr . '>'
+                . '<code class="' . $langClass . '">' . $codeEsc . '</code>'
+                . '</pre>';
+        }, $text);
     }
 
     private function processTabContent(string $text): ?string
@@ -173,7 +226,7 @@ class Markdown
         return preg_replace('/->(.*?)<-/', '<center>$1</center>', $text);
     }
 
-    private function processToggles(string $text): ?string
+    private function processDetails(string $text): ?string
     {
         return preg_replace_callback(
             '/(\[\[toggle\s(.*?)\]\]\s?\R?((\w*|.|\R)+)\[\[\/toggle\]\])/m',
@@ -241,34 +294,311 @@ class Markdown
 
     private function processCallouts(string $text): ?string
     {
-        $callouts = ['tip', 'note', 'info', 'warning', 'danger'];
-        foreach ($callouts as $callout) {
-            $text = preg_replace(
-                '/(<p>\[\[' . $callout . '\]\]\s?\R((\w*|.|\R)+)\R\[\[\/' . $callout . '\]\]<\/p>)/m',
-                "<div class=\"callout callout-$callout\">$2</div>\n",
-                $text
-            );
-            $text = preg_replace(
-                '/(<p>\[\[' . $callout . '\s(.*?)\]\]\s?\R((\w*|.|\R)+)\R\[\[\/' . $callout . '\]\]<\/p>)/m',
-                "<div class=\"callout callout-$callout\">\n<h3>$2</h3>\n$3\n</div>\n",
-                $text
-            );
-            $text = preg_replace(
-                '/(<p>\[\[' . $callout . '\]\]<\/p>\s?\R((\w*|.|\R)+)\R<p>\[\[\/' . $callout . '\]\]<\/p>)/m',
-                "<div class=\"callout callout-$callout\">$2</div>\n",
-                $text
-            );
-            $text = preg_replace(
-                '/(<p>\[\[' . $callout . '\s(.*?)\]\]<\/p>\s?\R((\w*|.|\R)+)\R<p>\[\[\/' . $callout . '\]\]<\/p>)/m',
-                "<div class=\"callout callout-$callout\">\n<h3>$2</h3>\n$3\n</div>\n",
-                $text
-            );
+        $pattern = '/^[ \t]*>\s*\[\!(\w+)\][^\r\n]*\R((?:^[ \t]*>.*(?:\R|$))+)/mi';
+
+        return preg_replace_callback($pattern, function ($m) {
+            $type = strtolower($m[1]);
+
+            // Optional: normalize to a known set and map aliases as needed
+            $aliases = [
+                'info' => 'info',
+                'tip' => 'tip',
+                'important' => 'important',
+                'warning' => 'warning',
+                'caution' => 'warning',
+                'note' => 'note',
+                'danger' => 'danger',
+            ];
+            $type = $aliases[$type] ?? 'note';
+
+            // Remove the leading `>` from body lines
+            $inner = preg_replace('/^[ \t]*>\s?/m', '', $m[2]);
+            // Trim surrounding blank lines
+            $inner = trim($inner, "\r\n");
+
+            // replace newlines with double newlines
+            // $inner = preg_replace('/\R+/', "\n\n", $inner);
+
+            return '<!-- callout class="callout callout-' . $type . '" -->' . "\n\n"
+                . $inner . "\n\n<!-- /callout -->";
+        }, $text);
+    }
+
+    /**
+     * Splits a markdown table row string into individual cell values.
+     *
+     * Parses a pipe-delimited row string (e.g., "| col1 | col2 | col3 |")
+     * and returns an array of trimmed cell values. Handles optional spaces
+     * around pipes and trims edge pipes.
+     *
+     * @param string $row The table row string to parse
+     * @return array Array of cell values, or empty array if row is empty
+     */
+    function md_split_row(string $row): array
+    {
+        // trim edges, split on pipes with optional spaces
+        // Remove whitespace from start and end of row
+        $row = trim($row);
+        // Remove leading and trailing pipe characters if present
+        $row = trim($row, '|');
+        // Return empty array if row has no content after trimming
+        if ($row === '') return [];
+        // Split on pipe character with optional surrounding whitespace
+        // Unicode flag ensures proper handling of multibyte characters
+        return preg_split('/\s*\|\s*/u', $row);
+    }
+
+    /**
+     * Parses alignment markers from markdown table separator row cells.
+     *
+     * Converts markdown alignment syntax to CSS text-align values:
+     * - '---' or no colons = null (default alignment)
+     * - ':---' = 'left'
+     * - '---:' = 'right'
+     * - ':---:' = 'center'
+     *
+     * @param array $sepCells Array of separator cell strings (e.g., [':---', '---'])
+     * @return array Array of alignment values ('left', 'right', 'center', or null)
+     */
+    function md_parse_alignment(array $sepCells): array
+    {
+        // map '---', ':---', '---:', ':---:' to null/left/right/center
+        $out = [];
+        foreach ($sepCells as $cell) {
+            // Trim whitespace from cell content
+            $c = trim($cell);
+            // Check if colon is at the start (left alignment indicator)
+            $left  = (isset($c[0]) && $c[0] === ':');
+            // Check if colon is at the end (right alignment indicator)
+            $right = (strlen($c) && substr($c, -1) === ':');
+            // Both colons = center alignment
+            if ($left && $right) $out[] = 'center';
+            // Only right colon = right alignment
+            elseif ($right)      $out[] = 'right';
+            // Only left colon = left alignment
+            elseif ($left)       $out[] = 'left';
+            // No colons = default alignment (null)
+            else                 $out[] = null;
         }
-        return $text;
+        return $out;
+    }
+
+    /**
+     * Converts markdown tables to HTML table elements.
+     *
+     * Processes markdown table syntax (pipe-delimited rows with separator
+     * line) and converts them to properly formatted HTML tables. Supports:
+     * - Multiple columns with header rows
+     * - Column alignment via separator row syntax (:---, ---:, :---:)
+     * - Wrapping tables in div.table-wrapper for styling
+     *
+     * Uses a line-by-line scanning approach to identify table boundaries
+     * and preserve non-table content. Processes tables inline without
+     * affecting surrounding markdown content.
+     *
+     * @param string $text The markdown text containing potential tables
+     * @return string|null The text with markdown tables converted to HTML,
+     *                     or null if input is invalid
+     */
+    private function processTables(string $text): ?string
+    {
+        // quick bail-out: look for a header line and a separator line nearby
+        // - cheap check before splitting or scanning
+        // Pattern matches: optional whitespace + pipe + content + newline +
+        // whitespace + pipe + separator dashes (at least 3)
+        if (!preg_match('/^\s*\|.*\R\s*\|[ :\-]{3,}/m', $text)) {
+            return $text;
+        }
+
+        // Split text into individual lines for processing
+        // \R matches any Unicode newline sequence (CR, LF, CRLF, etc.)
+        $lines = preg_split('/\R/', $text);
+        // Output array to collect processed lines and HTML tables
+        $out   = [];
+        // Current line index during scanning
+        $i     = 0;
+        // Total number of lines to process
+        $n     = count($lines);
+
+        // helpers kept inside to satisfy "single function" requirement
+        /**
+         * Splits a table row line into individual cell values.
+         *
+         * Helper closure that processes a single row line, removing
+         * leading/trailing pipes and splitting on pipe delimiters.
+         *
+         * @param string $row The row line to split
+         * @return array Array of trimmed cell values
+         */
+        $splitRow = static function (string $row): array {
+            // Remove leading/trailing whitespace
+            $row = trim($row);
+            // Remove leading pipe if present
+            $row = preg_replace('/^\|/', '', $row); // strip one leading |
+            // Remove trailing pipe if present
+            $row = preg_replace('/\|$/', '', $row); // strip one trailing |
+            // Return empty array if row is empty after processing
+            if ($row === '') return [];
+            // Split on pipe character with optional surrounding whitespace
+            $cells = preg_split('/\s*\|\s*/', $row);
+            // Trim whitespace from each cell value
+            return array_map('trim', $cells);
+        };
+
+        /**
+         * Checks if a line is a valid markdown table row.
+         *
+         * Validates that the line starts with optional whitespace
+         * followed by a pipe character, indicating it's part of a table.
+         *
+         * @param string $line The line to check
+         * @return bool True if line appears to be a table row
+         */
+        $isRow = static function (string $line): bool {
+            // starts with optional spaces + '|' and has at least one more pipe
+            // Pattern: optional whitespace, pipe, any content, optional pipe, optional whitespace
+            return (bool)preg_match('/^\s*\|.*\|?\s*$/', $line);
+        };
+
+        /**
+         * Checks if a line is a markdown table separator row.
+         *
+         * Validates that the line contains dashes with optional colons
+         * indicating column alignment (---, :---, ---:, :---:).
+         *
+         * @param string $line The line to check
+         * @return bool True if line is a valid separator row
+         */
+        $isSep = static function (string $line) use ($splitRow): bool {
+            // separator must be made of dashes with optional colons: ---, :---, ---:, :---:
+            // Remove trailing pipe and whitespace
+            $line = rtrim(trim($line), '|');
+            // Add pipe back for consistent parsing with splitRow
+            $cells = $splitRow($line . '|'); // reuse splitter
+            // Return false if no cells found
+            if (!$cells) return false;
+            // Check each cell contains only dashes and optional colons
+            foreach ($cells as $c) {
+                // Pattern: optional colon, 3+ dashes, optional colon
+                if (!preg_match('/^:?-{3,}:?$/', trim($c))) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        /**
+         * Parses alignment values from separator row cells.
+         *
+         * Converts separator cell syntax to CSS alignment values.
+         * Used internally within processTables for consistency.
+         *
+         * @param array $sepCells Array of separator cell strings
+         * @return array Array of alignment values ('left', 'right', 'center', or null)
+         */
+        $parseAlign = static function (array $sepCells): array {
+            $out = [];
+            foreach ($sepCells as $cell) {
+                // Trim whitespace from cell
+                $cell = trim($cell);
+                // Check for left alignment colon
+                $left  = ($cell !== '' && $cell[0] === ':');
+                // Check for right alignment colon
+                $right = ($cell !== '' && substr($cell, -1) === ':');
+                // Determine alignment based on colon positions
+                if ($left && $right) $out[] = 'center';
+                elseif ($right)      $out[] = 'right';
+                elseif ($left)       $out[] = 'left';
+                else                 $out[] = null;
+            }
+            return $out;
+        };
+
+        // Main processing loop: scan lines to find and convert tables
+        while ($i < $n) {
+            // Check if current line is a table row AND next line is a separator
+            // If not, copy line as-is and continue to next line
+            if (! $isRow($lines[$i]) || $i + 1 >= $n || ! $isSep($lines[$i + 1])) {
+                $out[] = $lines[$i++];
+                continue;
+            }
+
+            // we have a table: collect header, sep, and data rows
+            // Extract header row (first row of table)
+            $headerLine = $lines[$i++];
+            // Extract separator row (defines column alignment)
+            $sepLine    = $lines[$i++];
+
+            // Collect all data rows following the separator
+            // Continue while remaining lines are valid table rows
+            $rowLines = [];
+            while ($i < $n && $isRow($lines[$i])) {
+                $rowLines[] = $lines[$i++];
+            }
+
+            // parse
+            // Split header row into individual column headers
+            $headers = $splitRow($headerLine);
+            // Parse alignment from separator row cells
+            $aligns  = $parseAlign($splitRow($sepLine));
+            // Ensure alignment array matches header count (pad with null if needed)
+            $aligns  = array_pad($aligns, count($headers), null);
+
+            // build html
+            // Start table HTML with wrapper div and table element
+            $html = "<div class=\"table-wrapper\"><table class=\"table\">\n<thead>\n<tr>";
+            // Generate header cells with alignment attributes
+            foreach ($headers as $idx => $h) {
+                // Add text-align style if alignment is specified
+                $attr = $aligns[$idx] ? ' style="text-align:' . $aligns[$idx] . '"' : '';
+                // Escape header text and wrap in <th> tag
+                $html .= "<th{$attr}>" . htmlspecialchars($h, ENT_QUOTES, 'UTF-8') . "</th>";
+            }
+            // Close header row and start table body
+            $html .= "</tr>\n</thead>\n<tbody>\n";
+
+            // Process each data row
+            foreach ($rowLines as $row) {
+                // Split row into individual cells
+                $cols = $splitRow($row);
+                // pad/truncate to header count
+                // Ensure cell count matches header count (pad with empty strings)
+                $cols = array_pad($cols, count($headers), '');
+                // Truncate if row has more cells than headers
+                $cols = array_slice($cols, 0, count($headers));
+
+                // Start table row
+                $html .= "<tr>";
+                // Generate data cells with alignment attributes
+                foreach ($cols as $idx => $c) {
+                    // Add text-align style if alignment is specified
+                    $attr = $aligns[$idx] ? ' style="text-align:' . $aligns[$idx] . '"' : '';
+                    // Escape cell text and wrap in <td> tag
+                    $html .= "<td{$attr}>" . htmlspecialchars($c, ENT_QUOTES, 'UTF-8') . "</td>";
+                }
+                // Close table row
+                $html .= "</tr>\n";
+            }
+            // Close table body, table, and wrapper div
+            $html .= "</tbody>\n</table></div>";
+
+            // Add completed table HTML to output
+            $out[] = $html;
+        }
+
+        // Join all processed lines and tables back into single string
+        return implode("\n", $out);
     }
 
     private function cleanupHtml(string $text): ?string
     {
+        // fix inline code
+        $text = preg_replace('/`(.*?)`/m', '<code>$1</code>', $text);
+
+        // fix callouts
+        $text = preg_replace('/<!-- callout class="callout callout-(.*?)" -->/m', '<div class="callout callout-$1">', $text);
+        $text = preg_replace('/<!-- \/callout -->/m', '</div>', $text);
+
         $replacements = [
             '<p><oembed' => '<oembed',
             '</oembed></p>' => '</oembed>',
