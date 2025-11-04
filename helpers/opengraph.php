@@ -20,7 +20,6 @@ class OpenGraphImage
     private string $titleText;
     private string $title;
     private float $titleFontSize;
-    private float $titleSpacing;
     private int $titleBaseTopOffset;
     private float $titleLineHeight;
     private string $titleFont;
@@ -31,7 +30,6 @@ class OpenGraphImage
     private ?string $descriptionText;
     private ?string $description = null;
     private ?float $descriptionFontSize = null;
-    private ?float $descriptionSpacing = null;
     private ?int $descriptionTopOffset = null;
     private ?float $descriptionLineHeight = null;
     private ?string $descriptionFont = null;
@@ -80,10 +78,9 @@ class OpenGraphImage
      */
     public function setTitleOptions(
         float $fontSize = 37,
-        float $spacing = .95,
         float $lineHeight = 1.5,
         array $colorRGB = [0, 0, 0],
-        string $font = 'inter-bold.ttf'
+        string $font = 'inter-bold.ttf',
     ): void {
         if (!isset($this->titleText)) {
             throw new Exception('Please use `setTitle()` before configuring the title');
@@ -91,7 +88,6 @@ class OpenGraphImage
 
         // Store title configuration
         $this->titleFontSize = $fontSize;
-        $this->titleSpacing = $spacing;
         $this->titleLineHeight = $lineHeight;
         $this->titleFont = $this->basePath . '/' . $font;
         $this->titleColor = $colorRGB;
@@ -120,10 +116,10 @@ class OpenGraphImage
      */
     public function setDescriptionOptions(
         float $fontSize = 20,
-        float $spacing = 0,
         float $lineHeight = 1.8,
         array $colorRGB = [0, 0, 0],
-        string $font = 'inter-medium.ttf'
+        string $font = 'inter-medium.ttf',
+        int $descriptionTopOffset = 10,
     ): void {
         if (!isset($this->descriptionText)) {
             throw new Exception('Please use `setDescription()` before configuring the description');
@@ -131,11 +127,10 @@ class OpenGraphImage
 
         // Store description configuration
         $this->descriptionFontSize = $fontSize;
-        $this->descriptionSpacing = $spacing;
         $this->descriptionLineHeight = $lineHeight;
         $this->descriptionFont = $this->basePath . '/' . $font;
         $this->descriptionColor = $colorRGB;
-        $this->descriptionTopOffset = 10;
+        $this->descriptionTopOffset = $descriptionTopOffset;
 
         // Calculate text wrapping based on font size
         $this->descriptionMaxChars = (int)round($this->textBoxWidth / $fontSize * 1.5);
@@ -188,8 +183,7 @@ class OpenGraphImage
             $this->titleLineHeight,
             $topOffset,
             $titleColor,
-            $this->titleFont,
-            $this->titleSpacing
+            $this->titleFont
         );
 
         // Render description if present
@@ -213,8 +207,7 @@ class OpenGraphImage
                 $this->descriptionLineHeight,
                 $bottomOffset + $this->descriptionTopOffset,
                 $descriptionColor,
-                $this->descriptionFont,
-                $this->descriptionSpacing
+                $this->descriptionFont
             );
         }
 
@@ -237,7 +230,7 @@ class OpenGraphImage
     }
 
     /**
-     * Helper function to render text with proper spacing and positioning
+     * Helper function to render text with proper positioning
      * Returns the Y position after rendering for stacking multiple text blocks
      */
     private function renderText(
@@ -247,45 +240,23 @@ class OpenGraphImage
         float $lineHeight,
         float $y,
         $color,
-        string $font,
-        float $spacing = 0
+        string $font
     ): float {
         $lines = explode("\n", mb_convert_encoding($text, 'UTF-8', 'auto'));
         $lineCount = count($lines);
         $angle = 0;
 
         foreach ($lines as $i => $line) {
-            // Fast path for no letter spacing
-            if ($spacing == 0) {
-                imagettftext(
-                    $image,
-                    $fontSize,
-                    $angle,
-                    (int)$this->leftOffset,
-                    (int)($y + ($i * $fontSize * $lineHeight)),
-                    $color,
-                    $font,
-                    $line
-                );
-                continue;
-            }
-
-            // Render each character individually for custom letter spacing
-            $x = $this->leftOffset;
-            $chars = str_split($line);
-            foreach ($chars as $char) {
-                $bbox = imagettftext(
-                    $image,
-                    $fontSize,
-                    $angle,
-                    (int)$x,
-                    (int)($y + ($i * $fontSize * $lineHeight)),
-                    $color,
-                    $font,
-                    $char
-                );
-                $x += $spacing + ($bbox[2] - $bbox[0]);
-            }
+            imagettftext(
+                $image,
+                $fontSize,
+                $angle,
+                (int)$this->leftOffset,
+                (int)($y + ($i * $fontSize * $lineHeight)),
+                $color,
+                $font,
+                $line
+            );
         }
 
         return $y + ($lineCount * $fontSize * $lineHeight);
@@ -293,5 +264,5 @@ class OpenGraphImage
 }
 
 tiny::registerHelper('opengraph', function($baseDir = 'ogfiles') {
-    return new OpenGraphImage(tiny::$config->static_path . '/' . $baseDir);
+    return new OpenGraphImage(tiny::$config->app_path . '/static/' . $baseDir);
 });
