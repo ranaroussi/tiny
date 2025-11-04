@@ -7,6 +7,20 @@ class Markdown
 {
     public const MARKDOWNLIB_VERSION = "1.6.0";
 
+    /**
+     * Main transformation method that converts markdown to HTML.
+     *
+     * Processes text through multiple stages of markdown parsing:
+     * 1. Custom syntax (cols, tabs, syntax highlighting, embeds, etc.)
+     * 2. Standard markdown (via originalTransform)
+     * 3. HTML cleanup and post-processing
+     *
+     * The order of operations is important as some processors depend on
+     * output from previous processors.
+     *
+     * @param string|null $text The markdown text to convert
+     * @return string|null The HTML output, or null/empty if input is invalid
+     */
     public function transform(?string $text): ?string
     {
         if (!$text) return '';
@@ -37,6 +51,15 @@ class Markdown
         return $text;
     }
 
+    /**
+     * Processes column layout syntax in markdown.
+     *
+     * Converts custom column syntax (:::: cols=2) to HTML div elements
+     * with CSS grid styling for multi-column layouts.
+     *
+     * @param string $text The markdown text containing column syntax
+     * @return string|null The text with columns converted to HTML
+     */
     private function processCols(string $text): ?string
     {
         return preg_replace(
@@ -46,9 +69,19 @@ class Markdown
         );
     }
 
+    /**
+     * Processes tab group syntax in markdown.
+     *
+     * Converts custom tab syntax ([[tabs]]...[[/tabs]]) with individual tabs
+     * ([[tab Label]]...[[/tab]]) into HTML tab groups with navigation buttons
+     * and content panels. First tab is active by default.
+     *
+     * @param string $text The markdown text containing tab syntax
+     * @return string|null The text with tabs converted to HTML
+     */
     private function processTabs(string $text): ?string
     {
-        // quick exit if no tabs marker found
+        // Quick exit if no tabs marker found
         if (strpos($text, '[[tabs]]') === false) {
             return $text;
         }
@@ -106,6 +139,18 @@ class Markdown
         }, $text);
     }
 
+    /**
+     * Processes code blocks with syntax highlighting.
+     *
+     * Converts fenced code blocks (```lang```) to HTML pre/code elements
+     * with Prism.js classes for syntax highlighting. Supports:
+     * - Optional language specifier
+     * - Optional line highlighting ({1,3-5})
+     * - Mermaid diagram rendering
+     *
+     * @param string $text The markdown text containing code blocks
+     * @return string|null The text with code blocks converted to HTML
+     */
     private function processSyntaxHighlighting(string $text): ?string
     {
         // Matches: ```lang{1,3-5}\nCODE\n```
@@ -138,6 +183,16 @@ class Markdown
         }, $text);
     }
 
+    /**
+     * Processes tab content that needs markdown transformation.
+     *
+     * Applies markdown transformation to content inside tab divs that
+     * were marked for processing. Used as a second pass after tab
+     * structure is created.
+     *
+     * @param string $text The text containing tab content divs
+     * @return string|null The text with tab content transformed
+     */
     private function processTabContent(string $text): ?string
     {
         return preg_replace_callback(
@@ -149,6 +204,16 @@ class Markdown
         );
     }
 
+    /**
+     * Processes tab divs that don't contain code blocks.
+     *
+     * Applies markdown transformation to tabs that don't start with
+     * code blocks. Code block tabs are preserved as-is to avoid double
+     * processing.
+     *
+     * @param string $text The text containing tab divs
+     * @return string|null The text with non-code tabs transformed
+     */
     private function processNoCodeTabs(string $text): ?string
     {
         return preg_replace_callback(
@@ -160,6 +225,16 @@ class Markdown
         );
     }
 
+    /**
+     * Processes oEmbed links for embedded media content.
+     *
+     * Converts special syntax ([>](url)) to embedded media players for
+     * supported services: YouTube, Vimeo, Loom, and Asciinema.
+     * Unsupported URLs are converted to generic oembed tags.
+     *
+     * @param string $text The markdown text containing embed syntax
+     * @return string|null The text with embeds converted to HTML
+     */
     private function processOembed(string $text): ?string
     {
         return preg_replace_callback(
@@ -181,6 +256,16 @@ class Markdown
         );
     }
 
+    /**
+     * Processes Asciinema recording embeds.
+     *
+     * Extracts the recording ID from the URL and generates an embed script
+     * tag for Asciinema terminal recording playback.
+     *
+     * @param array $matches The regex match array from processOembed
+     * @param string $url The Asciinema URL to embed
+     * @return string|null The HTML for the embedded recording
+     */
     private function processAsciinema(array $matches, string $url): ?string
     {
         preg_match_all('/a\/(.*?)(\?(.*?))?$/m', $url, $parts, PREG_SET_ORDER, 0);
@@ -189,17 +274,51 @@ class Markdown
         return $matches[1] . '<div class="oembed-wrapper" style="overflow-y:hidden"><div style="margin-bottom: -16px"><script id="asciicast-' . $id . '" src="https://asciinema.org/a/' . $id . '.js' . $qs . '" async></script></div></div>' . $matches[4];
     }
 
+    /**
+     * Processes Vimeo video embeds.
+     *
+     * Converts Vimeo URLs to embedded iframe player with 16:9 aspect
+     * ratio. Handles both standard and unlisted video URLs.
+     *
+     * @param array $matches The regex match array from processOembed
+     * @param string $url The Vimeo URL to embed
+     * @param string $iframe_options HTML attributes for the iframe
+     * @return string|null The HTML for the embedded video
+     */
     private function processVimeo(array $matches, string $url, string $iframe_options): ?string
     {
         $player = preg_replace('/https:\/\/vimeo.com\/(\d+)\/(\w+)(\??)(\&?)/m', 'https://player.vimeo.com/video/$1?h=$2&', $url);
         return $matches[1] . '<div class="oembed-wrapper"><div style="position:relative;height:0;padding-bottom:56.25%"><iframe ' . $iframe_options . ' style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;overflow:hidden" src="' . $player . '"></iframe></div></div>' . $matches[4];
     }
 
+    /**
+     * Processes Loom video embeds.
+     *
+     * Converts Loom share URLs to embedded iframe player with 16:9
+     * aspect ratio and hidden top bar for cleaner embedding.
+     *
+     * @param array $matches The regex match array from processOembed
+     * @param string $url The Loom URL to embed
+     * @param string $iframe_options HTML attributes for the iframe
+     * @return string|null The HTML for the embedded video
+     */
     private function processLoom(array $matches, string $url, string $iframe_options): ?string
     {
         return $matches[1] . '<div class="oembed-wrapper"><div style="position:relative;height:0;padding-bottom:56.25%"><iframe ' . $iframe_options . ' style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;overflow:hidden" src="' . str_replace('share', 'embed', $url) . '?hideEmbedTopBar=true"></iframe></div></div>' . $matches[4];
     }
 
+    /**
+     * Processes YouTube video embeds.
+     *
+     * Converts YouTube URLs (both youtube.com and youtu.be) to embedded
+     * iframe player with 16:9 aspect ratio. Extracts video ID from
+     * various URL formats.
+     *
+     * @param array $matches The regex match array from processOembed
+     * @param string $url The YouTube URL to embed
+     * @param string $iframe_options HTML attributes for the iframe
+     * @return string|null The HTML for the embedded video
+     */
     private function processYoutube(array $matches, string $url, string $iframe_options): ?string
     {
         if (str_contains($url, 'youtube.com')) {
@@ -212,6 +331,15 @@ class Markdown
         return $matches[1] . '<div class="oembed-wrapper"><div style="position:relative;height:0;padding-bottom:56.25%"><iframe ' . $iframe_options . ' style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;overflow:hidden" src="' . $embed_url . '"></iframe></div></div>' . $matches[4];
     }
 
+    /**
+     * Processes page break syntax for printing.
+     *
+     * Converts tilde sequences (~~~) to HTML divs with print-page-break
+     * class, useful for controlling page breaks in PDF exports.
+     *
+     * @param string $text The markdown text containing page break syntax
+     * @return string|null The text with page breaks converted to HTML
+     */
     private function processPageBreak(string $text): ?string
     {
         return preg_replace(
@@ -221,11 +349,29 @@ class Markdown
         );
     }
 
+    /**
+     * Processes center alignment syntax.
+     *
+     * Converts custom syntax (->text<-) to HTML center tags for
+     * centered content.
+     *
+     * @param string $text The markdown text containing center syntax
+     * @return string|null The text with centered content wrapped in tags
+     */
     private function processCenter(string $text): ?string
     {
         return preg_replace('/->(.*?)<-/', '<center>$1</center>', $text);
     }
 
+    /**
+     * Processes collapsible details/toggle syntax.
+     *
+     * Converts custom syntax ([[toggle Label]]...[[/toggle]]) to HTML
+     * details/summary elements for collapsible content sections.
+     *
+     * @param string $text The markdown text containing toggle syntax
+     * @return string|null The text with toggles converted to HTML
+     */
     private function processDetails(string $text): ?string
     {
         return preg_replace_callback(
@@ -237,6 +383,15 @@ class Markdown
         );
     }
 
+    /**
+     * Processes boxed content syntax.
+     *
+     * Converts custom syntax ([[boxed variant]]...[[/boxed]]) to HTML
+     * divs with boxed styling. Optional variant adds additional classes.
+     *
+     * @param string $text The markdown text containing boxed syntax
+     * @return string|null The text with boxes converted to HTML
+     */
     private function processBoxes(string $text): ?string
     {
         return preg_replace_callback(
@@ -248,6 +403,16 @@ class Markdown
         );
     }
 
+    /**
+     * Processes card component syntax.
+     *
+     * Converts custom syntax ([[card Title]]...[[/card]]) to HTML divs
+     * with card styling. If preceded by a link, wraps the entire card
+     * in an anchor tag.
+     *
+     * @param string $text The markdown text containing card syntax
+     * @return string|null The text with cards converted to HTML
+     */
     private function processCards(string $text): ?string
     {
         $text = preg_replace_callback(
@@ -270,6 +435,17 @@ class Markdown
         );
     }
 
+    /**
+     * Processes table of contents anchor generation for headers.
+     *
+     * Converts headers (##, ###, ####) to anchored header tags with IDs
+     * derived from the header text. Creates linkable anchors for
+     * documentation navigation. Special case: "up-next" headers are
+     * not anchored.
+     *
+     * @param string $text The markdown text containing headers
+     * @return string|null The text with headers converted to anchored HTML
+     */
     private function processTOC(string $text): ?string
     {
         return preg_replace_callback(
@@ -292,6 +468,15 @@ class Markdown
         );
     }
 
+    /**
+     * Processes callouts in markdown text.
+     *
+     * Converts markdown callout syntax (e.g., `> [!info] This is an info callout`)
+     * to HTML callout elements with appropriate classes.
+     *
+     * @param string $text The markdown text containing callouts
+     * @return string|null The text with callouts converted to HTML, or null if input is invalid
+     */
     private function processCallouts(string $text): ?string
     {
         $pattern = '/^[ \t]*>\s*\[\!(\w+)\][^\r\n]*\R((?:^[ \t]*>.*(?:\R|$))+)/mi';
@@ -325,65 +510,6 @@ class Markdown
     }
 
     /**
-     * Splits a markdown table row string into individual cell values.
-     *
-     * Parses a pipe-delimited row string (e.g., "| col1 | col2 | col3 |")
-     * and returns an array of trimmed cell values. Handles optional spaces
-     * around pipes and trims edge pipes.
-     *
-     * @param string $row The table row string to parse
-     * @return array Array of cell values, or empty array if row is empty
-     */
-    function md_split_row(string $row): array
-    {
-        // trim edges, split on pipes with optional spaces
-        // Remove whitespace from start and end of row
-        $row = trim($row);
-        // Remove leading and trailing pipe characters if present
-        $row = trim($row, '|');
-        // Return empty array if row has no content after trimming
-        if ($row === '') return [];
-        // Split on pipe character with optional surrounding whitespace
-        // Unicode flag ensures proper handling of multibyte characters
-        return preg_split('/\s*\|\s*/u', $row);
-    }
-
-    /**
-     * Parses alignment markers from markdown table separator row cells.
-     *
-     * Converts markdown alignment syntax to CSS text-align values:
-     * - '---' or no colons = null (default alignment)
-     * - ':---' = 'left'
-     * - '---:' = 'right'
-     * - ':---:' = 'center'
-     *
-     * @param array $sepCells Array of separator cell strings (e.g., [':---', '---'])
-     * @return array Array of alignment values ('left', 'right', 'center', or null)
-     */
-    function md_parse_alignment(array $sepCells): array
-    {
-        // map '---', ':---', '---:', ':---:' to null/left/right/center
-        $out = [];
-        foreach ($sepCells as $cell) {
-            // Trim whitespace from cell content
-            $c = trim($cell);
-            // Check if colon is at the start (left alignment indicator)
-            $left  = (isset($c[0]) && $c[0] === ':');
-            // Check if colon is at the end (right alignment indicator)
-            $right = (strlen($c) && substr($c, -1) === ':');
-            // Both colons = center alignment
-            if ($left && $right) $out[] = 'center';
-            // Only right colon = right alignment
-            elseif ($right)      $out[] = 'right';
-            // Only left colon = left alignment
-            elseif ($left)       $out[] = 'left';
-            // No colons = default alignment (null)
-            else                 $out[] = null;
-        }
-        return $out;
-    }
-
-    /**
      * Converts markdown tables to HTML table elements.
      *
      * Processes markdown table syntax (pipe-delimited rows with separator
@@ -402,8 +528,9 @@ class Markdown
      */
     private function processTables(string $text): ?string
     {
-        // quick bail-out: look for a header line and a separator line nearby
-        // - cheap check before splitting or scanning
+        // Quick bail-out: look for a header line and a separator line nearby
+        // This is a cheap check before splitting or scanning to avoid
+        // unnecessary processing if no tables are present.
         // Pattern matches: optional whitespace + pipe + content + newline +
         // whitespace + pipe + separator dashes (at least 3)
         if (!preg_match('/^\s*\|.*\R\s*\|[ :\-]{3,}/m', $text)) {
@@ -420,28 +547,30 @@ class Markdown
         // Total number of lines to process
         $n     = count($lines);
 
-        // helpers kept inside to satisfy "single function" requirement
+        // Helper closures kept inside to satisfy "single function" requirement
         /**
          * Splits a table row line into individual cell values.
          *
          * Helper closure that processes a single row line, removing
          * leading/trailing pipes and splitting on pipe delimiters.
+         * Handles optional whitespace around pipes.
          *
-         * @param string $row The row line to split
+         * @param string $row The row line to split (e.g., "| col1 | col2 |")
          * @return array Array of trimmed cell values
          */
         $splitRow = static function (string $row): array {
-            // Remove leading/trailing whitespace
+            // Remove leading/trailing whitespace from entire row
             $row = trim($row);
-            // Remove leading pipe if present
+            // Remove leading pipe if present (markdown tables start with |)
             $row = preg_replace('/^\|/', '', $row); // strip one leading |
-            // Remove trailing pipe if present
+            // Remove trailing pipe if present (markdown tables end with |)
             $row = preg_replace('/\|$/', '', $row); // strip one trailing |
             // Return empty array if row is empty after processing
             if ($row === '') return [];
             // Split on pipe character with optional surrounding whitespace
+            // This handles variations like "|col1|col2|" or "| col1 | col2 |"
             $cells = preg_split('/\s*\|\s*/', $row);
-            // Trim whitespace from each cell value
+            // Trim whitespace from each cell value to normalize content
             return array_map('trim', $cells);
         };
 
@@ -450,13 +579,16 @@ class Markdown
          *
          * Validates that the line starts with optional whitespace
          * followed by a pipe character, indicating it's part of a table.
+         * The line must contain at least one pipe delimiter.
          *
          * @param string $line The line to check
          * @return bool True if line appears to be a table row
          */
         $isRow = static function (string $line): bool {
-            // starts with optional spaces + '|' and has at least one more pipe
-            // Pattern: optional whitespace, pipe, any content, optional pipe, optional whitespace
+            // Pattern matches lines that start with optional spaces + '|'
+            // and have at least one more pipe or content
+            // Pattern: optional whitespace, pipe, any content, optional pipe,
+            // optional whitespace
             return (bool)preg_match('/^\s*\|.*\|?\s*$/', $line);
         };
 
@@ -464,22 +596,26 @@ class Markdown
          * Checks if a line is a markdown table separator row.
          *
          * Validates that the line contains dashes with optional colons
-         * indicating column alignment (---, :---, ---:, :---:).
+         * indicating column alignment. Valid formats:
+         * - '---' (default alignment)
+         * - ':---' (left alignment)
+         * - '---:' (right alignment)
+         * - ':---:' (center alignment)
          *
          * @param string $line The line to check
          * @return bool True if line is a valid separator row
          */
         $isSep = static function (string $line) use ($splitRow): bool {
-            // separator must be made of dashes with optional colons: ---, :---, ---:, :---:
-            // Remove trailing pipe and whitespace
+            // Separator must be made of dashes with optional colons
+            // Remove trailing pipe and whitespace for parsing
             $line = rtrim(trim($line), '|');
-            // Add pipe back for consistent parsing with splitRow
+            // Add pipe back for consistent parsing with splitRow helper
             $cells = $splitRow($line . '|'); // reuse splitter
-            // Return false if no cells found
+            // Return false if no cells found (invalid separator)
             if (!$cells) return false;
             // Check each cell contains only dashes and optional colons
+            // Pattern: optional colon at start, 3+ dashes, optional colon at end
             foreach ($cells as $c) {
-                // Pattern: optional colon, 3+ dashes, optional colon
                 if (!preg_match('/^:?-{3,}:?$/', trim($c))) {
                     return false;
                 }
@@ -491,111 +627,141 @@ class Markdown
          * Parses alignment values from separator row cells.
          *
          * Converts separator cell syntax to CSS alignment values.
-         * Used internally within processTables for consistency.
+         * Mapping:
+         * - ':---:' or ':--:' -> 'center'
+         * - '---:' or '--:' -> 'right'
+         * - ':---' or ':--' -> 'left'
+         * - '---' or '--' -> null (default)
          *
          * @param array $sepCells Array of separator cell strings
-         * @return array Array of alignment values ('left', 'right', 'center', or null)
+         * @return array Array of alignment values ('left', 'right',
+         *               'center', or null)
          */
         $parseAlign = static function (array $sepCells): array {
             $out = [];
             foreach ($sepCells as $cell) {
-                // Trim whitespace from cell
+                // Trim whitespace from cell before checking colon positions
                 $cell = trim($cell);
-                // Check for left alignment colon
+                // Check for left alignment colon (colon at start)
                 $left  = ($cell !== '' && $cell[0] === ':');
-                // Check for right alignment colon
+                // Check for right alignment colon (colon at end)
                 $right = ($cell !== '' && substr($cell, -1) === ':');
                 // Determine alignment based on colon positions
+                // Both colons present = center alignment
                 if ($left && $right) $out[] = 'center';
+                // Only right colon = right alignment
                 elseif ($right)      $out[] = 'right';
+                // Only left colon = left alignment
                 elseif ($left)       $out[] = 'left';
+                // No colons = default alignment (null, browser default)
                 else                 $out[] = null;
             }
             return $out;
         };
 
         // Main processing loop: scan lines to find and convert tables
+        // Iterate through all lines, identifying table blocks and converting
+        // them to HTML while preserving non-table content
         while ($i < $n) {
             // Check if current line is a table row AND next line is a separator
-            // If not, copy line as-is and continue to next line
+            // If conditions not met, copy line as-is and continue to next line
+            // This preserves all non-table content in the original format
             if (! $isRow($lines[$i]) || $i + 1 >= $n || ! $isSep($lines[$i + 1])) {
                 $out[] = $lines[$i++];
                 continue;
             }
 
-            // we have a table: collect header, sep, and data rows
-            // Extract header row (first row of table)
+            // We have a valid table: collect header, separator, and data rows
+            // Extract header row (first row of table, contains column names)
             $headerLine = $lines[$i++];
-            // Extract separator row (defines column alignment)
+            // Extract separator row (defines column alignment via dashes/colons)
             $sepLine    = $lines[$i++];
 
             // Collect all data rows following the separator
-            // Continue while remaining lines are valid table rows
+            // Continue collecting while remaining lines are valid table rows
+            // Stops when encountering a non-table line or end of input
             $rowLines = [];
             while ($i < $n && $isRow($lines[$i])) {
                 $rowLines[] = $lines[$i++];
             }
 
-            // parse
+            // Parse table structure
             // Split header row into individual column headers
             $headers = $splitRow($headerLine);
             // Parse alignment from separator row cells
             $aligns  = $parseAlign($splitRow($sepLine));
-            // Ensure alignment array matches header count (pad with null if needed)
+            // Ensure alignment array matches header count
+            // Pad with null if separator has fewer cells than headers
             $aligns  = array_pad($aligns, count($headers), null);
 
-            // build html
-            // Start table HTML with wrapper div and table element
+            // Build HTML table structure
+            // Start table HTML with wrapper div for styling and table element
             $html = "<div class=\"table-wrapper\"><table class=\"table\">\n<thead>\n<tr>";
             // Generate header cells with alignment attributes
             foreach ($headers as $idx => $h) {
-                // Add text-align style if alignment is specified
+                // Add text-align style attribute if alignment is specified
+                // If alignment is null, no style attribute is added (browser default)
                 $attr = $aligns[$idx] ? ' style="text-align:' . $aligns[$idx] . '"' : '';
-                // Escape header text and wrap in <th> tag
+                // Escape header text to prevent XSS and wrap in <th> tag
                 $html .= "<th{$attr}>" . htmlspecialchars($h, ENT_QUOTES, 'UTF-8') . "</th>";
             }
-            // Close header row and start table body
+            // Close header row and start table body section
             $html .= "</tr>\n</thead>\n<tbody>\n";
 
-            // Process each data row
+            // Process each data row in the table
             foreach ($rowLines as $row) {
                 // Split row into individual cells
                 $cols = $splitRow($row);
-                // pad/truncate to header count
-                // Ensure cell count matches header count (pad with empty strings)
+                // Ensure cell count matches header count
+                // Pad with empty strings if row has fewer cells than headers
                 $cols = array_pad($cols, count($headers), '');
                 // Truncate if row has more cells than headers
+                // Extra cells are ignored to maintain table structure
                 $cols = array_slice($cols, 0, count($headers));
 
-                // Start table row
+                // Start new table row
                 $html .= "<tr>";
                 // Generate data cells with alignment attributes
                 foreach ($cols as $idx => $c) {
-                    // Add text-align style if alignment is specified
+                    // Add text-align style attribute if alignment is specified
+                    // Uses same alignment as corresponding header column
                     $attr = $aligns[$idx] ? ' style="text-align:' . $aligns[$idx] . '"' : '';
-                    // Escape cell text and wrap in <td> tag
+                    // Escape cell text to prevent XSS and wrap in <td> tag
                     $html .= "<td{$attr}>" . htmlspecialchars($c, ENT_QUOTES, 'UTF-8') . "</td>";
                 }
                 // Close table row
                 $html .= "</tr>\n";
             }
-            // Close table body, table, and wrapper div
+            // Close table body, table element, and wrapper div
             $html .= "</tbody>\n</table></div>";
 
-            // Add completed table HTML to output
+            // Add completed table HTML to output array
             $out[] = $html;
         }
 
         // Join all processed lines and tables back into single string
+        // Newlines are preserved to maintain document structure
         return implode("\n", $out);
     }
 
+    /**
+     * Cleans up HTML output after markdown processing.
+     *
+     * Fixes common HTML issues introduced during markdown processing:
+     * - Processes inline code backticks
+     * - Converts callout comment markers to div elements
+     * - Removes unwanted paragraph tags around block elements
+     * - Removes empty paragraph tags
+     *
+     * @param string $text The HTML text that needs cleanup
+     * @return string|null The cleaned HTML text
+     */
     private function cleanupHtml(string $text): ?string
     {
-        // fix inline code
+        // Fix inline code
         $text = preg_replace('/`(.*?)`/m', '<code>$1</code>', $text);
 
-        // fix callouts
+        // Fix callouts
         $text = preg_replace('/<!-- callout class="callout callout-(.*?)" -->/m', '<div class="callout callout-$1">', $text);
         $text = preg_replace('/<!-- \/callout -->/m', '</div>', $text);
 
@@ -612,6 +778,16 @@ class Markdown
         return str_replace(array_keys($replacements), array_values($replacements), $text);
     }
 
+    /**
+     * Processes bookmark syntax with icons.
+     *
+     * Converts custom bookmark syntax ([+] link) to links with a
+     * bookmark icon. Useful for highlighting saved/bookmarked items in
+     * documentation.
+     *
+     * @param string $text The HTML text containing bookmark links
+     * @return string|null The text with bookmark icons added
+     */
     private function processBookmarks(string $text): ?string
     {
         $re = '/\[\+\] <a href="(.*)">(.*)<\/a>/m';
@@ -619,20 +795,32 @@ class Markdown
         return preg_replace($re, $subst, $text);
     }
 
+    /**
+     * Static helper method for transforming markdown to HTML.
+     *
+     * Creates or reuses a parser instance and transforms the text.
+     * This method maintains a static parser list to avoid recreating
+     * instances. Supports derived classes via late static binding.
+     *
+     * Note: This appears to be legacy API. Current codebase uses the
+     * helper registration pattern instead.
+     *
+     * @param string $text The markdown text to transform
+     * @return string The transformed HTML output
+     */
     public static function defaultTransform($text)
     {
-        #
         # Initialize the parser and return the result of its transform method.
         # This will work fine for derived classes too.
-        #
+
         # Take parser class on which this function was called.
         $parser_class = \get_called_class();
 
-        # try to take parser from the static parser list
+        # Try to take parser from the static parser list
         static $parser_list;
         $parser = &$parser_list[$parser_class];
 
-        # create the parser it not already set
+        # Create the parser if not already set
         if (!$parser) {
             $parser = new $parser_class();
         }
@@ -691,11 +879,17 @@ class Markdown
     protected $escape_chars = '\`*_{}[]()>#+-.!';
     protected $escape_chars_re;
 
+    /**
+     * Constructs the Markdown parser and initializes variables.
+     *
+     * Initializes regex patterns for nested brackets and parentheses,
+     * prepares italics/bold patterns, sets up escape character regex,
+     * and sorts processing gamuts by priority.
+     */
     public function __construct()
     {
-        #
         # Constructor function. Initialize appropriate member variables.
-        #
+
         $this->_initDetab();
         $this->prepareItalicsAndBold();
 
@@ -723,12 +917,18 @@ class Markdown
     # Status flag to avoid invalid nesting.
     protected $in_anchor = false;
 
+    /**
+     * Initializes parser state before transformation.
+     *
+     * Called at the start of each transformation to reset internal
+     * state. Clears URL and title hashes, initializes with predefined
+     * values, and resets anchor nesting flag.
+     */
     protected function setup()
     {
-        #
         # Called before the transformation process starts to setup parser
         # states.
-        #
+
         # Clear global hashes.
         $this->urls = $this->predef_urls;
         $this->titles = $this->predef_titles;
@@ -737,23 +937,42 @@ class Markdown
         $this->in_anchor = false;
     }
 
+    /**
+     * Cleans up parser state after transformation.
+     *
+     * Called after transformation completes to free memory. Clears
+     * internal URL, title, and HTML hash arrays.
+     */
     protected function teardown()
     {
-        #
         # Called after the transformation process to clear any variable
         # which may be taking up memory unnecessarly.
-        #
+
         $this->urls = array();
         $this->titles = array();
         $this->html_hashes = array();
     }
 
+    /**
+     * Processes standard markdown syntax (original markdown spec).
+     *
+     * Handles the core markdown-to-HTML transformation including:
+     * - Text normalization (BOM removal, line ending standardization)
+     * - Tab-to-space conversion
+     * - HTML block hashing
+     * - Link definitions stripping
+     * - Block-level elements (headers, lists, code blocks, etc.)
+     *
+     * This is called after custom syntax processing in transform().
+     *
+     * @param string $text The markdown text to process
+     * @return string|null The HTML output
+     */
     public function originalTransform(string $text): ?string
     {
-        #
         # Main function. Performs some preprocessing on the input text
         # and pass it through the document gamut.
-        #
+
         $this->setup();
 
         $text = trim($text);
