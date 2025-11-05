@@ -91,8 +91,20 @@ error_reporting($_SERVER['ENV'] != 'prod' ? E_ALL : 0);
 foreach ($_SERVER as $key => $value) {
     if (is_string($value)) {
         $_SERVER[$key] = trim($value, "'");
+        if ($value == 'true' || $value == '1') {
+            $_SERVER[$key] = true;
+        } elseif ($value == 'false' || $value == '0') {
+            $_SERVER[$key] = false;
+        } elseif ($value == 'null' || $value == 'NULL') {
+            $_SERVER[$key] = null;
+        } elseif (is_float($value)) {
+            $_SERVER[$key] = (float)$value;
+        } elseif (is_numeric($value)) {
+            $_SERVER[$key] = (int)$value;
+        }
     }
 }
+
 $_SERVER['TINY_CALC_TIMER'] = $_SERVER['TINY_CALC_TIMER'] ?? true;
 putenv('TZ=' . isset($_SERVER['TINY_TIMEZONE']) ? $_SERVER['TINY_TIMEZONE'] : 'UTC');
 ini_set('session.cookie_httponly', 1);
