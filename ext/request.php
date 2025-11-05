@@ -127,6 +127,25 @@ class TinyRequest
         return tiny::csrf()->isValid($this->csrf_token, $remove);
     }
 
+    /**
+     * Validates the Bearer token in the request.
+     *
+     * @param string|null $compareToToken The token to compare against.
+     * @return bool True if the token is valid, false otherwise.
+     */
+    public function validateBearerToken(?string $compareToToken = null): bool
+    {
+        if (
+            !is_string($compareToToken) ||
+            !isset($this->headers['Authorization']) ||
+            !str_starts_with(strtolower($this->headers['Authorization']), 'bearer') ||
+            trim(substr($this->headers['Authorization'], 7)) !== $compareToToken
+        ) {
+            return false;
+        }
+
+        return true;
+    }
 
     /**
      * Retrieves the JSON payload of the request as an array or object.
@@ -161,15 +180,19 @@ class TinyRequest
 
         // Second check: Look for custom X-Requested-With header
         // Modern async requests set this header to 'AsyncRequest'
-        if (isset($this->headers['X-Requested-With']) &&
-            $this->headers['X-Requested-With'] === 'AsyncRequest') {
+        if (
+            isset($this->headers['X-Requested-With']) &&
+            $this->headers['X-Requested-With'] === 'AsyncRequest'
+        ) {
             return true;
         }
 
         // Third check: Check URL query string for async=true parameter
         // Allows forcing async mode via URL parameter
-        if (isset($this->query['async']) &&
-            filter_var($this->query['async'], FILTER_VALIDATE_BOOLEAN)) {
+        if (
+            isset($this->query['async']) &&
+            filter_var($this->query['async'], FILTER_VALIDATE_BOOLEAN)
+        ) {
             return true;
         }
 
