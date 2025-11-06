@@ -783,30 +783,55 @@ class Markdown
      * Auto-links plain URLs and email addresses.
      *
      * Converts plain text URLs (http://, https://, www.) and email addresses
-     * to clickable links. Skips URLs already inside <a> tags or <code> blocks.
+     * to clickable links. Protects URLs in backtick code spans and <code> tags
+     * by temporarily replacing them with placeholders before processing.
      *
      * @param string $text The HTML text to process
      * @return string|null The text with auto-linked URLs and emails
      */
     private function processURLs(string $text): ?string
     {
-        // Pattern to match URLs (http://, https://, www.) and email addresses
-        // But skip if already inside <a> tag or <code> tag
+        // Step 1: Protect code spans (backticks and <code> tags) by replacing with placeholders
+        $codeSpans = [];
+        $codeIndex = 0;
         
-        // First, auto-link emails that aren't already linked
+        // Protect backtick code spans first
         $text = preg_replace_callback(
-            '/(?<!href=")(?<!>)\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b(?![^<]*<\/a>)(?![^<]*<\/code>)/i',
+            '/`([^`]+)`/',
+            function($matches) use (&$codeSpans, &$codeIndex) {
+                $placeholder = "___CODE_SPAN_{$codeIndex}___";
+                $codeSpans[$placeholder] = $matches[0]; // Store full match with backticks
+                $codeIndex++;
+                return $placeholder;
+            },
+            $text
+        );
+        
+        // Protect existing <code> tags
+        $text = preg_replace_callback(
+            '/<code[^>]*>.*?<\/code>/is',
+            function($matches) use (&$codeSpans, &$codeIndex) {
+                $placeholder = "___CODE_SPAN_{$codeIndex}___";
+                $codeSpans[$placeholder] = $matches[0];
+                $codeIndex++;
+                return $placeholder;
+            },
+            $text
+        );
+
+        // Step 2: Auto-link emails that aren't already linked
+        $text = preg_replace_callback(
+            '/(?<!href=")(?<!>)\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b(?![^<]*<\/a>)/i',
             function($matches) {
                 $email = $matches[1];
-                // Skip if already inside a tag
                 return '<a href="mailto:' . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . '</a>';
             },
             $text
         );
 
-        // Auto-link URLs (http://, https://)
+        // Step 3: Auto-link URLs (http://, https://)
         $text = preg_replace_callback(
-            '/(?<!href=")(?<!src=")(?<!">)\b(https?:\/\/[^\s<>"]+)(?![^<]*<\/a>)(?![^<]*<\/code>)/i',
+            '/(?<!href=")(?<!src=")(?<!">)\b(https?:\/\/[^\s<>"]+)(?![^<]*<\/a>)/i',
             function($matches) {
                 $url = $matches[1];
                 // Remove trailing punctuation that's likely not part of the URL
@@ -816,9 +841,9 @@ class Markdown
             $text
         );
 
-        // Auto-link www. URLs (without protocol)
+        // Step 4: Auto-link www. URLs (without protocol)
         $text = preg_replace_callback(
-            '/(?<!href=")(?<!">)(?<![a-zA-Z0-9])\b(www\.[^\s<>"]+)(?![^<]*<\/a>)(?![^<]*<\/code>)/i',
+            '/(?<!href=")(?<!">)(?<![a-zA-Z0-9])\b(www\.[^\s<>"]+)(?![^<]*<\/a>)/i',
             function($matches) {
                 $url = $matches[1];
                 // Remove trailing punctuation
@@ -827,6 +852,11 @@ class Markdown
             },
             $text
         );
+
+        // Step 5: Restore protected code spans
+        foreach ($codeSpans as $placeholder => $original) {
+            $text = str_replace($placeholder, $original, $text);
+        }
 
         return $text;
     }
