@@ -43,6 +43,7 @@ class Markdown
 
         $text = (string)$this->originalTransform($text);
 
+        $text = (string)$this->processURLs($text);
         $text = (string)$this->cleanupHtml($text);
         $text = (string)$this->processBookmarks($text);
 
@@ -776,6 +777,58 @@ class Markdown
             '<p></p>' => '',
         ];
         return str_replace(array_keys($replacements), array_values($replacements), $text);
+    }
+
+    /**
+     * Auto-links plain URLs and email addresses.
+     *
+     * Converts plain text URLs (http://, https://, www.) and email addresses
+     * to clickable links. Skips URLs already inside <a> tags or <code> blocks.
+     *
+     * @param string $text The HTML text to process
+     * @return string|null The text with auto-linked URLs and emails
+     */
+    private function processURLs(string $text): ?string
+    {
+        // Pattern to match URLs (http://, https://, www.) and email addresses
+        // But skip if already inside <a> tag or <code> tag
+        
+        // First, auto-link emails that aren't already linked
+        $text = preg_replace_callback(
+            '/(?<!href=")(?<!>)\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b(?![^<]*<\/a>)(?![^<]*<\/code>)/i',
+            function($matches) {
+                $email = $matches[1];
+                // Skip if already inside a tag
+                return '<a href="mailto:' . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . '</a>';
+            },
+            $text
+        );
+
+        // Auto-link URLs (http://, https://)
+        $text = preg_replace_callback(
+            '/(?<!href=")(?<!src=")(?<!">)\b(https?:\/\/[^\s<>"]+)(?![^<]*<\/a>)(?![^<]*<\/code>)/i',
+            function($matches) {
+                $url = $matches[1];
+                // Remove trailing punctuation that's likely not part of the URL
+                $url = rtrim($url, '.,;:!?)');
+                return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '</a>';
+            },
+            $text
+        );
+
+        // Auto-link www. URLs (without protocol)
+        $text = preg_replace_callback(
+            '/(?<!href=")(?<!">)(?<![a-zA-Z0-9])\b(www\.[^\s<>"]+)(?![^<]*<\/a>)(?![^<]*<\/code>)/i',
+            function($matches) {
+                $url = $matches[1];
+                // Remove trailing punctuation
+                $url = rtrim($url, '.,;:!?)');
+                return '<a href="http://' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '</a>';
+            },
+            $text
+        );
+
+        return $text;
     }
 
     /**
