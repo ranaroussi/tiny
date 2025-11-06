@@ -21,7 +21,7 @@ class Markdown
      * @param string|null $text The markdown text to convert
      * @return string|null The HTML output, or null/empty if input is invalid
      */
-    public function transform(?string $text): ?string
+    public function transform(?string $text, bool $autoParseURLs = false, bool $autoParseToc = true): ?string
     {
         if (!$text) return '';
         $text = str_replace('\n', "\n", $text);
@@ -37,14 +37,20 @@ class Markdown
         $text = (string)$this->processDetails($text);
         $text = (string)$this->processBoxes($text);
         $text = (string)$this->processCards($text);
-        $text = (string)$this->processTOC($text);
+        if ($autoParseToc) {
+            $text = (string)$this->processTOC($text);
+        }
         $text = (string)$this->processCallouts($text);
         $text = (string)$this->processTables($text);
 
         $text = (string)$this->originalTransform($text);
 
-        $text = (string)$this->processURLs($text);
         $text = (string)$this->cleanupHtml($text);
+
+        if ($autoParseURLs) {
+            $text = (string)$this->processURLs($text);
+        }
+
         $text = (string)$this->processBookmarks($text);
 
         // replace `text` with <code>text</code>
@@ -794,7 +800,7 @@ class Markdown
         // Step 1: Protect code spans (backticks and <code> tags) by replacing with placeholders
         $codeSpans = [];
         $codeIndex = 0;
-        
+
         // Protect backtick code spans first
         $text = preg_replace_callback(
             '/`([^`]+)`/',
@@ -806,7 +812,7 @@ class Markdown
             },
             $text
         );
-        
+
         // Protect existing <code> tags
         $text = preg_replace_callback(
             '/<code[^>]*>.*?<\/code>/is',
