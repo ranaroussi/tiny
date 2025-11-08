@@ -384,9 +384,9 @@ trait TinyUtils
         $s = strtr($str, $highASCII);
         $s = mb_strtolower($s);
         $s = strip_tags($s);
-        $s = preg_replace('/&[^;\s]+;/', '', $s);
+        $s = preg_replace('/&[^;\s]+;/u', '', $s);
         $s = preg_replace('/[^\w\s\-_\.]/u', '', $s);  // Added 'u' modifier for Unicode support, escaped special chars
-        $s = preg_replace('/\s+/', '-', $s);
+        $s = preg_replace('/\s+/u', '-', $s);
 
         $s = str_replace('---', '-', $s);
         return (self::trim($s, '-')) ?: str_replace('+', '-', urlencode($str));
