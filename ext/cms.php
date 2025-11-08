@@ -6,8 +6,232 @@ declare(strict_types=1);
  * CMS Model for managing markdown content with caching.
  *
  * Handles retrieval, parsing, and caching of markdown files from the
- * static/md directory. Supports section-based organization and cache
+ * app/cms directory. Supports section-based organization and cache
  * invalidation.
+ *
+ * ------------------------------------------------------------
+ *
+ * # Human-readable markdown
+ *
+ * Write and maintain pages using **human-readable markdown**
+ * that stays easy to read at source while supporting rich layouts and
+ * interactivity.
+ *
+ * We use **GitHub-flavored markdown (GFM)** with a few lightweight,
+ * intuitive extensions for rich layouts and interactivity:
+ * - ✅ Callouts
+ * - ✅ Tabs
+ * - ✅ Cards
+ * - ✅ Columns
+ * - ✅ Toggles
+ * - ✅ Boxed sidebars
+ * - ✅ Bookmarks
+ *
+ * Everything renders beautifully without breaking readability for
+ * humans or editors.
+ *
+ *
+ * ## 1. Callouts
+ *
+ * GitHub-flavored callouts work natively using the `> [!TYPE]` pattern.
+ *
+ * ```md
+ * > [!NOTE]
+ * > This endpoint requires authentication via headers.
+ * >
+ * > Example: `TGX-API-KEY`
+ * ```
+ *
+ * ### Supported types
+ *
+ * - `[!NOTE]` – default callout style
+ * - `[!INFO]` – informational callout
+ * - `[!TIP]` – helpful tips and suggestions
+ * - `[!IMPORTANT]` – important information to note
+ * - `[!WARNING]` – warnings about potential issues
+ * - `[!CAUTION]` – cautionary notices
+ * - `[!DANGER]` – critical warnings about dangerous actions
+ *
+ * Each will render with its own visual style.
+ *
+ * ---
+ *
+ * ## 2. Tabs
+ *
+ * Tabs group related content (for example, code snippets in multiple languages).
+ *
+ * ```md
+ * [[tabs]]
+ *
+ * [[tab python]]
+ * ```python
+ * print("Hello, World!")
+ * ```
+ * [[/tab]]
+ *
+ * [[tab javascript]]
+ * ```js
+ * console.log("Hello, World!")
+ * ```
+ * [[/tab]]
+ *
+ * [[/tabs]]
+ * ```
+ *
+ * **Rules:**
+ *
+ * - text after `"tab"` defines the tab’s title.
+ * - Spaces are converted to `-` for the tab’s internal ID.
+ * - If no label is provided, tabs default to `tab-1`, `tab-2`, etc.
+ * - If **all tabs** contain only fenced code blocks, the container renders with
+ *   `<div class="tab-group">`.
+ *
+ * ---
+ *
+ * ## 3. Cards
+ *
+ * Cards highlight small pieces of information, previews, or summaries.
+ *
+ * ```md
+ * (link/to/)[[card]]
+ * #### Chat window
+ * The main area where users talk to your bot.
+ * [[/card]]
+ * ```
+ *
+ * Each `[[card]]` block can include **any valid markdown** (headings, images, lists, etc.).
+ *
+ * ---
+ *
+ * ## 4. Columns
+ *
+ * Columns group cards or blocks into a responsive grid layout.
+ *
+ * ```md
+ * :::: cols=3
+ *
+ * [[card]] card 1 [[/card]]
+ * [[card]] card 2 [[/card]]
+ * [[card]] card 3 [[/card]]
+ *
+ * ::::
+ * ```
+ *
+ * Set `cols=2`, `cols=3`, etc. to control layout.
+ *
+ * ---
+ *
+ * ## 5. Toggles
+ *
+ * Toggles render as collapsible `<details>` elements for optional or advanced content.
+ *
+ * ```md
+ * [[toggle Advanced options]]
+ * You can include **any content** here — text, lists, code, etc.
+ * [[/toggle]]
+ * ```
+ *
+ * Renders as:
+ *
+ * ```html
+ * <details>
+ *   <summary>Advanced options</summary>
+ *   <p>You can include any content here...</p>
+ * </details>
+ * ```
+ *
+ * ---
+ *
+ * ## 6. Boxed sidebars
+ *
+ * Boxed sections float beside the main content for tips, reminders, or notes.
+ *
+ * ```md
+ * [[boxed float-right]]
+ * You can add diagrams, notes, or additional context here.
+ * [[/boxed]]
+ * ```
+ *
+ * ### Float options
+ * - `float-right` (default)
+ * - `float-left`
+ *
+ * Renders as:
+ *
+ * ```html
+ * <div class="boxed float-right">
+ *   <p>You can add diagrams, notes, or additional context here.</p>
+ * </div>
+ * ```
+ *
+ * ---
+ *
+ * ## 7. Bookmarks
+ *
+ * Bookmarks create a clean, icon-enhanced list of linked articles or related reading.
+ *
+ * ```md
+ * [+] [test article 1]({base_url}/docs/some-article)
+ * [+] [test article 2]({base_url}/docs/some-article)
+ * [+] [test article 3]({base_url}/docs/some-article)
+ * ```
+ *
+ * Each line renders with a small bookmark icon and the link text, for example:
+ *
+ * 📑 **test article 1**
+ * 📑 **test article 2**
+ * 📑 **test article 3**
+ *
+ * ---
+ *
+ * ## Writing conventions
+ *
+ * - Keep all custom tags (`[[...]]`, `::::`, etc.) **flush-left** — avoid indenting them inside lists or code.
+ * - Inside custom blocks, you can write normal markdown (headings, lists, tables, etc.).
+ * - Use blank lines between structural blocks for readability.
+ * - Keep labels lowercase for consistency, but they’re case-insensitive.
+ *
+ * ---
+ *
+ * ## Example: combining multiple elements
+ *
+ * ```md
+ * > [!TIP]
+ * > You can combine **callouts** with cards, tabs, or toggles for richer docs.
+ *
+ * [[tabs]]
+ *
+ * [[tab label="python"]]
+ * ```python
+ * print("Hello")
+ * ```
+ * [[/tab]]
+ *
+ * [[tab label="javascript"]]
+ * ```js
+ * console.log("Hello")
+ * ```
+ * [[/tab]]
+ *
+ * [[/tabs]]
+ *
+ * [[toggle More examples]]
+ * :::: cols=2
+ * [[card]]**Feature 1**: fast setup[[/card]]
+ * [[card]]**Feature 2**: human-readable markdown[[/card]]
+ * ::::
+ * [[/toggle]]
+ * ```
+ *
+ * ---
+ *
+ * ## Final notes
+ *
+ * - These patterns are designed for **clarity and compatibility** — markdown remains human-readable in raw form.
+ * - No build-time magic is required — all features can be parsed via a simple line-based preprocessor.
+ * - Always preview rendered docs before committing to ensure structure looks right.
+ *
+ * ------------------------------------------------------------
  */
 class TinyCMS
 {
@@ -141,6 +365,15 @@ class TinyCMS
                     $line = explode(': ', $line, 2);
                     $metadata[trim($line[0])] = trim($line[1]);
                 }
+
+                // Process tags
+                if (isset($metadata['tags'])) {
+                    $metadata['tags'] = explode(',', $metadata['tags']);
+                    $metadata['tags'] = array_map('strtolower', $metadata['tags']);
+                    $metadata['tags'] = array_map('trim', $metadata['tags']);
+                    $metadata['tags'] = array_unique($metadata['tags']);
+                }
+
                 // Remove frontmatter from src array and rejoin content
                 unset($content[0]);
                 $content = trim(implode("\n---\n", $content));
