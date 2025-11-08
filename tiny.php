@@ -37,6 +37,7 @@ class tiny
 
     private static object $config;
     private static ?TinyCache $cache = null;
+    private static ?TinyCMS $cms = null;
     private static ?TinyClickhouse $clickhouse = null;
     private static ?DB $db = null;
     private static object $router;
@@ -106,6 +107,7 @@ class tiny
 
             $basePath = '/' . trim(dirname(__FILE__, 2), '/') . '/';
             self::$config->app_path = $_SERVER['TINY_APP_PATH'] ?? $basePath . self::$config->app_dir;
+            self::$config->cms_path = $_SERVER['TINY_CMS_PATH'] ?? self::$config->app_path . '/cms';
             self::$config->tiny_path = $_SERVER['TINY_PATH'] ?? $basePath . self::$config->tiny_dir;
             self::$config->public_path = $_SERVER['TINY_PUBLIC_PATH'] ?? $basePath . 'html';
             self::$config->static_path = self::$config->public_path . '/' . self::$config->static_dir;
@@ -398,6 +400,17 @@ class tiny
             );
         }
         return self::$cache;
+    }
+
+    /**
+     * Returns the CMS instance.
+     *
+     * @param int $ttl The time to live for the cached content
+     * @return TinyCMS The CMS instance
+     */
+    public static function cms(int $ttl = 84600 * 30): TinyCMS
+    {
+        return self::$cms ??= new TinyCMS($ttl);
     }
 
     /**
