@@ -326,7 +326,7 @@ class TinyCMS
      */
     private function pathToKey(string $path = '', bool $addColon = true): string
     {
-        return ($path ? str_replace('/', ':', $path) . ($addColon ? ':' : '') : '');
+        return ltrim($path ? str_replace('/', ':', $path) . ($addColon ? ':' : '') : '', ':');
     }
 
     /**
@@ -380,7 +380,7 @@ class TinyCMS
                 // Add the file path to the scanned files array
                 $this->scannedFiles[] = $filePath;
                 // Cache the page content
-                $this->getPage($filePath, $path, $ttl);
+                $this->getPage($filePath, $ttl);
             }
         }
 
@@ -415,8 +415,13 @@ class TinyCMS
      * @param int|null $ttl Time-to-live in seconds (uses default if null)
      * @return array Array of page objects
      */
-    public function getPathPages(string $path = '', ?int $ttl = null): array
+    public function getPathPages(string $path = '', null|string|int $since = null): array
     {
+        $since = $since ?: 0;
+        if (is_string($since)) {
+            $since = strtotime($since);
+        }
+
         $pages = [];
         $keys = $this->getPath($path);
 
@@ -433,13 +438,18 @@ class TinyCMS
             $filePath = $path ? $path . '/' . $filename : $filename;
 
             // Load the page
-            $page = $this->getPage($filePath, $ttl);
+            $page = $this->getPage($filePath);
             if ($page) {
-                $pages[$filename] = $page;
+                $pages[$page->created .':'. $page->hash] = $page;
             }
         }
 
-        return $pages;
+        // sort by key descending
+        krsort($pages);
+
+        return array_filter($pages, function ($page) use ($since) {
+            return $page->created > $since;
+        });
     }
 
     /**
@@ -509,7 +519,7 @@ class TinyCMS
         $key = 'cms:' . $this->pathToKey($path) . tiny::dirify($file);
 
         // Return cached page if it exists
-        return tiny::cache()->remember($key, $ttl, function () use ($filePath) {
+        return tiny::cache()->remember($key, $ttl, function () use ($filePath, $file, $path) {
 
             // Read file contents
             $content = file_get_contents($filePath);
@@ -524,13 +534,13 @@ class TinyCMS
 
             // Extract frontmatter metadata if present
             $metadata = [];
-            if (str_starts_with($content, "---\n")) {
+            if (str_starts_with($content, "---")) {
                 // Split frontmatter from content
-                $content = explode("\n---\n", $content);
+                $content = explode("\n---\n", str_replace("\n-----\n", "\n---\n", $content));
 
                 $metadata = [];
                 // Parse frontmatter lines (key: value format)
-                $meta = explode("\n", str_replace("---\n", '', $content[0]));;
+                $meta = explode("\n", trim(str_replace("---\n", '', $content[0]), '--'));
                 foreach ($meta as $line) {
                     // Split on ': ' to get key-value pairs
                     $line = explode(': ', $line, 2);
@@ -539,6 +549,7 @@ class TinyCMS
 
                 // Process tags
                 if (isset($metadata['tags'])) {
+                    // tiny::dd($metadata);
                     $metadata['tags'] = explode(',', $metadata['tags']);
                     $metadata['tags'] = array_map('strtolower', $metadata['tags']);
                     $metadata['tags'] = array_map('trim', $metadata['tags']);
@@ -573,6 +584,9 @@ class TinyCMS
                 'raw' => $content,
                 'html' => tiny::markdown()->transform($content, true, false),
                 'metadata' => $metadata,
+                'created' => $metadata['created'] ?? filemtime($filePath),
+                'path' => $path ? $path . '/'. rtrim($file, '.md') : rtrim($file, '.md'),
+                'hash' => md5($file),
             ];
         });
     }
