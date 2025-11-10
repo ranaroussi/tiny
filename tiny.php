@@ -396,7 +396,7 @@ class tiny
                 $engine,
                 $config['host'] ?? 'localhost',
                 $config['port'] ?? 11211,
-                (@$_SERVER['ENV'] == 'local' || @$_SERVER['TINY_CACHE_DISABLED'] == true)
+                ((@$_SERVER['ENV'] == 'local' && @$_SERVER['TINY_CACHE_DISABLED'] != false)|| @$_SERVER['TINY_CACHE_DISABLED'] == true)
             );
         }
         return self::$cache;
