@@ -37,9 +37,12 @@ class Markdown
         $text = (string)$this->processDetails($text);
         $text = (string)$this->processBoxes($text);
         $text = (string)$this->processCards($text);
+        $text = (string)$this->processSteps($text);
+
         if ($autoParseToc) {
             $text = (string)$this->processTOC($text);
         }
+
         $text = (string)$this->processCallouts($text);
         $text = (string)$this->processTables($text);
 
@@ -440,6 +443,60 @@ class Markdown
             },
             $text
         );
+    }
+
+    /**
+     * Processes step-by-step list syntax.
+     *
+     * Converts custom syntax ([[steps]]...[[/steps]]) with individual steps
+     * ([[step Title]]...[[/step]]) into HTML ordered lists with step styling.
+     * Steps are automatically numbered in the output.
+     *
+     * @param string $text The markdown text containing steps syntax
+     * @return string|null The text with steps converted to HTML
+     */
+    private function processSteps(string $text): ?string
+    {
+        // Quick exit if no steps marker found
+        if (strpos($text, '[[steps]]') === false) {
+            return $text;
+        }
+
+        // replace each [[steps]] ... [[/steps]] block
+        return preg_replace_callback('/\[\[steps\]\](.*?)\[\[\/steps\]\]/si', function ($m) {
+            $block = $m[1];
+
+            // find all [[step LABEL]] ... [[/step]] blocks
+            if (!preg_match_all('/\[\[step(?:\s+([^\]]+))?\]\](.*?)\[\[\/step\]\]/si', $block, $steps, PREG_SET_ORDER)) {
+                // no inner steps - return original block unchanged
+                return $m[0];
+            }
+
+            $items = [];
+            $count = 0;
+
+            foreach ($steps as $s) {
+                $count++;
+
+                // title: everything after [[step ...]]
+                $title = isset($s[1]) ? trim($s[1]) : "Step $count";
+
+                // content is processed through originalTransform to convert markdown to HTML
+                $content = $this->originalTransform(trim($s[2]));
+
+                $items[] = '<li class="step">' . "\n" .
+                          '  <h3 class="step-title">Step ' . $count . '</h3>' . "\n" .
+                          $content .
+                          '</li>';
+            }
+
+            // assemble html
+            $html  = '<ol class="steps">' . "\n";
+            $html .= implode("\n", $items) . "\n";
+            $html .= '</ol>';
+
+            return $html;
+        }, $text);
     }
 
     /**
