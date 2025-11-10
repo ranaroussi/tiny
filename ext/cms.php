@@ -26,6 +26,7 @@ declare(strict_types=1);
  * - ✅ Toggles
  * - ✅ Boxed sidebars
  * - ✅ Bookmarks
+ * - ✅ Steps
  *
  * Everything renders beautifully without breaking readability for
  * humans or editors.
@@ -181,6 +182,69 @@ declare(strict_types=1);
  * 📑 **test article 1**
  * 📑 **test article 2**
  * 📑 **test article 3**
+ *
+ * ---
+ *
+ * ## 8. Steps
+ *
+ * Steps create numbered, sequential instructions for tutorials and guides.
+ *
+ * ```md
+ * [[steps]]
+ *
+ * [[step Create your account]]
+ *
+ * Visit our website and click the **Sign Up** button. Fill in your:
+ *
+ * - Email address
+ * - Password
+ * - Display name
+ *
+ * [[/step]]
+ *
+ * [[step Verify your email]]
+ *
+ * Check your inbox for a verification email. Click the link to confirm your email address.
+ *
+ * > [!TIP]
+ * > Check your spam folder if you don't see the email.
+ *
+ * [[/step]]
+ *
+ * [[step Complete your profile]]
+ *
+ * Add more information to your profile:
+ *
+ * 1. Upload a profile picture
+ * 2. Add your bio
+ * 3. Set your preferences
+ *
+ * [[/step]]
+ *
+ * [[/steps]]
+ * ```
+ *
+ * **Rules:**
+ *
+ * - Steps are automatically numbered (Step 1, Step 2, etc.)
+ * - Text after `[[step ...]]` becomes the step title (optional)
+ * - Each step supports **full markdown** (lists, code blocks, callouts, etc.)
+ * - Steps render as `<ul class="steps">` with `<li class="step">` items
+ *
+ * Renders as:
+ *
+ * ```html
+ * <ul class="steps">
+ *   <li class="step">
+ *     <h3 class="step-title">Step 1</h3>
+ *     <p>Visit our website and click the <strong>Sign Up</strong> button...</p>
+ *   </li>
+ *   <li class="step">
+ *     <h3 class="step-title">Step 2</h3>
+ *     <p>Check your inbox...</p>
+ *   </li>
+ * </ul>
+ * ```
  *
  * ---
  *
