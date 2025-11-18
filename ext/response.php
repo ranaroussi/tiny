@@ -55,15 +55,18 @@ class TinyResponse
      * @param string $file The view file to render
      * @param array $params Optional parameters to pass to the view
      * @param bool $die Whether to terminate script execution after rendering (default: true)
+     * @param bool $htmx Whether to push htmx headers after rendering (default: true)
      */
-    public function render(string $file = '', array $params = [], bool $die = true): void
+    public function render(string $file = '', array $params = [], bool $die = true, bool $htmx = true): void
     {
         if (!empty($params)) {
             foreach ($params as $key => $value) {
                 tiny::data()->$key = $value;
             }
         }
-        tiny::header('HX-Push-Url: ' . tiny::router()->permalink);
+        if ($htmx) {
+            tiny::header('HX-Push-Url: ' . tiny::router()->permalink);
+        }
         tiny::render($file, $die);
     }
 
