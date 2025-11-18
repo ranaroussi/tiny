@@ -2163,14 +2163,8 @@ class Geos {
             $record['ip'] = $ip;
             $record = (object)$record;
         } catch (Throwable $th) {
-            $record = (object)[
-                'ip' => '0.0.0.0',
-                'country' => (object)[
-                    'names' => [
-                        'en' => 'Unknown',
-                    ],
-                ]
-            ];
+            // keep same format
+            $record = json_decode('{"continent":{"names":{"de":"","en":"","es":"","fr":"","ja":"","pt-BR":"","ru":"","zh-CN":""},"code":"","geonameId":null},"country":{"names":{"de":"","en":"","es":"","fr":"","ja":"","pt-BR":"","ru":"","zh-CN":""},"geonameId":null,"isoCode":"A1"},"maxmind":[],"registeredCountry":{"names":{"de":"","en":"","es":"","fr":"","ja":"","pt-BR":"","ru":"","zh-CN":""},"geonameId":null,"isoCode":""},"representedCountry":[],"traits":{"ipAddress":""},"city":{"names":{"en":""},"geonameId":null},"location":{"accuracyRadius":null,"latitude":51.6001,"longitude":-0.2617,"timeZone":""},"mostSpecificSubdivision":{"names":{"de":"","en":"","fr":""},"geonameId":null,"isoCode":""},"postal":{"code":""},"subdivisions":[{"names":{"de":"","en":"","es":"","fr":"","ja":"","pt-BR":"","ru":"","zh-CN":""},"geonameId":null,"isoCode":""},{"names":{"de":"","en":"","fr":""},"geonameId":null,"isoCode":""}],"ip":"0.0.0.0"}');
         }
         return $record;
     }
