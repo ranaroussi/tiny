@@ -1901,8 +1901,8 @@ class Geos {
     private static array $unsupportedCountries;
 
     public function __construct() {
-        self::$supportedCurrencies = $_SERVER['APP_GEO_SUPPORTED_CURRENCIES'] ? explode(',', $_SERVER['APP_GEO_SUPPORTED_CURRENCIES']) : ['USD'];
-        self::$unsupportedCountries = $_SERVER['APP_GEO_UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['APP_GEO_UNSUPPORTED_COUNTRIES']) : [];
+        self::$supportedCurrencies = @$_SERVER['TINY_GEO_SUPPORTED_CURRENCIES'] ? explode(',', $_SERVER['TINY_GEO_SUPPORTED_CURRENCIES']) : ['USD'];
+        self::$unsupportedCountries = @$_SERVER['TINY_GEO_UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['TINY_GEO_UNSUPPORTED_COUNTRIES']) : [];
     }
 
 
@@ -2011,25 +2011,6 @@ class Geos {
             ' . $statesOptions;
         });
         return $val;
-    }
-
-    public function getUserCountry(?string $country = null): string
-    {
-        if (@self::GEOS[$country]) {
-            return $country;
-        }
-        if (@$_SERVER['APP_GEOIP2_COUNTRY_ISO_CODE']) {
-            return @$_SERVER['APP_GEOIP2_COUNTRY_ISO_CODE'];
-        }
-
-        $ip = tiny::getClientRealIP();
-        if ($ip != '127.0.0.1') {
-            $geo = tiny::http()->get('https://api.ip2country.info/ip?' . $ip)->json;
-            if ($geo) {
-                return $geo->countryCode;
-            }
-        }
-        return 'A1';
     }
 
     public function formatPhoneNumber(string $number, string $country): string
@@ -2175,11 +2156,13 @@ class Geos {
 
     public static function getGeoIPInfo()
     {
-        $reader = new GeoIp2\Database\Reader(@$_SERVER['APP_GEO_GEOIP2_CITY_PATH']);
+        $reader = new GeoIp2\Database\Reader(@$_SERVER['TINY_GEO_GEOIP2_CITY_PATH']);
         try {
             $ip = tiny::getClientRealIP();
-            $record = $reader->city($ip);
-            $record->ip = $ip;
+            $ip = '82.13.13.209';
+            $record = (array)$reader->city($ip);
+            $record['ip'] = $ip;
+            $record = (object)$record;
         } catch (Throwable $th) {
             $record = (object)[
                 'ip' => '0.0.0.0',
@@ -2191,6 +2174,15 @@ class Geos {
             ];
         }
         return $record;
+    }
+
+    public function getUserCountry(?string $country = null): string
+    {
+        if (@self::GEOS[$country]) {
+            return $country;
+        }
+        $geo = $this->getGeoIPInfo();
+        return $geo->country->isoCode ?? 'A1';
     }
 
     public static function extractLocationFromTimezone($tz)
