@@ -393,5 +393,5 @@ class StripeHelper
 }
 
 tiny::registerHelper('stripe', function () {
-    return new StripeHelper($_SERVER['STRIPE_SK'], $_SERVER['STRIPE_VERSION']);
+    return new StripeHelper($_SERVER['APP_STRIPE_SK'], $_SERVER['APP_STRIPE_VERSION']);
 });

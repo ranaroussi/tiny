@@ -69,7 +69,7 @@ class tiny
         self::loadConfig();
 
         // Initialize database
-        if (!isset($_SERVER['DB_AUTOCONNECT']) || $_SERVER['DB_AUTOCONNECT'] !== false) {
+        if (!isset($_SERVER['TINY_DB_AUTOCONNECT']) || $_SERVER['TINY_DB_AUTOCONNECT'] !== false) {
             self::initDB();
         }
 
@@ -144,26 +144,26 @@ class tiny
      */
     private static function initDB(): void
     {
-        if (!isset($_SERVER['DB_TYPE']) || empty($_SERVER['DB_TYPE']) || isset(self::$db)) {
+        if (!isset($_SERVER['TINY_DB_TYPE']) || empty($_SERVER['TINY_DB_TYPE']) || isset(self::$db)) {
             return;
         }
 
-        $dbType = mb_strtolower($_SERVER['DB_TYPE']);
+        $dbType = mb_strtolower($_SERVER['TINY_DB_TYPE']);
 
         $dbConfig = [
-            'host'       => $_SERVER['DB_HOST'] ?? 'localhost',
-            'port'       => $_SERVER['DB_PORT'] ?? ($dbType === 'mysql' ? 3306 : 5432),
-            'dbname'     => $_SERVER['DB_NAME'] ?? 'tiny',
-            'user'       => $_SERVER['DB_USER'] ?? 'root',
-            'password'   => $_SERVER['DB_PASS'] ?? '',
-            'persistent' => $_SERVER['DB_PERSISTENT'] ?? false,
+            'host'       => $_SERVER['TINY_DB_HOST'] ?? 'localhost',
+            'port'       => $_SERVER['TINY_DB_PORT'] ?? ($dbType === 'mysql' ? 3306 : 5432),
+            'dbname'     => $_SERVER['TINY_DB_NAME'] ?? 'tiny',
+            'user'       => $_SERVER['TINY_DB_USER'] ?? 'root',
+            'password'   => $_SERVER['TINY_DB_PASS'] ?? '',
+            'persistent' => $_SERVER['TINY_DB_PERSISTENT'] ?? false,
         ];
 
         self::$db = match ($dbType) {
             'mysql', 'pgsql', 'postgresql' => new TinyDB($dbType, $dbConfig),
             'sqlite' => new TinyDB('sqlite', [
-                'db_path'   => $_SERVER['DB_SQLITE_FILE'] ?? self::$config->app_path . '/database.db',
-                'db_scheme' => $_SERVER['DB_SQLITE_SCHEMA'] ?? null
+                'db_path'   => $_SERVER['TINY_DB_SQLITE_FILE'] ?? self::$config->app_path . '/database.db',
+                'db_scheme' => $_SERVER['TINY_DB_SQLITE_SCHEMA'] ?? null
             ]),
             default => throw new \RuntimeException("Unsupported database type: $dbType"),
         };
@@ -738,12 +738,12 @@ class tiny
     public static function clickhouse(): TinyClickhouse
     {
         return self::$clickhouse ??= new TinyClickhouse([
-            'host' => $_SERVER['CLICKHOUSE_HOST'],
-            'port' => $_SERVER['CLICKHOUSE_PORT'],
-            'username' => $_SERVER['CLICKHOUSE_USERNAME'],
-            'password' => $_SERVER['CLICKHOUSE_PASSWORD'],
-            'https' => $_SERVER['CLICKHOUSE_HTTPS'] ?? false,
-            'timeout' => $_SERVER['CLICKHOUSE_TIMEOUT'] ?? 30
+            'host' => $_SERVER['TINY_CLICKHOUSE_HOST'],
+            'port' => $_SERVER['TINY_CLICKHOUSE_PORT'],
+            'username' => $_SERVER['TINY_CLICKHOUSE_USERNAME'],
+            'password' => $_SERVER['TINY_CLICKHOUSE_PASSWORD'],
+            'https' => $_SERVER['TINY_CLICKHOUSE_HTTPS'] ?? false,
+            'timeout' => $_SERVER['TINY_CLICKHOUSE_TIMEOUT'] ?? 30
         ]);
     }
 
