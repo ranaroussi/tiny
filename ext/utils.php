@@ -1279,6 +1279,11 @@ trait TinyUtils
         $content = implode("\n", array_map('trim', $lines));
         $email = file_get_contents(tiny::config()->app_path . '/views/'. $layout);
         $email = str_replace('{{ content }}', $content, $email);
+
+        // regex remove newlines and multi spaces
+        // $email = preg_replace('/\n/', ' ', $email);
+        // $email = preg_replace('/\s{2,}/', '', $email);
+        // $email = trim($email);
         return $email;
     }
 }
