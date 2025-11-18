@@ -2154,12 +2154,11 @@ class Geos {
         return 'UTC';
     }
 
-    public static function getGeoIPInfo()
+    public static function getGeoIPInfo(?string $ip = null)
     {
         $reader = new GeoIp2\Database\Reader(@$_SERVER['TINY_GEO_GEOIP2_CITY_PATH']);
         try {
-            $ip = tiny::getClientRealIP();
-            $ip = '82.13.13.209';
+            $ip = $ip ?? tiny::getClientRealIP();
             $record = (array)$reader->city($ip);
             $record['ip'] = $ip;
             $record = (object)$record;
