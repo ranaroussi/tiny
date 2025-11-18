@@ -30,6 +30,7 @@ class EmailValidator
     ];
 
     private string $email;
+    private string $user;
     private string $domain;
     private int $maxConnectionTimeout = 25;
     private int $streamTimeout = 5;
@@ -39,7 +40,9 @@ class EmailValidator
     public function __construct(string $email)
     {
         $this->email = filter_var(mb_strtolower($email), FILTER_SANITIZE_EMAIL);
-        [$this->user, $this->domain] = explode('@', $this->email, 2);
+        $parts = explode('@', $this->email, 2);
+        $this->user = $parts[0];
+        $this->domain = $parts[1] ?? '';
     }
 
     public function isValid(bool $verbose = false, bool $has_mx_records = false, bool $server_alive = false, bool $bounced = false): bool|array
