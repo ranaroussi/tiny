@@ -28,7 +28,7 @@ class Cypher
         $key = md5($secret);
         $iv = substr(strrev($key), 0, 16);
 
-        $algo = @$_SERVER['APP_CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
+        $algo = @$_SERVER['TINY_CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
         return $this->urlsafe_b64encode(@openssl_encrypt($data, $algo, $key, OPENSSL_RAW_DATA, $iv));
     }
 
@@ -38,7 +38,7 @@ class Cypher
         $key = md5($secret);
         $iv = substr(strrev($key), 0, 16);
 
-        $algo = @$_SERVER['APP_CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
+        $algo = @$_SERVER['TINY_CRYPTO_ALGO'] ?? self::DEFAULT_CRYPTO_ALGO;
         return @openssl_decrypt($data, $algo, $key, OPENSSL_RAW_DATA, $iv);
     }
 

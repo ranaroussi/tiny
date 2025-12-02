@@ -19,12 +19,12 @@ class Spaces
         if (self::$client === null) {
             self::$client = new S3Client([
                 'version' => 'latest',
-                'region' => $_SERVER['APP_S3_REGION'] ?? '',
-                'endpoint' => $_SERVER['APP_S3_ENDPOINT'] ?? '',
+                'region' => $_SERVER['TINY_S3REGION'] ?? '',
+                'endpoint' => $_SERVER['TINY_S3ENDPOINT'] ?? '',
                 'use_path_style_endpoint' => false,
                 'credentials' => [
-                    'key' => $_SERVER['APP_S3_KEY'] ?? '',
-                    'secret' => $_SERVER['APP_S3_SECRET'] ?? '',
+                    'key' => $_SERVER['TINY_S3KEY'] ?? '',
+                    'secret' => $_SERVER['TINY_S3SECRET'] ?? '',
                 ],
             ]);
         }
@@ -40,7 +40,7 @@ class Spaces
     public function deleteObject(string $file): string
     {
         self::client()->deleteObject([
-            'Bucket' => $_SERVER['APP_S3_BUCKET'] ?? '',
+            'Bucket' => $_SERVER['TINY_S3BUCKET'] ?? '',
             'Key' => $file,
         ]);
         return "/$file";
@@ -60,7 +60,7 @@ class Spaces
         }, $files);
 
         return tiny::http()->delete(
-            'https://api.digitalocean.com/v2/cdn/endpoints/' . ($_SERVER['APP_DO_CDN_ID'] ?? '') . '/cache',
+            'https://api.digitalocean.com/v2/cdn/endpoints/' . ($_SERVER['TINY_S3_DO_CDN_ID'] ?? '') . '/cache',
             [
                 'timeout' => 30,
                 'json' => ['files' => $files],
@@ -78,7 +78,7 @@ class Spaces
     public function prefixPath(string $path): string
     {
         $path = ltrim($path, '/');
-        $prefix = $_SERVER['APP_S3_PATH_PREFIX'] ?? '';
+        $prefix = $_SERVER['TINY_S3PATH_PREFIX'] ?? '';
         if ($prefix !== '' && strpos($path, $prefix) !== 0) {
             $path = rtrim($prefix, '/') . '/' . $path;
         }
@@ -99,7 +99,7 @@ class Spaces
     {
         $path = self::prefixPath($path);
         $payload = [
-            'Bucket' => $_SERVER['APP_S3_BUCKET'] ?? '',
+            'Bucket' => $_SERVER['TINY_S3BUCKET'] ?? '',
             'Key' => $path,
             'SourceFile' => $file,
             'ACL' => $public ? 'public-read' : 'private',
@@ -208,17 +208,17 @@ class Spaces
         $path = $path == '' ? $path : '/' . ltrim($path, '/');
         if ($useCache) {
             return tiny::cache()->remember('spaces:url:' . md5($path . $useCDN), 3600, function () use ($path, $useCDN) {
-                if ($useCDN && $_SERVER['APP_S3_CDN'] ?? '') {
-                    return $_SERVER['APP_S3_CDN'] . $path;
+                if ($useCDN && $_SERVER['TINY_S3CDN'] ?? '') {
+                    return $_SERVER['TINY_S3CDN'] . $path;
                 }
-                return 'https://' . ($_SERVER['APP_S3_BUCKET'] ?? '') . '.' . explode('://', $_SERVER['APP_S3_ENDPOINT'] ?? '')[1] . $path;
+                return 'https://' . ($_SERVER['TINY_S3BUCKET'] ?? '') . '.' . explode('://', $_SERVER['TINY_S3ENDPOINT'] ?? '')[1] . $path;
             });
         }
 
-        if ($useCDN && $_SERVER['APP_S3_CDN'] ?? '') {
-            return $_SERVER['APP_S3_CDN'] . $path;
+        if ($useCDN && $_SERVER['TINY_S3CDN'] ?? '') {
+            return $_SERVER['TINY_S3CDN'] . $path;
         }
-        return 'https://' . ($_SERVER['APP_S3_BUCKET'] ?? '') . '.' . explode('://', $_SERVER['APP_S3_ENDPOINT'] ?? '')[1] . $path;
+        return 'https://' . ($_SERVER['TINY_S3BUCKET'] ?? '') . '.' . explode('://', $_SERVER['TINY_S3ENDPOINT'] ?? '')[1] . $path;
     }
 
     /**
@@ -233,17 +233,17 @@ class Spaces
     {
         if ($useCache) {
             return tiny::cache()->remember('spaces:path:' . md5($path . $useCDN), 3600, function () use ($path, $useCDN) {
-                if ($useCDN && $_SERVER['APP_S3_CDN'] ?? '') {
-                    return str_replace($_SERVER['APP_S3_CDN'], '', $path . '');
+                if ($useCDN && $_SERVER['TINY_S3CDN'] ?? '') {
+                    return str_replace($_SERVER['TINY_S3CDN'], '', $path . '');
                 }
-                return str_replace('https://' . ($_SERVER['APP_S3_BUCKET'] ?? '') . '.' . explode('://', $_SERVER['APP_S3_ENDPOINT'] ?? '')[1], '', $path);
+                return str_replace('https://' . ($_SERVER['TINY_S3BUCKET'] ?? '') . '.' . explode('://', $_SERVER['TINY_S3ENDPOINT'] ?? '')[1], '', $path);
             });
         }
 
-        if ($useCDN && $_SERVER['APP_S3_CDN'] ?? '') {
-            return str_replace($_SERVER['APP_S3_CDN'], '', $path . '');
+        if ($useCDN && $_SERVER['TINY_S3CDN'] ?? '') {
+            return str_replace($_SERVER['TINY_S3CDN'], '', $path . '');
         }
-        return str_replace('https://' . ($_SERVER['APP_S3_BUCKET'] ?? '') . '.' . explode('://', $_SERVER['APP_S3_ENDPOINT'] ?? '')[1], '', $path);
+        return str_replace('https://' . ($_SERVER['TINY_S3BUCKET'] ?? '') . '.' . explode('://', $_SERVER['TINY_S3ENDPOINT'] ?? '')[1], '', $path);
     }
 
     /**
@@ -253,10 +253,10 @@ class Spaces
      */
     public function buildURLJS(): string
     {
-        if ($_SERVER['APP_S3_CDN'] ?? '') {
-            return 'tiny.getSpacesURL = (path) => `' . $_SERVER['APP_S3_CDN'] . '${path.slice(0, 1) === "/" ? "" : "/"}${path}`';
+        if ($_SERVER['TINY_S3CDN'] ?? '') {
+            return 'tiny.getSpacesURL = (path) => `' . $_SERVER['TINY_S3CDN'] . '${path.slice(0, 1) === "/" ? "" : "/"}${path}`';
         }
-        return 'tiny.getSpacesURL = (path) => `https://' . ($_SERVER['APP_S3_BUCKET'] ?? '') . '.' . explode('://', $_SERVER['APP_S3_ENDPOINT'] ?? '')[1] . '${path.slice(0, 1) === "/" ? "" : "/"}${path}`;';
+        return 'tiny.getSpacesURL = (path) => `https://' . ($_SERVER['TINY_S3BUCKET'] ?? '') . '.' . explode('://', $_SERVER['TINY_S3ENDPOINT'] ?? '')[1] . '${path.slice(0, 1) === "/" ? "" : "/"}${path}`;';
     }
 }
 
