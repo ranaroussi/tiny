@@ -344,6 +344,19 @@ class GitHub
     }
 
     /**
+     * Delete a GitHub repository
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @return bool True if deletion was successful
+     * @throws Exception if deletion fails
+     */
+    public function deleteRepo($repo)
+    {
+        $this->request("/repos/$repo", 'DELETE');
+        return true;
+    }
+
+    /**
      * Set repository topics (tags)
      *
      * @param string $repo Repository in format "owner/repo"
