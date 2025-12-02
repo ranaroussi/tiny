@@ -214,7 +214,7 @@ trait TinyDebugger
     public static function log(mixed ...$vars): void
     {
         $logFile = $_SERVER['TINY_LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
-        [$trace, $content] = self::dumpOrDebug($_SERVER['TINY_LOG_TYPE'] ?? 'dump', ...$vars);
+        [$trace, $content] = self::dumpOrDebug($_SERVER['TINY_LOG_LEVEL'] ?? 'dump', ...$vars);
 
         $output = self::formatOutput($trace, $content, false);
         file_put_contents($logFile, $output, FILE_APPEND);
@@ -234,7 +234,7 @@ trait TinyDebugger
     public static function logSimple(mixed ...$vars): void
     {
         $logFile = $_SERVER['TINY_LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
-        [$trace, $content] = self::dumpOrDebug($_SERVER['TINY_LOG_TYPE'] ?? 'dump', ...$vars);
+        [$trace, $content] = self::dumpOrDebug($_SERVER['TINY_LOG_LEVEL'] ?? 'dump', ...$vars);
 
         $output = self::formatOutput($trace, $content, false);
         file_put_contents($logFile, $output, FILE_APPEND);
