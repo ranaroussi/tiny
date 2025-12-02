@@ -58,7 +58,7 @@ class Cypher
     public function decryptWithNonce(string $data, string $secret, int $ttl = -1): false|string
     {
         if ($ttl == -1) {
-            $ttl = @$_SERVER['APP_NONCE_TTL'] ?? self::NONCE_TTL;
+            $ttl = @$_SERVER['TINY_NONCE_TTL'] ?? self::NONCE_TTL;
         }
         try {
             [$data, $nonce] = explode(';', $this->decrypt($data, $secret));

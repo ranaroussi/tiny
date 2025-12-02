@@ -63,23 +63,23 @@ class OpenAIHelper
             CURLOPT_TIMEOUT => 30,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
-                'Authorization: Bearer ' . (@$_SERVER['APP_OPENAI_API_KEY'] ?? '')
+                'Authorization: Bearer ' . (@$_SERVER['TINY_OPENAI_API_KEY'] ?? '')
             ],
             CURLOPT_POSTFIELDS => json_encode($payload)
         ]);
-        
+
         $body = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
         curl_close($ch);
-        
+
         // Log response details
         if ($curlError) {
             error_log("⚠️ Curl error: " . $curlError);
         } else {
             error_log("✅ Curl success. HTTP {$httpCode}, body length: " . strlen($body) . " bytes");
         }
-        
+
         // Parse JSON from body
         $res = null;
         if ($body) {
@@ -102,7 +102,7 @@ class OpenAIHelper
         // Handle both array and object response structures
         $hasChoices = false;
         $content = null;
-        
+
         if ($res) {
             if (is_array($res) && isset($res['choices'])) {
                 $hasChoices = true;

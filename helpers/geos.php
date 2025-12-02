@@ -2089,7 +2089,7 @@ class Geos {
             <option value="GBP">GBP - Pound Sterling 🇬🇧</option>
             <option value="" disabled>-----</option>
             ';
-            $noFeeCurrencies = $_SERVER['APP_NOFEE_CURRENCIES'] ? explode(',', $_SERVER['APP_NOFEE_CURRENCIES']) : [];
+            $noFeeCurrencies = $_SERVER['TINY_NOFEE_CURRENCIES'] ? explode(',', $_SERVER['TINY_NOFEE_CURRENCIES']) : [];
             foreach (self::CURRENCIES as $code => $item) {
                 if (in_array($code, self::$supportedCurrencies) && !in_array($code, ['USD', 'EUR', 'GBP'])) {
                     $flag = $code == 'EUR' ? '🇪🇺' : self::GEOS[$item['countries'][0]]['flag'];
@@ -2144,8 +2144,8 @@ class Geos {
 
     public static function getUserTimezone($country_code)
     {
-        if (@$_SERVER['APP_GEOIP2_LOCATION_TIMEZONE'] != null) {
-            return @$_SERVER['APP_GEOIP2_LOCATION_TIMEZONE'];
+        if (@$_SERVER['TINY_GEOIP2_LOCATION_TIMEZONE'] != null) {
+            return @$_SERVER['TINY_GEOIP2_LOCATION_TIMEZONE'];
         }
         $timezone = DateTimeZone::listIdentifiers(DateTimeZone::PER_COUNTRY, $country_code);
         if (!empty($timezone)) {

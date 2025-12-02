@@ -221,16 +221,16 @@ tiny::registerHelper('oauth', function () {
 
                 if ($key == 'apple') {
                     $provides[$key]['keys'] = [
-                        'id' => $_SERVER['APP_OAUTH_APPLE_ID'],
-                        'team_id' => $_SERVER['APP_OAUTH_APPLE_TEAM_ID'],
-                        'key_id' => $_SERVER['APP_OAUTH_APPLE_KEY_ID'],
-                        // 'key_content' => $_SERVER['APP_OAUTH_APPLE_KEY_CONTENT'],
-                        // 'key_file' => $_SERVER['APP_OAUTH_APPLE_KEY_FILE'],
+                        'id' => $_SERVER['TINY_OAUTH_APPLE_ID'],
+                        'team_id' => $_SERVER['TINY_OAUTH_APPLE_TEAM_ID'],
+                        'key_id' => $_SERVER['TINY_OAUTH_APPLE_KEY_ID'],
+                        // 'key_content' => $_SERVER['TINY_OAUTH_APPLE_KEY_CONTENT'],
+                        // 'key_file' => $_SERVER['TINY_OAUTH_APPLE_KEY_FILE'],
                     ];
-                    if (isset($_SERVER['APP_OAUTH_APPLE_KEY_CONTENT'])) {
-                        $provides[$key]['keys']['key_content'] = str_replace('\\n', "\n", $_SERVER['APP_OAUTH_APPLE_KEY_CONTENT']);
-                    } elseif (isset($_SERVER['APP_OAUTH_APPLE_KEY_FILE'])) {
-                        $provides[$key]['keys']['key_file'] = $_SERVER['APP_OAUTH_APPLE_KEY_FILE'];
+                    if (isset($_SERVER['TINY_OAUTH_APPLE_KEY_CONTENT'])) {
+                        $provides[$key]['keys']['key_content'] = str_replace('\\n', "\n", $_SERVER['TINY_OAUTH_APPLE_KEY_CONTENT']);
+                    } elseif (isset($_SERVER['TINY_OAUTH_APPLE_KEY_FILE'])) {
+                        $provides[$key]['keys']['key_file'] = $_SERVER['TINY_OAUTH_APPLE_KEY_FILE'];
                     } else {
                         throw new Exception('Missing apple key content or file');
                     }
@@ -239,10 +239,10 @@ tiny::registerHelper('oauth', function () {
                     $provides[$key]['verifyTokenSignature'] = false;
                 } elseif ($key == 'microsoft') {
                     $provides[$key]['keys'] = [
-                        'tenant' => $_SERVER['APP_OAUTH_MICROSOFT_TENANT'] ?? 'common',
-                        'client_id' => $_SERVER['APP_OAUTH_MICROSOFT_ID'],
-                        'client_secret_id' => $_SERVER['APP_OAUTH_MICROSOFT_SECRET_ID'],
-                        'client_secret_value' => $_SERVER['APP_OAUTH_MICROSOFT_SECRET_VALUE'],
+                        'tenant' => $_SERVER['TINY_OAUTH_MICROSOFT_TENANT'] ?? 'common',
+                        'client_id' => $_SERVER['TINY_OAUTH_MICROSOFT_ID'],
+                        'client_secret_id' => $_SERVER['TINY_OAUTH_MICROSOFT_SECRET_ID'],
+                        'client_secret_value' => $_SERVER['TINY_OAUTH_MICROSOFT_SECRET_VALUE'],
                         'scopes' => ['user.read'],
                     ];
                 } else {
@@ -253,7 +253,7 @@ tiny::registerHelper('oauth', function () {
                 }
                 $provides[$key]['settings'] = array_merge($branding[$key], [
                     'icon' => tiny::getStaticURL('/oauth/' . $key . '.svg', true),
-                    'link' => tiny::getHomeURL('auth/oauth/' . $key, true, $_SERVER['APP_ENV'] == 'prod' ? 'https' : 'http'),
+                    'link' => tiny::getHomeURL('auth/oauth/' . $key, true, $_SERVER['TINY_ENV'] == 'prod' ? 'https' : 'http'),
                 ]);
             }
 
@@ -265,7 +265,7 @@ tiny::registerHelper('oauth', function () {
             }
 
             define('OAUTH_CONFIG', [
-                'callback' => tiny::getHomeURL('auth/oauth', true, $_SERVER['APP_ENV'] == 'prod' || @$_SERVER['APP_HTTPS'] == 'on' ? 'https' : 'http'),
+                'callback' => tiny::getHomeURL('auth/oauth', true, $_SERVER['TINY_ENV'] == 'prod' || @$_SERVER['TINY_HTTPS'] == 'on' ? 'https' : 'http'),
                 'providers' => $provides,
             ]);
 

@@ -14,22 +14,22 @@ class Caddy
     private function getSSLConfig(): array
     {
         return [
-            'cert' => $_SERVER['APP_CADDY_CERT_FILE'] ?? null,
-            'key' => $_SERVER['APP_CADDY_KEY_FILE'] ?? null,
+            'cert' => $_SERVER['TINY_CADDY_CERT_FILE'] ?? null,
+            'key' => $_SERVER['TINY_CADDY_KEY_FILE'] ?? null,
             'verify' => false,
         ];
     }
 
     private function makeRequest(string $path, string $method = 'GET', ?array $data = null): object
     {
-        if (!$_SERVER['APP_CADDY_ADMIN_URL']) {
+        if (!$_SERVER['TINY_CADDY_ADMIN_URL']) {
             return (object) [
                 'success' => false,
                 'data' => [],
             ];
         }
 
-        $url = ($_SERVER['APP_CADDY_ADMIN_URL'] ?? '') . $path;
+        $url = ($_SERVER['TINY_CADDY_ADMIN_URL'] ?? '') . $path;
         $options = [
             'ssl' => self::getSSLConfig(),
         ];

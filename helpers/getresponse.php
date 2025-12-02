@@ -10,7 +10,7 @@ class GetResponse
                 'email' => $email,
                 'name' => $name,
                 'campaign' => [
-                    'campaignId' => @$_SERVER['APP_GET_RESPONSE_LIST_ID'],
+                    'campaignId' => @$_SERVER['TINY_GET_RESPONSE_LIST_ID'],
                 ],
                 // 'customFieldValues' => [
                 //     [
@@ -25,7 +25,7 @@ class GetResponse
                 'ipAddress' => $ip,
                 'dayOfCycle' => 0,
             ],
-            'headers' => ['X-Auth-Token: api-key ' . @$_SERVER['APP_GET_RESPONSE_API_KEY']]
+            'headers' => ['X-Auth-Token: api-key ' . @$_SERVER['TINY_GET_RESPONSE_API_KEY']]
         ]);
     }
 }

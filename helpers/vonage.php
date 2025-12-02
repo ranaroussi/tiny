@@ -11,14 +11,14 @@ function send_text(string $to, string $msg): bool
 {
     $client = new Client(
         new Basic(
-            $_SERVER['APP_NEXMO_API_KEY'] ?? '',
-            $_SERVER['APP_NEXMO_API_SECRET'] ?? ''
+            $_SERVER['TINY_NEXMO_API_KEY'] ?? '',
+            $_SERVER['TINY_NEXMO_API_SECRET'] ?? ''
         )
     );
 
     $message = new SMS(
         $to,
-        $_SERVER['APP_NEXMO_FROM'] ?? '',
+        $_SERVER['TINY_NEXMO_FROM'] ?? '',
         $msg
     );
 

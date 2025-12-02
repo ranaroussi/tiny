@@ -14,7 +14,7 @@ class ResendMail
      */
     private function getApiKey(): string
     {
-        return $_SERVER['APP_RESEND_API_KEY'] ?? '';
+        return $_SERVER['TINY_RESEND_API_KEY'] ?? '';
     }
 
 
@@ -75,9 +75,9 @@ class ResendMail
         $resend = Resend::client($this->getApiKey());
 
         // Apply defaults so the caller can omit sender fields.
-        $from_email = $from_email ?? $_SERVER['APP_RESEND_FROM_ADDRESS'];
-        $from_name = $from_name ?? $_SERVER['APP_RESEND_FROM_NAME'];
-        $reply_to = $reply_to ?? $_SERVER['APP_RESEND_REPLY_TO'] ?? null;
+        $from_email = $from_email ?? $_SERVER['TINY_RESEND_FROM_ADDRESS'];
+        $from_name = $from_name ?? $_SERVER['TINY_RESEND_FROM_NAME'];
+        $reply_to = $reply_to ?? $_SERVER['TINY_RESEND_REPLY_TO'] ?? null;
 
         // Build payload expected by Resend.
         $params = [
@@ -128,11 +128,11 @@ class ResendMail
         ?string $reply_to = null,
         ?array $tags = null
     ): object {
-        $from_email = $from_email ?? $_SERVER['APP_RESEND_FROM_ADDRESS'];
-        $from_name = $from_name ?? $_SERVER['APP_RESEND_FROM_NAME'];
-        $domain = $domain ?? $_SERVER['APP_RESEND_DOMAIN'];
+        $from_email = $from_email ?? $_SERVER['TINY_RESEND_FROM_ADDRESS'];
+        $from_name = $from_name ?? $_SERVER['TINY_RESEND_FROM_NAME'];
+        $domain = $domain ?? $_SERVER['TINY_RESEND_DOMAIN'];
 
-        $reply_to = $reply_to ?? $_SERVER['APP_RESEND_REPLY_TO'] ?? null;
+        $reply_to = $reply_to ?? $_SERVER['TINY_RESEND_REPLY_TO'] ?? null;
 
         $params = [
             'from' => $from_name . ' <' . $from_email . '>',

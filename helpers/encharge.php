@@ -26,10 +26,10 @@ class Encharge
         ]);
 
         $res = tiny::http()->post(
-            $_SERVER['APP_ENCHARGE_API_URL'] ?? ENCHARGE_API_URL,
+            $_SERVER['TINY_ENCHARGE_API_URL'] ?? ENCHARGE_API_URL,
             [
                 'json' => $payload,
-                'headers' => ['X-Encharge-Token: ' . ($_SERVER['APP_ENCHARGE_API_WRITE_KEY'] ?? '')]
+                'headers' => ['X-Encharge-Token: ' . ($_SERVER['TINY_ENCHARGE_API_WRITE_KEY'] ?? '')]
             ]
         );
 

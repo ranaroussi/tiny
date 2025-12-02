@@ -11,7 +11,7 @@ class LogSnag
     private function headers(): array
     {
         return [
-            'Authorization: Bearer ' . ($_SERVER['APP_LOGSNAG_S2S_TOKEN'] ?? ''),
+            'Authorization: Bearer ' . ($_SERVER['TINY_LOGSNAG_S2S_TOKEN'] ?? ''),
             'Content-Type: application/json',
         ];
     }
@@ -23,7 +23,7 @@ class LogSnag
         }
 
         $payload = [
-            'project' => $_SERVER['APP_LOGSNAG_PROJECT'] ?? '',
+            'project' => $_SERVER['TINY_LOGSNAG_PROJECT'] ?? '',
             'user_id' => $user_id,
             'properties' => $props,
         ];
@@ -49,7 +49,7 @@ class LogSnag
 
         foreach ($channels as $channel) {
             $payload = [
-                'project' => $_SERVER['APP_LOGSNAG_PROJECT'] ?? '',
+                'project' => $_SERVER['TINY_LOGSNAG_PROJECT'] ?? '',
                 'channel' => trim($channel),
                 'event' => $event,
                 'description' => $description,
@@ -88,7 +88,7 @@ class LogSnag
         }
 
         return self::sendRequest('insight', [
-            'project' => $_SERVER['APP_LOGSNAG_PROJECT'] ?? '',
+            'project' => $_SERVER['TINY_LOGSNAG_PROJECT'] ?? '',
             'title' => $title,
             'value' => $value,
             'icon' => $icon,
@@ -97,7 +97,7 @@ class LogSnag
 
     private function isLogSnagEnabled(): bool
     {
-        return in_array($_SERVER['APP_LOGSNAG_SUBMIT'] ?? '', self::VALID_LOGSNAG_SUBMIT, true);
+        return in_array($_SERVER['TINY_LOGSNAG_SUBMIT'] ?? '', self::VALID_LOGSNAG_SUBMIT, true);
     }
 
     private function sendRequest(string $endpoint, array $payload): object
