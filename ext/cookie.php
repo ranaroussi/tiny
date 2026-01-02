@@ -76,8 +76,8 @@ class TinyCookie
      */
     public function read(?string $item = null): mixed
     {
-        if ($item != null && array_key_exists($item, $this->data)) {
-            return $this->data[$item];
+        if ($item != null) {
+            return array_key_exists($item, $this->data) ? $this->data[$item] : null;
         }
         return $this->data;
     }
