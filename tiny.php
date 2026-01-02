@@ -112,6 +112,7 @@ class tiny
             self::$config->public_path = $_SERVER['TINY_PUBLIC_PATH'] ?? $basePath . 'html';
             self::$config->static_path = self::$config->public_path . '/' . self::$config->static_dir;
             self::$config->url_path = $_SERVER['TINY_URL_PATH'] ?? str_replace('index.php', '', $_SERVER['SCRIPT_NAME']);
+            self::$config->cookie_domain = $_SERVER['TINY_COOKIE_DOMAIN'] ?? $_SERVER['HTTP_HOST'];
             self::$config->cookie_path = $_SERVER['TINY_COOKIE_PATH'] ?? str_replace('.php', '', self::$config->url_path);
 
             self::cache()->set($cacheKey, self::$config, 3600);
