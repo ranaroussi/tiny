@@ -555,6 +555,7 @@ class Markdown
                 'important' => 'important',
                 'warning' => 'warning',
                 'caution' => 'warning',
+                'special' => 'special',
                 'note' => 'note',
                 'danger' => 'danger',
             ];
@@ -918,7 +919,7 @@ class Markdown
 
         // Step 5: Restore protected code spans
         foreach ($codeSpans as $placeholder => $original) {
-            $text = str_replace($placeholder, $original, $text);
+            $text = str_replace((string)$placeholder, $original, $text);
         }
 
         return $text;
