@@ -139,7 +139,7 @@ class TinyClickhouse
     private function resetClientIfNeeded()
     {
         if (!$this->persistent) {
-            curl_close($this->client);
+            $this->client = null;
             $this->initializeClient();
         } else {
             // Reset the URL to base URL
@@ -153,7 +153,7 @@ class TinyClickhouse
     public function __destruct()
     {
         if ($this->client) {
-            curl_close($this->client);
+            $this->client = null;
             $this->client = null;
         }
     }

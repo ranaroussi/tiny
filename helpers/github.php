@@ -88,16 +88,16 @@ class GitHub
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_TIMEOUT => 30
         ]);
-        
+
         if ($data && in_array($method, ['POST', 'PUT', 'PATCH'])) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         }
-        
+
         $body = curl_exec($ch);
         $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
-        curl_close($ch);
-        
+        $ch = null;
+
         if ($curlError) {
             throw new Exception("GitHub API curl error: {$curlError}");
         }
@@ -370,12 +370,12 @@ class GitHub
         $topics = array_map(function($topic) {
             return strtolower(str_replace(' ', '-', trim($topic)));
         }, $topics);
-        
+
         return $this->request("/repos/$repo/topics", 'PUT', [
             'names' => $topics
         ]);
     }
-    
+
     /**
      * Upload asset to GitHub release
      *
@@ -434,11 +434,11 @@ class GitHub
         }
 
         $privateKey = file_get_contents($privateKeyPath);
-        
+
         // JWT header
         $header = json_encode(['typ' => 'JWT', 'alg' => 'RS256']);
         $base64UrlHeader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
-        
+
         // JWT payload
         $now = time();
         $payload = json_encode([
@@ -447,7 +447,7 @@ class GitHub
             'iss' => $appId             // GitHub App ID
         ]);
         $base64UrlPayload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
-        
+
         // Create signature
         $signature = '';
         openssl_sign(
@@ -457,7 +457,7 @@ class GitHub
             OPENSSL_ALGO_SHA256
         );
         $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
-        
+
         return $base64UrlHeader . '.' . $base64UrlPayload . '.' . $base64UrlSignature;
     }
 
@@ -474,23 +474,23 @@ class GitHub
     {
         $jwt = $this->generateJWT($appId, $privateKeyPath);
         error_log("Generated JWT for app $appId, installation $installationId");
-        
+
         $url = "https://api.github.com/app/installations/{$installationId}/access_tokens";
-        
+
         $headers = [
             'Accept: application/vnd.github+json',
             'User-Agent: ' . $this->userAgent,
             'Authorization: Bearer ' . $jwt
         ];
-        
+
         $response = tiny::http()->postJSON($url, ['headers' => $headers, 'data' => []]);
-        
+
         error_log("Installation token response: HTTP {$response->status_code}");
         if ($response->status_code >= 400) {
             error_log("Installation token error body: " . substr($response->body, 0, 500));
             throw new Exception("GitHub App token error: HTTP `$response->status_code`: $response->body");
         }
-        
+
         $token = is_array($response->json) ? $response->json['token'] : $response->json->token;
         error_log("Successfully obtained installation token");
         return $token;

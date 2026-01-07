@@ -49,7 +49,7 @@ class TinyHTTP
         ]);
         curl_exec($ch);
         $target = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        curl_close($ch);
+        $ch = null;
 
         return $target ?: false;
     }
@@ -71,7 +71,7 @@ class TinyHTTP
         $response = curl_exec($ch);
         $error = curl_error($ch);
         $info = $options['finalUrl'] ?? true ? curl_getinfo($ch) : curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        curl_close($ch);
+        $ch = null;
 
         return self::formatResponse($response, $error, $info, $options['finalUrl'] ?? true);
     }
