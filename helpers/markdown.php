@@ -25,7 +25,38 @@ class Markdown
     {
         if (!$text) return '';
 
+        $textx = <<<EOF
+
+# Architecture
+
+MUXI is a layered system: CLI and SDKs talk to Servers, which manage Formations running on Runtimes. The Registry distributes formations.
+
+
+## Design Principles
+
+> [!IMPORTANT]
+> MUXI is **infrastructure**, not a framework. It deploys anywhere and integrates with anything.
+
+1. **YAML configuration** - Simple, versionable, shareable
+2. **Encrypted secrets** - Not environment variables
+3. **MCP for tools** - Standard protocol, any server works
+4. **Multi-agent** - Specialized agents, coordinated work
+5. **Portable** - Works on any cloud, any platform
+
+---
+
+## Next Steps
+
+[+] [Request Lifecycle](../deep-dives/request-lifecycle.md) - Detailed request flow
+[+] [Security Model](../deep-dives/security.md) - Authentication layers
+[+] [Reference](../reference/README.md) - Building formations
+
+EOF;
+
         $text = str_replace('\n', "\n", $text);
+        $text = str_replace("\n1. ", "\n\n1. ", $text);
+        $text = str_replace("\n- ", "\n\n- ", $text);
+
 
         $text = (string)$this->processCols($text);
         $text = (string)$this->processTabs($text);
@@ -61,6 +92,10 @@ class Markdown
 
         // replace horizontal rules --- with <hr>
         $text = str_replace("\n---\n", "\n<hr>\n", $text);
+
+        // support checkboxes
+        $text = str_replace('<li>[ ] ', '<li><input type="checkbox" style="margin-bottom: -2px; margin-right: 4px;" class="input"> ', $text);
+        $text = str_replace('<li>[x] ', '<li><input type="checkbox" style="margin-bottom: -2px; margin-right: 4px;" class="input" checked> ', $text);
 
         // die($text);
         return $text;
@@ -192,6 +227,11 @@ class Markdown
             $copyAttr  = ' data-prismjs-copy-timeout="1000"'; // optional: Prism copy-to-clipboard plugin
             $codeEsc   = htmlspecialchars($code, ENT_NOQUOTES);
 
+            if (!$language) {
+                return '<pre class="language-plaintext"' . $lineAttr . $copyAttr . '>'
+                . '<code class="language-plaintext">' . $codeEsc . '</code>'
+                . '</pre>';
+            }
             return '<pre class="line-numbers"' . $lineAttr . $copyAttr . '>'
                 . '<code class="' . $langClass . '">' . $codeEsc . '</code>'
                 . '</pre>';
@@ -773,7 +813,9 @@ class Markdown
                 // If alignment is null, no style attribute is added (browser default)
                 $attr = $aligns[$idx] ? ' style="text-align:' . $aligns[$idx] . '"' : '';
                 // Escape header text to prevent XSS and wrap in <th> tag
-                $html .= "<th{$attr}>" . htmlspecialchars($h, ENT_QUOTES, 'UTF-8') . "</th>";
+                $h = $this->originalTransform(htmlspecialchars($h, ENT_QUOTES, 'UTF-8'));
+                $h = preg_replace('/<p>(.*?)<\/p>/i', '$1', $h);
+                $html .= "<th{$attr}>" . $h . "</th>";
             }
             // Close header row and start table body section
             $html .= "</tr>\n</thead>\n<tbody>\n";
@@ -797,7 +839,9 @@ class Markdown
                     // Uses same alignment as corresponding header column
                     $attr = $aligns[$idx] ? ' style="text-align:' . $aligns[$idx] . '"' : '';
                     // Escape cell text to prevent XSS and wrap in <td> tag
-                    $html .= "<td{$attr}>" . htmlspecialchars($c, ENT_QUOTES, 'UTF-8') . "</td>";
+                    $c = $this->originalTransform(htmlspecialchars($c, ENT_QUOTES, 'UTF-8'));
+                    $c = preg_replace('/<p>(.*?)<\/p>/i', '$1', $c);
+                    $html .= "<td{$attr}>" . $c . "</td>";
                 }
                 // Close table row
                 $html .= "</tr>\n";
@@ -838,6 +882,7 @@ class Markdown
         // Remove empty tags like <p></p> or <h2></h2>.
         $text = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*><\/\1>/i', '', $text);
         $text = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*><\/div><\/\1>/i', '</div>', $text);
+        $text = preg_replace('/<li><p>(.*)<\/p><\/li>/i', '<li>$1</li>', $text);
 
         return $text;
 
@@ -950,8 +995,8 @@ class Markdown
      */
     private function processBookmarks(string $text): ?string
     {
-        $re = '/\[\+\] <a href="(.*)">(.*)<\/a>/m';
-        $subst = '<svg viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg" style="margin:-2px 6px 0 0; width:14px; height:14px; display:inline"><path fill="currentColor" d="m0 487.7v-439.7c0-26.5 21.5-48 48-48h48v322.1c0 12.8 14.2 20.4 24.9 13.3l71.1-47.4 71.1 47.4c10.6 7.1 24.9-.5 24.9-13.3v-322.1h48c26.5 0 48 21.5 48 48v439.7c0 13.4-10.9 24.3-24.3 24.3-5 0-9.9-1.5-14-4.4l-153.7-107.6-153.7 107.6c-4.1 2.9-9 4.4-14 4.4-13.4 0-24.3-10.9-24.3-24.3z"/><path fill="currentColor" d="m192 288-71.1 47.4c-10.6 7.1-24.9-.5-24.9-13.3v-322.1h192v322.1c0 12.8-14.2 20.4-24.9 13.3z" opacity=".4"/></svg><a href="$1">$2</a><br>';
+        $re = '/\[\+\] <a href="(.*)">(.*)<\/a>(.*?)\n/m';
+        $subst = '<svg viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg" style="margin:-2px 6px 0 0; width:14px; height:14px; display:inline"><path fill="currentColor" d="m0 487.7v-439.7c0-26.5 21.5-48 48-48h48v322.1c0 12.8 14.2 20.4 24.9 13.3l71.1-47.4 71.1 47.4c10.6 7.1 24.9-.5 24.9-13.3v-322.1h48c26.5 0 48 21.5 48 48v439.7c0 13.4-10.9 24.3-24.3 24.3-5 0-9.9-1.5-14-4.4l-153.7-107.6-153.7 107.6c-4.1 2.9-9 4.4-14 4.4-13.4 0-24.3-10.9-24.3-24.3z"/><path fill="currentColor" d="m192 288-71.1 47.4c-10.6 7.1-24.9-.5-24.9-13.3v-322.1h192v322.1c0 12.8-14.2 20.4-24.9 13.3z" opacity=".4"/></svg><a href="$1">$2</a>$3<br>';
         return preg_replace($re, $subst, $text);
     }
 
@@ -1146,6 +1191,15 @@ class Markdown
 
         # Make sure $text ends with a couple of newlines:
         $text .= "\n\n";
+
+        // Protect pre blocks so Markdown doesn't alter their contents.
+        $text = preg_replace_callback(
+            '/<pre\b[^>]*>[\s\S]*?<\/pre>/i',
+            function ($matches) {
+                return $this->hashBlock($matches[0]);
+            },
+            $text
+        );
 
         # Convert all tabs to spaces.
         $text = $this->detab($text);
