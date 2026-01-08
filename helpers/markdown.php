@@ -24,6 +24,7 @@ class Markdown
     public function transform(?string $text, bool $autoParseURLs = false, bool $autoParseToc = true): ?string
     {
         if (!$text) return '';
+
         $text = str_replace('\n', "\n", $text);
 
         $text = (string)$this->processCols($text);
@@ -37,7 +38,6 @@ class Markdown
         $text = (string)$this->processDetails($text);
         $text = (string)$this->processBoxes($text);
         $text = (string)$this->processCards($text);
-        $text = (string)$this->processSteps($text);
 
         if ($autoParseToc) {
             $text = (string)$this->processTOC($text);
@@ -45,9 +45,9 @@ class Markdown
 
         $text = (string)$this->processCallouts($text);
         $text = (string)$this->processTables($text);
+        $text = (string)$this->processSteps($text);
 
         $text = (string)$this->originalTransform($text);
-
         $text = (string)$this->cleanupHtml($text);
 
         if ($autoParseURLs) {
@@ -58,6 +58,11 @@ class Markdown
 
         // replace `text` with <code>text</code>
         $text = preg_replace('/`(.*?)`/m', '<code>$1</code>', $text);
+
+        // replace horizontal rules --- with <hr>
+        $text = str_replace("\n---\n", "\n<hr>\n", $text);
+
+        // die($text);
         return $text;
     }
 
@@ -74,7 +79,7 @@ class Markdown
     {
         return preg_replace(
             '/(::::\s?cols=(\d))\R+((\w*|.|\R)+)\R+(::::\s?+\R?+)/m',
-            "<div class=\"cols\" style=\"--md-cols:$2\">\n$3\n</div>",
+            "<div class=\"cols\" style=\"--md-cols:$2\">\n$3\n</div>\n",
             $text
         );
     }
@@ -830,17 +835,25 @@ class Markdown
         $text = preg_replace('/<!-- callout class="callout callout-(.*?)" -->/m', '<div class="callout callout-$1">', $text);
         $text = preg_replace('/<!-- \/callout -->/m', '</div>', $text);
 
-        $replacements = [
-            '<p><oembed' => '<oembed',
-            '</oembed></p>' => '</oembed>',
-            '<p><div' => '<div',
-            '</div></p>' => '</div>',
-            '<p><details>' => '<details>',
-            '</summary></p>' => '</summary>',
-            '<p></details></p>' => '</details>',
-            '<p></p>' => '',
-        ];
-        return str_replace(array_keys($replacements), array_values($replacements), $text);
+        // Remove empty tags like <p></p> or <h2></h2>.
+        $text = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*><\/\1>/i', '', $text);
+        $text = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*><\/div><\/\1>/i', '</div>', $text);
+
+        return $text;
+
+        // $replacements = [
+        //     '<p><oembed' => '<oembed',
+        //     '</oembed></p>' => '</oembed>',
+        //     '<p><div' => '<div',
+        //     '</div></p>' => '</div>',
+        //     '<p><details>' => '<details>',
+        //     '<p><summary>' => '<summary>',
+        //     '</summary></p>' => '</summary>',
+        //     '<p></details></p>' => '</details>',
+        //     '</details></p>' => '</details>',
+        // ];
+
+        // return str_replace(array_keys($replacements), array_values($replacements), $text);
     }
 
     /**
@@ -1614,6 +1627,7 @@ class Markdown
 
         if (isset($this->urls[$link_id])) {
             $url = $this->urls[$link_id];
+            $url = $this->normalizeRelativeUrl($url);
             $url = $this->encodeURLAttribute($url);
 
             $result = "<a href=\"$url\"";
@@ -1659,6 +1673,27 @@ class Markdown
         $result .= ">$link_text</a>";
 
         return $this->hashPart($result);
+    }
+
+    protected function normalizeRelativeUrl($url)
+    {
+        if ($url === '' || $url === '.' || $url === '..') {
+            return $url;
+        }
+        if ($url[0] === '#' || $url[0] === '/' || $url[0] === '?') {
+            return $url;
+        }
+        if (strpos($url, '//') === 0) {
+            return $url;
+        }
+        if (preg_match('/^[a-z][a-z0-9+.-]*:/i', $url)) {
+            return $url;
+        }
+        if (preg_match('/^\.\.?\//', $url)) {
+            return $url;
+        }
+
+        return './' . $url;
     }
 
     protected function doImages($text)
@@ -2321,12 +2356,21 @@ class Markdown
         $text = preg_replace('/\A\n+|\n+\z/', '', $text);
 
         $grafs = preg_split('/\n{2,}/', $text, -1, PREG_SPLIT_NO_EMPTY);
+        $block_tag_re = '(?:p|div|h[1-6]|blockquote|pre|table|dl|ol|ul|li|address|' .
+            'script|noscript|style|form|fieldset|iframe|math|svg|' .
+            'article|section|nav|aside|hgroup|header|footer|' .
+            'figure|figcaption|hr|details|summary|oembed|main|video|audio|canvas)';
+        $block_tag_pattern = '/<\/?(?:' . $block_tag_re . ')\b/i';
 
         #
         # Wrap <p> tags and unhashify HTML blocks
         #
         foreach ($grafs as $key => $value) {
             if (!preg_match('/^B\x1A[0-9]+B$/', $value)) {
+                if (preg_match($block_tag_pattern, $value) || preg_match('/B\x1A[0-9]+B/', $value)) {
+                    $grafs[$key] = $this->unhash($value);
+                    continue;
+                }
                 # Is a paragraph.
                 $value = $this->runSpanGamut($value);
                 $value = preg_replace('/^([ ]*)/', "<p>", $value);
