@@ -21,7 +21,7 @@ class Markdown
      * @param string|null $text The markdown text to convert
      * @return string|null The HTML output, or null/empty if input is invalid
      */
-    public function transform(?string $text, bool $autoParseURLs = false, bool $autoParseToc = true): ?string
+    public function transform(?string $text, bool $autoParseURLs = true, bool $autoParseToc = true): ?string
     {
         if (!$text) return '';
 
@@ -532,6 +532,9 @@ class Markdown
         return preg_replace_callback(
             '/\n(#{2,4})\s+(.*?)\n/m',
             function ($matches) {
+                if (preg_match('/<a\\b/i', $matches[2]) || preg_match('/\\[[^\\]]+\\]\\([^\\)]+\\)/', $matches[2])) {
+                    return "\n$matches[1] $matches[2]\n";
+                }
                 $matches[2] = trim(strip_tags($matches[2]));
                 $hash = mb_strtolower(str_replace(' ', '-', preg_replace('/[^a-zA-Z0-9 -]/m', '', $matches[2])));
                 if ($hash == 'up-next') {
