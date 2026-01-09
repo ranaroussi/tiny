@@ -25,38 +25,10 @@ class Markdown
     {
         if (!$text) return '';
 
-        $textx = <<<EOF
-
-# Architecture
-
-MUXI is a layered system: CLI and SDKs talk to Servers, which manage Formations running on Runtimes. The Registry distributes formations.
-
-
-## Design Principles
-
-> [!IMPORTANT]
-> MUXI is **infrastructure**, not a framework. It deploys anywhere and integrates with anything.
-
-1. **YAML configuration** - Simple, versionable, shareable
-2. **Encrypted secrets** - Not environment variables
-3. **MCP for tools** - Standard protocol, any server works
-4. **Multi-agent** - Specialized agents, coordinated work
-5. **Portable** - Works on any cloud, any platform
-
----
-
-## Next Steps
-
-[+] [Request Lifecycle](../deep-dives/request-lifecycle.md) - Detailed request flow
-[+] [Security Model](../deep-dives/security.md) - Authentication layers
-[+] [Reference](../reference/README.md) - Building formations
-
-EOF;
-
         $text = str_replace('\n', "\n", $text);
         $text = str_replace("\n1. ", "\n\n1. ", $text);
         $text = str_replace("\n- ", "\n\n- ", $text);
-
+        $text = str_replace("\n```", "\n\n```", $text);
 
         $text = (string)$this->processCols($text);
         $text = (string)$this->processTabs($text);
@@ -69,7 +41,6 @@ EOF;
         $text = (string)$this->processDetails($text);
         $text = (string)$this->processBoxes($text);
         $text = (string)$this->processCards($text);
-
         if ($autoParseToc) {
             $text = (string)$this->processTOC($text);
         }
@@ -78,6 +49,7 @@ EOF;
         $text = (string)$this->processTables($text);
         $text = (string)$this->processSteps($text);
 
+        // die($text);
         $text = (string)$this->originalTransform($text);
         $text = (string)$this->cleanupHtml($text);
 
@@ -113,7 +85,7 @@ EOF;
     private function processCols(string $text): ?string
     {
         return preg_replace(
-            '/(::::\s?cols=(\d))\R+((\w*|.|\R)+)\R+(::::\s?+\R?+)/m',
+            '/(::::\s?cols=(\d))\R+((\w*|.|\R)+)\R+(::::\s?+\R?+)/mu',
             "<div class=\"cols\" style=\"--md-cols:$2\">\n$3\n</div>\n",
             $text
         );
@@ -206,7 +178,7 @@ EOF;
         // Matches: ```lang{1,3-5}\nCODE\n```
         // - lang is optional
         // - {…} is optional and may be adjacent or spaced
-        $pattern = '~^```(?P<lang>[a-zA-Z0-9_-]+)?(?:[ \t]*\{(?P<hl>[^\}]+)\})?\R(?P<code>[\s\S]*?)\R```~m';
+        $pattern = '~^```(?P<lang>[a-zA-Z0-9_-]+)?(?:[ \t]*\{(?P<hl>[^\}]+)\})?\R(?P<code>[\s\S]*?)\R```~mu';
 
         return preg_replace_callback($pattern, function ($m) {
             static $mermaids = 0;
@@ -218,14 +190,14 @@ EOF;
             if ($language === 'mermaid') {
                 $mermaids++;
                 return '<pre class="mermaid-src fixed hidden invisible opacity-0" style="top:-100vh;left:-100vh;" data-mermaid-id="' . $mermaids . '">' . $code . '</pre>'
-                    . '<pre><code class="mermaid" id="mermaid-' . $mermaids . '" style="color:transparent">' . trim($code) . '</code></pre>';
+                    . '<pre><code class="mermaid" id="mermaid-' . $mermaids . '" style="color:transparent">' . trim(htmlspecialchars($code, ENT_NOQUOTES, 'UTF-8')) . '</code></pre>';
             }
 
             // Prism classes/attrs
             $langClass = $language ? 'language-' . $language : 'language-plaintext';
-            $lineAttr  = $lineHighlight !== '' ? ' data-line="' . htmlspecialchars($lineHighlight, ENT_QUOTES) . '"' : '';
+            $lineAttr  = $lineHighlight !== '' ? ' data-line="' . htmlspecialchars($lineHighlight, ENT_QUOTES, 'UTF-8') . '"' : '';
             $copyAttr  = ' data-prismjs-copy-timeout="1000"'; // optional: Prism copy-to-clipboard plugin
-            $codeEsc   = htmlspecialchars($code, ENT_NOQUOTES);
+            $codeEsc   = htmlspecialchars($code, ENT_NOQUOTES, 'UTF-8');
 
             if (!$language) {
                 return '<pre class="language-plaintext"' . $lineAttr . $copyAttr . '>'
@@ -251,7 +223,7 @@ EOF;
     private function processTabContent(string $text): ?string
     {
         return preg_replace_callback(
-            '/(.*|\R?)(<div class="md-tab-content">\R?)((\w*|.|\R)+)\R?(<\/div><\/div>\R?)(.*|\R?)/m',
+            '/(.*|\R?)(<div class="md-tab-content">\R?)((\w*|.|\R)+)\R?(<\/div><\/div>\R?)(.*|\R?)/mu',
             function ($matches) {
                 return $matches[1] . $matches[2] . $this->originalTransform($matches[3]) . $matches[4] . $matches[5] . $matches[6];
             },
@@ -272,7 +244,7 @@ EOF;
     private function processNoCodeTabs(string $text): ?string
     {
         return preg_replace_callback(
-            '/((<div class="md-tab" (.*?)>\R)(?!<pre>)((\w*|.|\R)+)\R(<\/div>))/m',
+            '/((<div class="md-tab" (.*?)>\R)(?!<pre>)((\w*|.|\R)+)\R(<\/div>))/mu',
             function ($matches) {
                 return $matches[2] . $this->originalTransform($matches[4]) . $matches[6];
             },
@@ -398,7 +370,7 @@ EOF;
     private function processPageBreak(string $text): ?string
     {
         return preg_replace(
-            '/(^|\R)(~+)($|\R)/',
+            '/(^|\R)(~+)($|\R)/u',
             '\n<div class="print-page-break"></div>\n',
             $text
         );
@@ -430,7 +402,7 @@ EOF;
     private function processDetails(string $text): ?string
     {
         return preg_replace_callback(
-            '/(\[\[toggle\s(.*?)\]\]\s?\R?((\w*|.|\R)+)\[\[\/toggle\]\])/m',
+            '/(\[\[toggle\s(.*?)\]\]\s?\R?((\w*|.|\R)+)\[\[\/toggle\]\])/mu',
             function ($matches) {
                 return "<details>\n<summary>$matches[2]</summary><div>" . $this->originalTransform($matches[3]) . "</div></details>\n";
             },
@@ -450,7 +422,7 @@ EOF;
     private function processBoxes(string $text): ?string
     {
         return preg_replace_callback(
-            '/((\[\[boxed(\s?(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/boxed\]\]))/m',
+            '/((\[\[boxed(\s?(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/boxed\]\]))/mu',
             function ($matches) {
                 return "<div class=\"boxed boxed-$matches[4]\">" . $this->originalTransform($matches[5]) . "</div>\n";
             },
@@ -471,7 +443,7 @@ EOF;
     private function processCards(string $text): ?string
     {
         $text = preg_replace_callback(
-            '/(\[\[card(\s(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/card\]\])/m',
+            '/(\[\[card(\s(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/card\]\])/mu',
             function ($matches) {
                 return "<div class=\"card\">\n" . ($matches[3] ? "<h4>$matches[3]</h4>" : '') . $this->originalTransform($matches[4]) . "</div>\n";
             },
@@ -588,7 +560,7 @@ EOF;
      */
     private function processCallouts(string $text): ?string
     {
-        $pattern = '/^[ \t]*>\s*\[\!(\w+)\][^\r\n]*\R((?:^[ \t]*>.*(?:\R|$))+)/mi';
+        $pattern = '/^[ \t]*>\s*\[\!(\w+)\][^\r\n]*\R((?:^[ \t]*>.*(?:\R|$))+)/miu';
 
         return preg_replace_callback($pattern, function ($m) {
             $type = strtolower($m[1]);
@@ -643,13 +615,13 @@ EOF;
         // unnecessary processing if no tables are present.
         // Pattern matches: optional whitespace + pipe + content + newline +
         // whitespace + pipe + separator dashes (at least 3)
-        if (!preg_match('/^\s*\|.*\R\s*\|[ :\-]{3,}/m', $text)) {
+        if (!preg_match('/^\s*\|.*\R\s*\|[ :\-]{3,}/mu', $text)) {
             return $text;
         }
 
         // Split text into individual lines for processing
         // \R matches any Unicode newline sequence (CR, LF, CRLF, etc.)
-        $lines = preg_split('/\R/', $text);
+        $lines = preg_split('/\R/u', $text);
         // Output array to collect processed lines and HTML tables
         $out   = [];
         // Current line index during scanning
@@ -1207,6 +1179,9 @@ EOF;
         # Turn block-level HTML blocks into hash entries
         $text = $this->hashHTMLBlocks($text);
 
+        // Protect inline code spans so emphasis doesn't touch their contents.
+        $text = $this->hashInlineCodeSpans($text);
+
         # Strip any lines consisting only of spaces and tabs.
         # This makes subsequent regexen easier to write, because we can
         # match consecutive blank lines with /\n+/ instead of something
@@ -1266,6 +1241,17 @@ EOF;
         );
 
         return $text;
+    }
+
+    private function hashInlineCodeSpans(string $text): string
+    {
+        return preg_replace_callback(
+            '/(?<!\\\\)(`+)(.+?)\\1(?!`)/s',
+            function ($matches) {
+                return $this->makeCodeSpan($matches[2]);
+            },
+            $text
+        );
     }
 
     protected function _stripLinkDefinitions_callback($matches)
@@ -2167,7 +2153,7 @@ EOF;
         if ($this->code_block_content_func) {
             $codeblock = call_user_func($this->code_block_content_func, $codeblock, "");
         } else {
-            $codeblock = htmlspecialchars($codeblock, ENT_NOQUOTES);
+            $codeblock = htmlspecialchars($codeblock, ENT_NOQUOTES, 'UTF-8');
         }
 
         # trim leading newlines and trailing newlines
@@ -2183,7 +2169,7 @@ EOF;
         #
         # Create a code span markup for $code. Called from handleSpanToken.
         #
-        $code = htmlspecialchars(trim($code), ENT_NOQUOTES);
+        $code = htmlspecialchars(trim($code), ENT_NOQUOTES, 'UTF-8');
 
         return $this->hashPart("<code>$code</code>");
     }
