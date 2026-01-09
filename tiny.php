@@ -858,6 +858,72 @@ class tiny
     }
 
     /**
+     * Normalizes a URL or path by resolving "." and ".." segments.
+     *
+     * @param string $url The URL or path to normalize
+     * @return string The normalized URL or path
+     */
+    public static function normalizeUrl(string $url): string
+    {
+        $parts = parse_url($url);
+        if ($parts === false) {
+            return $url;
+        }
+
+        $path = $parts['path'] ?? '';
+        $isAbsolute = $path !== '' && $path[0] === '/';
+        $segments = explode('/', $path);
+        $resolved = [];
+
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                if (!empty($resolved)) {
+                    array_pop($resolved);
+                } elseif (!$isAbsolute) {
+                    $resolved[] = '..';
+                }
+                continue;
+            }
+            $resolved[] = $segment;
+        }
+
+        $normalizedPath = ($isAbsolute ? '/' : '') . implode('/', $resolved);
+        if ($normalizedPath === '' && $isAbsolute) {
+            $normalizedPath = '/';
+        }
+
+        $normalized = '';
+        if (isset($parts['scheme'])) {
+            $normalized .= $parts['scheme'] . '://';
+        }
+        if (isset($parts['user'])) {
+            $normalized .= $parts['user'];
+            if (isset($parts['pass'])) {
+                $normalized .= ':' . $parts['pass'];
+            }
+            $normalized .= '@';
+        }
+        if (isset($parts['host'])) {
+            $normalized .= $parts['host'];
+        }
+        if (isset($parts['port'])) {
+            $normalized .= ':' . $parts['port'];
+        }
+        $normalized .= $normalizedPath;
+        if (isset($parts['query'])) {
+            $normalized .= '?' . $parts['query'];
+        }
+        if (isset($parts['fragment'])) {
+            $normalized .= '#' . $parts['fragment'];
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Echoes a home URL.
      *
      * @param string $path The path to append to the home URL (optional)
@@ -1036,4 +1102,3 @@ header_remove('Server');
 header_remove('X-Powered-By');
 tiny::init();
 /* -------------------------------------- */
-
