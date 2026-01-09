@@ -33,7 +33,7 @@ class Markdown
 
         $text = preg_replace('/\n\s+?- /m', "\n- ", $text);
         $text = str_replace(":\n- ", ":\n\n- ", $text);
-        $text = str_replace(":**\n- ", ":**\n\n- ", $text);
+        $text = str_replace("**\n- ", "**\n\n- ", $text);
 
 
         $text = (string)$this->processCols($text);
