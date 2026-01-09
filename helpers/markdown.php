@@ -27,8 +27,14 @@ class Markdown
 
         $text = str_replace('\n', "\n", $text);
         $text = str_replace("\n1. ", "\n\n1. ", $text);
-        $text = str_replace("\n- ", "\n\n- ", $text);
+        $text = str_replace("\n\n- ", "\n\n\n- ", $text);
         $text = str_replace("\n```", "\n\n```", $text);
+        $text = str_replace("```\n", "```\n\n", $text);
+
+        $text = preg_replace('/\n\s+?- /m', "\n- ", $text);
+        $text = str_replace(":\n- ", ":\n\n- ", $text);
+        $text = str_replace(":**\n- ", ":**\n\n- ", $text);
+
 
         $text = (string)$this->processCols($text);
         $text = (string)$this->processTabs($text);
@@ -582,9 +588,12 @@ class Markdown
             $type = $aliases[$type] ?? 'note';
 
             // Remove the leading `>` from body lines
-            $inner = preg_replace('/^[ \t]*>\s?/m', '', $m[2]);
-            // Trim surrounding blank lines
-            $inner = trim($inner, "\r\n");
+            $inner = preg_replace('/^[ \t]*>(.*)/m', '$1', $m[2]);
+
+            $inner = preg_replace('/\n\s+?- /m', "\n- ", $inner);
+            $inner = str_replace(":\n- ", ":\n\n- ", $inner);
+            $inner = str_replace(":**\n- ", ":**\n\n- ", $inner);
+            $inner = trim($this->originalTransform($inner), "\r\n");
 
             // replace newlines with double newlines
             // $inner = preg_replace('/\R+/', "\n\n", $inner);
