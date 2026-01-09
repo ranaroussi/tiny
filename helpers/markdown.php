@@ -218,7 +218,7 @@ EOF;
             if ($language === 'mermaid') {
                 $mermaids++;
                 return '<pre class="mermaid-src fixed hidden invisible opacity-0" style="top:-100vh;left:-100vh;" data-mermaid-id="' . $mermaids . '">' . $code . '</pre>'
-                    . '<pre><code class="mermaid" id="mermaid-' . $mermaids . '" style="color:transparent">' . $code . '</code></pre>';
+                    . '<pre><code class="mermaid" id="mermaid-' . $mermaids . '" style="color:transparent">' . trim($code) . '</code></pre>';
             }
 
             // Prism classes/attrs
@@ -229,11 +229,11 @@ EOF;
 
             if (!$language) {
                 return '<pre class="language-plaintext"' . $lineAttr . $copyAttr . '>'
-                . '<code class="language-plaintext">' . $codeEsc . '</code>'
+                . '<code class="language-plaintext">' . trim($codeEsc) . '</code>'
                 . '</pre>';
             }
             return '<pre class="line-numbers"' . $lineAttr . $copyAttr . '>'
-                . '<code class="' . $langClass . '">' . $codeEsc . '</code>'
+                . '<code class="' . $langClass . '">' . trim($codeEsc) . '</code>'
                 . '</pre>';
         }, $text);
     }
