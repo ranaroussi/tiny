@@ -151,6 +151,14 @@ class Markdown
                 // content stays exactly as-is
                 $content = $t[2];
 
+                // handle two code blocks inside a single tab
+                $content = preg_replace_callback('/(```[\s\S]*?```)([\s\S]*?)(```[\s\S]*?```)/',function ($matches) {
+                    $before = $matches[1]; // first code block
+                    $middle = $this->originalTransform($matches[2]); // <– modify this
+                    $after  = $matches[3]; // second code block
+                    return $before . $middle . $after;
+                }, $content);
+
                 $buttons[] = '  <button class="' . $activeClass . '" type="button" data-target="' . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . '">' .
                     htmlspecialchars($buttonText, ENT_QUOTES, 'UTF-8') . '</button>';
 
