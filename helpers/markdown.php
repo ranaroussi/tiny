@@ -74,6 +74,7 @@ class Markdown
         // support checkboxes
         $text = str_replace('<li>[ ] ', '<li><input type="checkbox" style="margin-bottom: -2px; margin-right: 4px;" class="input"> ', $text);
         $text = str_replace('<li>[x] ', '<li><input type="checkbox" style="margin-bottom: -2px; margin-right: 4px;" class="input" checked> ', $text);
+        // $text = str_replace('<p></div>', '</div><p>', $text);
 
         // die($text);
         return $text;
@@ -611,8 +612,8 @@ class Markdown
             // replace newlines with double newlines
             // $inner = preg_replace('/\R+/', "\n\n", $inner);
 
-            return '<!-- callout class="callout callout-' . $type . '" -->' . "\n\n"
-                . $inner . "\n\n<!-- /callout -->";
+            return "\n\n" .'<!-- callout class="callout callout-' . $type . '" -->' . "\n\n"
+                . $inner . "\n\n<!-- /callout -->\n\n";
         }, $text);
     }
 
