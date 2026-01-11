@@ -152,10 +152,10 @@ class Markdown
                 $content = $t[2];
 
                 // handle two code blocks inside a single tab
-                $content = preg_replace_callback('/(```[\s\S]*?```)([\s\S]*?)(```[\s\S]*?```)/',function ($matches) {
+                $content = preg_replace_callback('/(```[\s\S]*?```)([\s\S]*?)(?=```[\s\S]*?```|$)(```[\s\S]*?```)?/',function ($matches) {
                     $before = $matches[1]; // first code block
                     $middle = $this->originalTransform($matches[2]); // <– modify this
-                    $after  = $matches[3]; // second code block
+                    $after  = $matches[3] ?? ''; // second code block
                     return $before . $middle . $after;
                 }, $content);
 
@@ -513,10 +513,15 @@ class Markdown
                 $title = isset($s[1]) ? trim($s[1]) : "Step $count";
 
                 // content is processed through originalTransform to convert markdown to HTML
-                $content = $this->originalTransform(trim($s[2]));
+                $content = trim($s[2]);
+
+                // $content = sre
+                $content = $this->originalTransform($content);
+                $content = preg_replace('/\*\*(.*?)\*\*/s', '<strong>$1</strong>', $content);
+                $content = preg_replace('/\*|_(.*?)\*|_/s', '<em>$1</em>', $content);
 
                 $items[] = '<li class="step">' . "\n" .
-                          '  <h3 class="step-title">Step ' . $count . '</h3>' . "\n" .
+                          '  <h3 class="step-title">' . $title . '</h3>' . "\n" .
                           $content .
                           '</li>';
             }
