@@ -56,7 +56,6 @@ class TinyCache
                   ?? $_SERVER['HTTP_X_FORWARDED_HOST']
                   ?? $_SERVER['HTTP_HOST']
                   ?? $_SERVER['SERVER_NAME']
-                  ?? tiny::config()->app_dir
                   ?? dirname(__DIR__, 2);
 
         $prefix = strtolower(trim($prefix));
