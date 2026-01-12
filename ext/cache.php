@@ -27,6 +27,7 @@ class TinyCache
 {
     private \Memcached|null $memcached;
     private bool $disabled = false;
+    private string $prefix = 'tiny_cache_';
 
     /**
      * Initializes the TinyCache with the specified caching engine.
@@ -42,11 +43,26 @@ class TinyCache
         ?int $memcached_port = 11211,
         ?bool $disable = false
     ) {
+
+        // check for disabled cache
         $this->disabled = $disable ?? false;
         if ($this->disabled) {
             $this->disabled = true;
             return;
         }
+
+        // create a cache key prefix (no cross-site pollution on same engine)
+        $prefix = $_SERVER['TINY_CACHE_PREFIX']
+                  ?? $_SERVER['HTTP_X_FORWARDED_HOST']
+                  ?? $_SERVER['HTTP_HOST']
+                  ?? $_SERVER['SERVER_NAME']
+                  ?? tiny::config()->app_dir
+                  ?? dirname(__DIR__, 2);
+
+        $prefix = strtolower(trim($prefix));
+        $hash = base_convert(sprintf('%u', crc32($prefix)), 10, 36);
+        $this->prefix = "tiny:{$hash}:";
+
         match ($this->engine) {
             'apcu' => $this->initApcu(),
             'memcached' => $this->initMemcached($memcached_host, $memcached_port),
@@ -96,6 +112,9 @@ class TinyCache
             return null;
         }
 
+        // prepend cache prefix to key
+        $key = $this->prefix . $key;
+
         if ($this->engine === 'apcu') {
             return apcu_fetch($key, $success) ?: null;
         }
@@ -117,6 +136,9 @@ class TinyCache
             return true;
         }
 
+        // prepend cache prefix to key
+        $key = $this->prefix . $key;
+
         if ($this->engine === 'apcu') {
             return apcu_store($key, $value, $ttl);
         }
@@ -134,6 +156,10 @@ class TinyCache
         if ($this->disabled) {
             return true;
         }
+
+        // prepend cache prefix to key
+        $key = $this->prefix . $key;
+
         if ($this->engine === 'apcu') {
             return apcu_delete($key);
         }
@@ -154,10 +180,13 @@ class TinyCache
 
         $matches = [];
 
+        // prepend cache prefix to key
+        $prefix = $this->prefix . $prefix;
+
         if ($this->engine === 'apcu') {
             $iterator = new \APCUIterator('/^' . preg_quote($prefix, '/') . '/');
             foreach ($iterator as $item) {
-                $matches[] = $item['key'];
+                $matches[] = substr($item['key'], strlen($this->prefix));
             }
         } else {
             $keys = $this->memcached->getAllKeys();
@@ -166,7 +195,7 @@ class TinyCache
             }
             foreach ($keys as $key) {
                 if (str_starts_with($key, $prefix)) {
-                    $matches[] = $key;
+                    $matches[] = substr($key, strlen($this->prefix));
                 }
             }
         }
@@ -184,6 +213,10 @@ class TinyCache
         if ($this->disabled) {
             return;
         }
+
+        // prepend cache prefix to key
+        $prefix = $this->prefix . $prefix;
+
         if ($this->engine === 'apcu') {
             $iterator = new \APCUIterator('/^' . preg_quote($prefix, '/') . '/');
             foreach ($iterator as $item) {
