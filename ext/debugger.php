@@ -66,8 +66,9 @@ trait TinyDebugger
             $function = $func_caller['class'] . '::' . $function;
         }
 
+        $caller['file'] = $caller['file'] ?? 'unknown';
         return [
-            'file' => str_replace($path_prefix, '', $caller['file'] ?? 'unknown'),
+            'file' => $path_prefix == '/' ? $caller['file'] : str_replace($path_prefix, '', $caller['file']),
             'line' => $caller['line'] ?? 'unknown',
             'function' => !in_array($function, INTERNAL_FUNCTIONS) ? $function : '',
         ];
