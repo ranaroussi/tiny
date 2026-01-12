@@ -96,7 +96,7 @@ class tiny
      */
     private static function loadConfig(): void
     {
-        $cacheKey = 'tiny_init_config';
+        $cacheKey = 'init';
         $cachedConfig = self::cache()->get($cacheKey);
 
         if ($cachedConfig === null) {
