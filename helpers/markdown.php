@@ -31,7 +31,8 @@ class Markdown
         $text = str_replace("\n```", "\n\n```", $text);
         $text = str_replace("```\n", "```\n\n", $text);
 
-        $text = preg_replace('/\n\s+?- /m', "\n- ", $text);
+        $text = preg_replace('/\n\s+?- /m', "\n\n- ", $text);
+        // die($text);
         $text = str_replace(":\n- ", ":\n\n- ", $text);
         $text = str_replace("**\n- ", "**\n\n- ", $text);
 
@@ -43,7 +44,6 @@ class Markdown
         $text = (string)$this->processOembed($text);
         $text = (string)$this->processPageBreak($text);
         $text = (string)$this->processCenter($text);
-        $text = (string)$this->processDetails($text);
         $text = (string)$this->processBoxes($text);
         $text = (string)$this->processCards($text);
         if ($autoParseToc) {
@@ -55,8 +55,10 @@ class Markdown
         $text = (string)$this->processSteps($text);
 
         // die($text);
+
         $text = (string)$this->originalTransform($text);
         $text = (string)$this->cleanupHtml($text);
+        $text = (string)$this->processDetails($text);
 
         if ($autoParseURLs) {
             $text = (string)$this->processURLs($text);
@@ -75,6 +77,8 @@ class Markdown
         $text = str_replace('<li>[ ] ', '<li><input type="checkbox" style="margin-bottom: -2px; margin-right: 4px;" class="input"> ', $text);
         $text = str_replace('<li>[x] ', '<li><input type="checkbox" style="margin-bottom: -2px; margin-right: 4px;" class="input" checked> ', $text);
         // $text = str_replace('<p></div>', '</div><p>', $text);
+
+        $text = str_replace('</p><br>', '</p>', $text);
 
         // die($text);
         return $text;
@@ -419,7 +423,7 @@ class Markdown
         return preg_replace_callback(
             '/(\[\[toggle\s(.*?)\]\]\s?\R?((\w*|.|\R)+)\[\[\/toggle\]\])/mu',
             function ($matches) {
-                return "<details>\n<summary>$matches[2]</summary><div>" . $this->originalTransform($matches[3]) . "</div></details>\n";
+                return "<details>\n<summary>$matches[2]</summary><div>" . $matches[3] . "</div></details>\n";
             },
             $text
         );
@@ -878,10 +882,11 @@ class Markdown
         $text = preg_replace('/<!-- \/callout -->/m', '</div>', $text);
 
         // Remove empty tags like <p></p> or <h2></h2>.
-        $text = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*><\/\1>/i', '', $text);
+        $text = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*>(\s+?)<\/\1>/i', '', $text);
         $text = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*><\/div><\/\1>/i', '</div>', $text);
         $text = preg_replace('/<li><p>(.*)<\/p><\/li>/i', '<li>$1</li>', $text);
 
+        $text = str_replace('</p><br>', '</p>', $text);
         return $text;
 
         // $replacements = [
