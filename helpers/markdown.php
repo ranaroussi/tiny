@@ -35,7 +35,6 @@ class Markdown
         $text = str_replace(":\n- ", ":\n\n- ", $text);
         $text = str_replace("**\n- ", "**\n\n- ", $text);
 
-
         $text = (string)$this->processCols($text);
         $text = (string)$this->processTabs($text);
         $text = (string)$this->processSyntaxHighlighting($text);
@@ -64,6 +63,7 @@ class Markdown
         }
 
         $text = (string)$this->processBookmarks($text);
+        $text = (string)$this->processButtons($text);
 
         // replace `text` with <code>text</code>
         $text = preg_replace('/`(.*?)`/m', '<code>$1</code>', $text);
@@ -996,6 +996,32 @@ class Markdown
         $re = '/\[\+\] <a href="(.*)">(.*)<\/a>(.*?)\n/m';
         $subst = '<svg viewBox="0 0 384 512" xmlns="http://www.w3.org/2000/svg" style="margin:-2px 6px 0 0; width:14px; height:14px; display:inline"><path fill="currentColor" d="m0 487.7v-439.7c0-26.5 21.5-48 48-48h48v322.1c0 12.8 14.2 20.4 24.9 13.3l71.1-47.4 71.1 47.4c10.6 7.1 24.9-.5 24.9-13.3v-322.1h48c26.5 0 48 21.5 48 48v439.7c0 13.4-10.9 24.3-24.3 24.3-5 0-9.9-1.5-14-4.4l-153.7-107.6-153.7 107.6c-4.1 2.9-9 4.4-14 4.4-13.4 0-24.3-10.9-24.3-24.3z"/><path fill="currentColor" d="m192 288-71.1 47.4c-10.6 7.1-24.9-.5-24.9-13.3v-322.1h192v322.1c0 12.8-14.2 20.4-24.9 13.3z" opacity=".4"/></svg><a href="$1">$2</a>$3<br>';
         return preg_replace($re, $subst, $text);
+    }
+
+    /**
+     * Processes buttons syntax.
+     *
+     * Converts custom bookmark syntax ([>] link / [>>] link) to links
+     * button class.
+     *
+     * @param string $text The HTML text containing bookmark links
+     * @return string|null The text with bookmark icons added
+     */
+    private function processButtons(string $text): ?string
+    {
+        $re = '/\[\>\] <a href="(.*)">(.*)<\/a>(.*?)\n/m';
+        $subst = '<a href="$1" class="btn">$2</a>$3<br>';
+        $text = preg_replace($re, $subst, $text);
+
+        $re = '/\[\>\>\] <a href="(.*)">(.*)<\/a>(.*?)\n/m';
+        $subst = '<a href="$1" class="btn-secondary">$2</a>$3<br>';
+        $text = preg_replace($re, $subst, $text);
+
+        $re = '/\[\[\>\]\] <a href="(.*)">(.*)<\/a>(.*?)\n/m';
+        $subst = '<a href="$1" class="btn-outline">$2</a>$3<br>';
+        $text = preg_replace($re, $subst, $text);
+
+        return $text;
     }
 
     /**
