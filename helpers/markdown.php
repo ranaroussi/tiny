@@ -31,10 +31,21 @@ class Markdown
         $text = str_replace("\n```", "\n\n```", $text);
         $text = str_replace("```\n", "```\n\n", $text);
 
-        $text = preg_replace('/\n\s+?- /m', "\n\n- ", $text);
-        // die($text);
-        $text = str_replace(":\n- ", ":\n\n- ", $text);
-        $text = str_replace("**\n- ", "**\n\n- ", $text);
+        // $text = preg_replace('/\n\s+?- /m', "\n\n- ", $text);
+        // $text = str_replace(":\n- ", ":\n\n- ", $text);
+        // $text = str_replace("**\n- ", "**\n\n- ", $text);
+        // ↓ only apply these to text not between ``` and ```
+        $text = preg_replace_callback('/(```[\s\S]*?```)|([\s\S]+?)(?=(```|$))/', function ($m) {
+            // If this is a fenced block, return as-is
+            if (!empty($m[1])) return $m[1];
+
+            $text = $m[2];
+            $text = preg_replace('/\n\s+?- /m', "\n\n- ", $text);
+            $text = str_replace(":\n- ", ":\n\n- ", $text);
+            $text = str_replace("**\n- ", "**\n\n- ", $text);
+            return $text;
+
+        }, $text);
 
         $text = (string)$this->processCols($text);
         $text = (string)$this->processTabs($text);
@@ -56,9 +67,9 @@ class Markdown
 
         // die($text);
 
+        $text = (string)$this->processDetails($text);
         $text = (string)$this->originalTransform($text);
         $text = (string)$this->cleanupHtml($text);
-        $text = (string)$this->processDetails($text);
 
         if ($autoParseURLs) {
             $text = (string)$this->processURLs($text);
@@ -79,6 +90,9 @@ class Markdown
         // $text = str_replace('<p></div>', '</div><p>', $text);
 
         $text = str_replace('</p><br>', '</p>', $text);
+        // $text = str_replace('<p></p>', '', $text);
+        // $text = preg_replace('/\<p\>\s+?\<\/p\>/m', "", $text);
+
 
         // die($text);
         return $text;
