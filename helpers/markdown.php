@@ -437,7 +437,7 @@ class Markdown
         return preg_replace_callback(
             '/(\[\[toggle\s(.*?)\]\]\s?\R?((\w*|.|\R)+)\[\[\/toggle\]\])/mu',
             function ($matches) {
-                return "<details>\n<summary>$matches[2]</summary><div>" . $matches[3] . "</div></details>\n";
+                return "<details>\n<summary>$matches[2]</summary><div>" . $this->originalTransform($matches[3]) . "</div></details>\n";
             },
             $text
         );
