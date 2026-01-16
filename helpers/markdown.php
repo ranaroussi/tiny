@@ -31,6 +31,8 @@ class Markdown
         $text = str_replace("\n```", "\n\n```", $text);
         $text = str_replace("```\n", "```\n\n", $text);
 
+        $text = str_replace(' xmlns="http://www.w3.org/2000/svg"', "", $text);
+
         // $text = preg_replace('/\n\s+?- /m', "\n\n- ", $text);
         // $text = str_replace(":\n- ", ":\n\n- ", $text);
         // $text = str_replace("**\n- ", "**\n\n- ", $text);
