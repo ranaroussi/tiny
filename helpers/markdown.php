@@ -25,6 +25,8 @@ class Markdown
     {
         if (!$text) return '';
 
+        // $text = ''; // use for debugigng
+
         $text = str_replace('\n', "\n", $text);
         $text = str_replace("\n1. ", "\n\n1. ", $text);
         $text = str_replace("\n\n- ", "\n\n\n- ", $text);
@@ -83,8 +85,16 @@ class Markdown
         // replace `text` with <code>text</code>
         $text = preg_replace('/`(.*?)`/m', '<code>$1</code>', $text);
 
-        // replace horizontal rules --- with <hr>
-        $text = str_replace("\n---\n", "\n<hr>\n", $text);
+        // replace horizontal rules --- with <hr> outside pre/code blocks
+        $parts = preg_split('/(<pre\b[^>]*>.*?<\/pre>|<code\b[^>]*>.*?<\/code>)/is', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts !== false) {
+            foreach ($parts as $index => $part) {
+                if ($index % 2 === 0) {
+                    $parts[$index] = str_replace("\n---\n", "\n<hr>\n", $part);
+                }
+            }
+            $text = implode('', $parts);
+        }
 
         // support checkboxes
         $text = str_replace('<li>[ ] ', '<li><input type="checkbox" style="margin-bottom: -2px; margin-right: 4px;" class="input"> ', $text);
@@ -238,6 +248,9 @@ class Markdown
                 return '<pre class="language-plaintext"' . $lineAttr . $copyAttr . '>'
                 . '<code class="language-plaintext">' . trim($codeEsc) . '</code>'
                 . '</pre>';
+            }
+            if ($language == 'plain') {
+                return '<pre><code>' . trim($codeEsc) . '</code></pre>';
             }
             return '<pre class="line-numbers"' . $lineAttr . $copyAttr . '>'
                 . '<code class="' . $langClass . '">' . trim($codeEsc) . '</code>'
