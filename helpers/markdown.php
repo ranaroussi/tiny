@@ -245,12 +245,10 @@ class Markdown
             $codeEsc   = htmlspecialchars($code, ENT_NOQUOTES, 'UTF-8');
 
             if (!$language) {
-                return '<pre class="language-plaintext"' . $lineAttr . $copyAttr . '>'
-                . '<code class="language-plaintext">' . trim($codeEsc) . '</code>'
-                . '</pre>';
+                return '<pre><code>' . trim($codeEsc) . '</code></pre>';
             }
             if ($language == 'plain') {
-                return '<pre><code>' . trim($codeEsc) . '</code></pre>';
+                return '<pre class="w-fit"><code>' . trim($codeEsc) . '</code></pre>';
             }
             return '<pre class="line-numbers"' . $lineAttr . $copyAttr . '>'
                 . '<code class="' . $langClass . '">' . trim($codeEsc) . '</code>'
