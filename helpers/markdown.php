@@ -2253,8 +2253,8 @@ class Markdown
         #
         # Create a code span markup for $code. Called from handleSpanToken.
         #
-        $code = htmlspecialchars(trim($code), ENT_NOQUOTES, 'UTF-8');
-
+        // $code = htmlspecialchars(trim($code), ENT_NOQUOTES, 'UTF-8');
+        $code = trim($code);
         return $this->hashPart("<code>$code</code>");
     }
 
