@@ -31,6 +31,7 @@ class Markdown
         $text = str_replace("\n1. ", "\n\n1. ", $text);
         $text = str_replace("\n\n- ", "\n\n\n- ", $text);
         $text = str_replace("\n```", "\n\n```", $text);
+        $text = str_replace("```tsx", "```typescript", $text);
         $text = str_replace("```\n", "```\n\n", $text);
 
         $text = str_replace(' xmlns="http://www.w3.org/2000/svg"', "", $text);
@@ -244,14 +245,16 @@ class Markdown
             $copyAttr  = ' data-prismjs-copy-timeout="1000"'; // optional: Prism copy-to-clipboard plugin
             $codeEsc   = htmlspecialchars($code, ENT_NOQUOTES, 'UTF-8');
 
+            $codeEsc = trim($codeEsc, "\n");
+
             if (!$language) {
-                return '<pre><code>' . trim($codeEsc) . '</code></pre>';
+                return '<pre><code>' . $codeEsc . '</code></pre>';
             }
             if ($language == 'plain') {
-                return '<pre class="w-fit"><code>' . trim($codeEsc) . '</code></pre>';
+                return '<pre class="w-fit"><code>' . $codeEsc . '</code></pre>';
             }
             return '<pre class="line-numbers"' . $lineAttr . $copyAttr . '>'
-                . '<code class="' . $langClass . '">' . trim($codeEsc) . '</code>'
+                . '<code class="' . $langClass . '">' . $codeEsc . '</code>'
                 . '</pre>';
         }, $text);
     }
@@ -502,7 +505,7 @@ class Markdown
         return preg_replace_callback(
             '/\((.*?)\)<div class="card">((\n|.)*?)<\/div>(\s+|$)/m',
             function ($matches) {
-                return "<a class=\"card\" href=\"$matches[1]\">$matches[2]</a>";
+                return "<a class=\"card\" href=\"$matches[1]\">$matches[2]</a>\n\n";
             },
             $text
         );
@@ -914,6 +917,12 @@ class Markdown
         $text = preg_replace('/<li><p>(.*)<\/p><\/li>/i', '<li>$1</li>', $text);
 
         $text = str_replace('</p><br>', '</p>', $text);
+
+        // Remove <p> tags around card elements
+        $text = str_replace('<p><a class="card"', '<a class="card"', $text);
+        $text = str_replace('<p></a></p>', '</a>', $text);
+        $text = preg_replace('/<a class="card" href="(.*?)"><\/p>/', '<a class="card" href="$1">', $text);
+
         return $text;
 
         // $replacements = [
