@@ -247,6 +247,9 @@ class Markdown
 
             $codeEsc = trim($codeEsc, "\n");
 
+            $codeEsc = str_replace("\n\n- ", "\n- ", $codeEsc);
+            $codeEsc = str_replace("\n\n1. ", "\n1. ", $codeEsc);
+
             if (!$language) {
                 return '<pre><code>' . $codeEsc . '</code></pre>';
             }
@@ -583,27 +586,40 @@ class Markdown
      */
     private function processTOC(string $text): ?string
     {
-        return preg_replace_callback(
-            '/\n(#{2,4})\s+(.*?)\n/m',
-            function ($matches) {
-                if (preg_match('/<a\\b/i', $matches[2]) || preg_match('/\\[[^\\]]+\\]\\([^\\)]+\\)/', $matches[2])) {
-                    return "\n$matches[1] $matches[2]\n";
-                }
-                $matches[2] = trim(strip_tags($matches[2]));
-                $hash = mb_strtolower(str_replace(' ', '-', preg_replace('/[^a-zA-Z0-9 -]/m', '', $matches[2])));
-                if ($hash == 'up-next') {
-                    return "\n$matches[1] $matches[2]";
-                }
-                if ($matches[1] == '##') {
-                    return "\n<h2><a class=\"anchor inherit\" id=\"$hash\" href=\"#$hash\">$matches[2]</a></h2>\n";
-                } elseif ($matches[1] == '###') {
-                    return "\n<h3><a class=\"anchor\" id=\"$hash\" href=\"#$hash\">$matches[2]</a></h3>\n";
-                } else {
-                    return "\n<h4><a class=\"anchor\" id=\"$hash\" href=\"#$hash\">$matches[2]</a></h4>\n";
-                }
-            },
-            $text
-        );
+        $pattern = '/\n(#{2,4})\s+(.*?)\n/m';
+        $replacer = function ($matches) {
+            if (preg_match('/<a\\b/i', $matches[2]) || preg_match('/\\[[^\\]]+\\]\\([^\\)]+\\)/', $matches[2])) {
+                return "\n$matches[1] $matches[2]\n";
+            }
+            $matches[2] = trim(strip_tags($matches[2]));
+            $hash = mb_strtolower(str_replace(' ', '-', preg_replace('/[^a-zA-Z0-9 -]/m', '', $matches[2])));
+            if ($hash == 'up-next') {
+                return "\n$matches[1] $matches[2]";
+            }
+            if ($matches[1] == '##') {
+                return "\n<h2><a class=\"anchor inherit\" id=\"$hash\" href=\"#$hash\">$matches[2]</a></h2>\n";
+            } elseif ($matches[1] == '###') {
+                return "\n<h3><a class=\"anchor\" id=\"$hash\" href=\"#$hash\">$matches[2]</a></h3>\n";
+            } else {
+                return "\n<h4><a class=\"anchor\" id=\"$hash\" href=\"#$hash\">$matches[2]</a></h4>\n";
+            }
+        };
+
+        // Avoid altering headings inside code/pre blocks.
+        $parts = preg_split('/(<pre\\b[^>]*>.*?<\\/pre>|<code\\b[^>]*>.*?<\\/code>)/is', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false || count($parts) === 1) {
+            return preg_replace_callback($pattern, $replacer, $text);
+        }
+
+        foreach ($parts as $index => $part) {
+            if (preg_match('/^<pre\\b/i', $part) || preg_match('/^<code\\b/i', $part)) {
+                continue;
+            }
+            $replaced = preg_replace_callback($pattern, $replacer, $part);
+            $parts[$index] = $replaced === null ? $part : $replaced;
+        }
+
+        return implode('', $parts);
     }
 
     /**
