@@ -110,6 +110,9 @@ class Job
         }
 
         // Regular minute-level (and up) cron jobs
+        if ((int)$date->format('s') !== 0) {
+            return false;
+        }
         return $this->executionTime->isDue($date);
     }
 
