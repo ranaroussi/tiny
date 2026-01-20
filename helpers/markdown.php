@@ -122,9 +122,11 @@ class Markdown
      */
     private function processCols(string $text): ?string
     {
+        // tiny::dd($text);
+
         return preg_replace(
-            '/(::::\s?cols=(\d))\R+((\w*|.|\R)+)\R+(::::\s?+\R?+)/mu',
-            "<div class=\"cols\" style=\"--md-cols:$2\">\n$3\n</div>\n",
+            '/::::\s?cols=(\d)\R+([\s\S]+?)\R+::::/mu',
+            "<div class=\"cols\" style=\"--md-cols:$1\">\n$2\n</div>\n",
             $text
         );
     }
@@ -274,10 +276,12 @@ class Markdown
      */
     private function processTabContent(string $text): ?string
     {
+        // Original regex (catastrophic backtracking on musl/Alpine):
+        // '/(.*|\R?)(<div class="md-tab-content">\R?)((\w*|.|\R)+)\R?(<\/div><\/div>\R?)(.*|\R?)/mu'
         return preg_replace_callback(
-            '/(.*|\R?)(<div class="md-tab-content">\R?)((\w*|.|\R)+)\R?(<\/div><\/div>\R?)(.*|\R?)/mu',
+            '/(.*|\R?)(<div class="md-tab-content">\R?)([\s\S]+?)\R?(<\/div><\/div>\R?)(.*|\R?)/mu',
             function ($matches) {
-                return $matches[1] . $matches[2] . $this->originalTransform($matches[3]) . $matches[4] . $matches[5] . $matches[6];
+                return $matches[1] . $matches[2] . $this->originalTransform($matches[3]) . $matches[4] . $matches[5];
             },
             $text
         );
@@ -295,10 +299,12 @@ class Markdown
      */
     private function processNoCodeTabs(string $text): ?string
     {
+        // Original regex (catastrophic backtracking on musl/Alpine):
+        // '/((<div class="md-tab" (.*?)>\R)(?!<pre>)((\w*|.|\R)+)\R(<\/div>))/mu'
         return preg_replace_callback(
-            '/((<div class="md-tab" (.*?)>\R)(?!<pre>)((\w*|.|\R)+)\R(<\/div>))/mu',
+            '/((<div class="md-tab" (.*?)>\R)(?!<pre>)([\s\S]+?)\R(<\/div>))/mu',
             function ($matches) {
-                return $matches[2] . $this->originalTransform($matches[4]) . $matches[6];
+                return $matches[2] . $this->originalTransform($matches[4]) . $matches[5];
             },
             $text
         );
@@ -453,10 +459,12 @@ class Markdown
      */
     private function processDetails(string $text): ?string
     {
+        // Original regex (catastrophic backtracking on musl/Alpine):
+        // '/(\[\[toggle\s(.*?)\]\]\s?\R?((\w*|.|\R)+)\[\[\/toggle\]\])/mu'
         return preg_replace_callback(
-            '/(\[\[toggle\s(.*?)\]\]\s?\R?((\w*|.|\R)+)\[\[\/toggle\]\])/mu',
+            '/\[\[toggle\s(.*?)\]\]\s?\R?([\s\S]+?)\[\[\/toggle\]\]/mu',
             function ($matches) {
-                return "<details>\n<summary>$matches[2]</summary><div>" . $this->originalTransform($matches[3]) . "</div></details>\n";
+                return "<details>\n<summary>$matches[1]</summary><div>" . $this->originalTransform($matches[2]) . "</div></details>\n";
             },
             $text
         );
@@ -473,10 +481,12 @@ class Markdown
      */
     private function processBoxes(string $text): ?string
     {
+        // Original regex (catastrophic backtracking on musl/Alpine):
+        // '/((\[\[boxed(\s?(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/boxed\]\]))/mu'
         return preg_replace_callback(
-            '/((\[\[boxed(\s?(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/boxed\]\]))/mu',
+            '/\[\[boxed(\s(.*?))?\]\]\s?\R?([\s\S]+?)\[\[\/boxed\]\]/mu',
             function ($matches) {
-                return "<div class=\"boxed boxed-$matches[4]\">" . $this->originalTransform($matches[5]) . "</div>\n";
+                return "<div class=\"boxed boxed-$matches[2]\">" . $this->originalTransform($matches[3]) . "</div>\n";
             },
             $text
         );
@@ -494,10 +504,12 @@ class Markdown
      */
     private function processCards(string $text): ?string
     {
+        // Original regex (catastrophic backtracking on musl/Alpine):
+        // '/(\[\[card(\s(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/card\]\])/mu'
         $text = preg_replace_callback(
-            '/(\[\[card(\s(.*?))?\]\]\s?\R?((\w*|.|\R)+)\[\[\/card\]\])/mu',
+            '/\[\[card(\s(.*?))?\]\]\s?\R?([\s\S]+?)\[\[\/card\]\]/mu',
             function ($matches) {
-                return "<div class=\"card\">\n" . ($matches[3] ? "<h4>$matches[3]</h4>" : '') . $this->originalTransform($matches[4]) . "</div>\n";
+                return "<div class=\"card\">\n" . ($matches[2] ? "<h4>$matches[2]</h4>" : '') . $this->originalTransform($matches[3]) . "</div>\n";
             },
             $text
         );
