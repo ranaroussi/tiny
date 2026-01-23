@@ -106,7 +106,7 @@ foreach ($_SERVER as $key => $value) {
 }
 
 $_SERVER['TINY_CALC_TIMER'] = $_SERVER['TINY_CALC_TIMER'] ?? true;
-putenv('TZ=' . isset($_SERVER['TINY_TIMEZONE']) ? $_SERVER['TINY_TIMEZONE'] : 'UTC');
+putenv('TZ=' . (isset($_SERVER['TINY_TIMEZONE']) ? $_SERVER['TINY_TIMEZONE'] : 'UTC'));
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
 ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 1 : 0);
