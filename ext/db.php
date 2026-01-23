@@ -285,10 +285,16 @@ class TinyDB implements DB
         }
 
         $existing_db = file_exists($db_path);
+
+        // PHP 8.5+ uses Pdo\Sqlite::ATTR_OPEN_FLAGS, older versions use PDO::SQLITE_ATTR_OPEN_FLAGS
+        $openFlagsAttr = defined('Pdo\Sqlite::ATTR_OPEN_FLAGS')
+            ? \Pdo\Sqlite::ATTR_OPEN_FLAGS
+            : \PDO::SQLITE_ATTR_OPEN_FLAGS;
+
         $options = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-            \PDO::SQLITE_ATTR_OPEN_FLAGS => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
+            $openFlagsAttr => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
         ];
 
         try {
@@ -301,7 +307,7 @@ class TinyDB implements DB
             $this->createSwooleConnection('sqlite:' . $db_path, null, null, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-                \PDO::SQLITE_ATTR_OPEN_FLAGS => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
+                $openFlagsAttr => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
             ]);
 
             if (!$existing_db && $db_scheme != null) {
