@@ -225,7 +225,9 @@ class tiny
                         self::$router->query[$k] = is_string($v) ? urldecode(trim(htmlspecialchars($v))) : $v;
                     }
                 }
-                unset(self::$router->query[self::$router->root]);
+                if (isset(self::$router->root)) {
+                    unset(self::$router->query[self::$router->root]);
+                }
             }
         }
 
