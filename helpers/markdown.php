@@ -1933,7 +1933,7 @@ class Markdown
         $alt_text = $this->encodeAttribute($alt_text);
         if (isset($this->urls[$link_id])) {
             $url = $this->encodeURLAttribute($this->urls[$link_id]);
-            $result = "<img src=\"$url\" alt=\"$alt_text\"";
+            $result = "<img loading=\"lazy\" src=\"$url\" alt=\"$alt_text\"";
             if (isset($this->titles[$link_id])) {
                 $title = $this->titles[$link_id];
                 $title = $this->encodeAttribute($title);
