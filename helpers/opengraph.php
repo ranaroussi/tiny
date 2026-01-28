@@ -262,5 +262,5 @@ class OpenGraphImage
 }
 
 tiny::registerHelper('opengraph', function($baseDir = 'ogfiles') {
-    return new OpenGraphImage(tiny::$config->app_path . '/static/' . $baseDir);
+    return new OpenGraphImage(tiny::config()->app_path . '/static/' . $baseDir);
 });
