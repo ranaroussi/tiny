@@ -1958,7 +1958,7 @@ class Markdown
 
         $alt_text = $this->encodeAttribute($alt_text);
         $url = $this->encodeURLAttribute($url);
-        $result = "<img src=\"$url\" alt=\"$alt_text\"";
+        $result = "<img loading=\"lazy\" src=\"$url\" alt=\"$alt_text\"";
         if (isset($title)) {
             $title = $this->encodeAttribute($title);
             $result .= " title=\"$title\""; # $title already quoted
