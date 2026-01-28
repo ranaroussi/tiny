@@ -225,8 +225,6 @@ class OpenGraphImage
             header('Content-type: image/webp');
             imagewebp($template, null, $quality);
         }
-
-        imagedestroy($template);
     }
 
     /**
