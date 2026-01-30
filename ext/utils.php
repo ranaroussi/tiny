@@ -981,6 +981,24 @@ trait TinyUtils
     }
 
     /**
+     * Checks if a value is NOT empty.
+     *
+     * @param mixed $v The value to check
+     * @return bool True if the value is not empty, false otherwise
+     */
+    public static function notEmpty(mixed $v): bool
+    {
+        if (is_array($v)) {
+            return !empty($v);
+        } elseif (is_object($v)) {
+            return !empty((array)$v);
+        } else {
+            return trim((string)$v) !== '';
+        }
+    }
+
+
+    /**
      * Parses a name into its components using TheIconic\NameParser\Parser.
      *
      * @param string $name The name to parse
