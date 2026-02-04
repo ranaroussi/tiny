@@ -94,7 +94,7 @@ For complex queries, you can use raw SQL:
 
 ```php
 // Raw query with parameters
-$users = tiny::db()->query(
+$users = tiny::db()->getQuery(
     "SELECT * FROM users WHERE role = ? AND status = ?",
     ['admin', 'active']
 );
@@ -146,7 +146,7 @@ $query = tiny::db()->prepare(
    $user = tiny::db()->getOne('users', ['id' => $id]);
 
    // Avoid
-   $user = tiny::db()->query("SELECT * FROM users WHERE id = $id");
+   $user = tiny::db()->getQuery("SELECT * FROM users WHERE id = $id");
    ```
 
 2. **Handle Errors**

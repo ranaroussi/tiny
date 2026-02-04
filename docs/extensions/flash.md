@@ -31,7 +31,7 @@ tiny::flash('toast')->set([
 $message = tiny::flash()->get();
 
 // Get and keep message
-$message = tiny::flash()->get(true);
+$message = tiny::flash()->get();
 
 // Check specific message
 if (tiny::flash('error')->exists()) {

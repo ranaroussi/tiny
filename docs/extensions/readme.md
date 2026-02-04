@@ -255,7 +255,7 @@ class TinyPayments
 {
     private array $providers = [];
     private array $config = [];
-    
+
     public function __construct()
     {
         // Load configuration from environment
@@ -265,32 +265,32 @@ class TinyPayments
             'webhook_secret' => $_SERVER['PAYMENTS_WEBHOOK_SECRET'] ?? '',
             'test_mode' => ($_SERVER['PAYMENTS_TEST_MODE'] ?? 'false') === 'true'
         ];
-        
+
         // Initialize providers
         $this->initializeProviders();
     }
-    
+
     /**
      * Process a payment with automatic provider selection
      */
     public function charge(array $paymentData): array
     {
         $provider = $paymentData['provider'] ?? $this->config['default_provider'];
-        
+
         if (!isset($this->providers[$provider])) {
             throw new InvalidArgumentException("Unsupported payment provider: {$provider}");
         }
-        
+
         try {
             // Validate payment data
             $this->validatePaymentData($paymentData);
-            
+
             // Process payment through provider
             $result = $this->providers[$provider]->processPayment($paymentData);
-            
+
             // Log transaction
             $this->logTransaction($result, $paymentData);
-            
+
             return [
                 'success' => true,
                 'transaction_id' => $result['id'],
@@ -298,7 +298,7 @@ class TinyPayments
                 'currency' => $result['currency'],
                 'status' => $result['status']
             ];
-            
+
         } catch (PaymentException $e) {
             return [
                 'success' => false,
@@ -307,11 +307,11 @@ class TinyPayments
             ];
         }
     }
-    
+
     private function validatePaymentData(array $data): void
     {
         $required = ['amount', 'currency', 'customer_id'];
-        
+
         foreach ($required as $field) {
             if (empty($data[$field])) {
                 throw new ValidationException("Missing required field: {$field}");
@@ -362,12 +362,12 @@ class TinyCache
 {
     private static array $instances = [];
     private array $stats = ['hits' => 0, 'misses' => 0];
-    
+
     public function __destruct()
     {
         // Clean up resources
         $this->disconnect();
-        
+
         // Log performance statistics
         if ($this->stats['hits'] + $this->stats['misses'] > 0) {
             $hitRate = $this->stats['hits'] / ($this->stats['hits'] + $this->stats['misses']);
@@ -388,7 +388,7 @@ class HealthCheck
     public function checkExtensions(): array
     {
         $results = [];
-        
+
         // Check cache connectivity
         try {
             tiny::cache()->set('health_check', time(), 60);
@@ -397,15 +397,15 @@ class HealthCheck
         } catch (Exception $e) {
             $results['cache'] = ['status' => 'unhealthy', 'error' => $e->getMessage()];
         }
-        
+
         // Check database connectivity
         try {
-            tiny::db()->query('SELECT 1')->fetch();
+            tiny::db()->getQuery('SELECT 1');
             $results['database'] = ['status' => 'healthy'];
         } catch (Exception $e) {
             $results['database'] = ['status' => 'unhealthy', 'error' => $e->getMessage()];
         }
-        
+
         return $results;
     }
 }

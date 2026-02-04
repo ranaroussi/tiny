@@ -145,7 +145,7 @@ class UserModel extends TinyModel
 {
     public function getUsers()
     {
-        return tiny::db()->query("SELECT * FROM users");
+        return tiny::db()->getQuery("SELECT * FROM users");
     }
 }
 ```
