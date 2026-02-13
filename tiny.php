@@ -217,7 +217,7 @@ class tiny
         // compensate for malform proxy requests
         if (empty(self::$router->query)) {
             $gets = explode('?', $_SERVER['REQUEST_URI'] ?? '');
-            if (count($gets) > 0) {
+            if (count($gets) > 1) {
                 $gets = explode('&', $gets[1]);
                 if (count($gets)) {
                     foreach ($gets as $item) {
