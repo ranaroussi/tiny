@@ -214,15 +214,19 @@ class tiny
             }
         }
 
-        // compensate for malform proxy requests
+        // compensate for malformed proxy requests
         if (empty(self::$router->query)) {
             $gets = explode('?', $_SERVER['REQUEST_URI'] ?? '');
             if (count($gets) > 1) {
                 $gets = explode('&', $gets[1]);
                 if (count($gets)) {
                     foreach ($gets as $item) {
-                        @list($k, $v) = explode('=', $item);
-                        self::$router->query[$k] = is_string($v) ? urldecode(trim(htmlspecialchars($v))) : $v;
+                        try {
+                            list($k, $v) = explode('=', $item);
+                            self::$router->query[$k] = is_string($v) ? urldecode(trim(htmlspecialchars($v))) : $v;
+                        } catch (\Exception $e) {
+                            // Ignore malformed query parameters
+                        }
                     }
                 }
                 if (isset(self::$router->root)) {
