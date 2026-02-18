@@ -221,11 +221,11 @@ class tiny
                 $gets = explode('&', $gets[1]);
                 if (count($gets)) {
                     foreach ($gets as $item) {
-                        try {
-                            list($k, $v) = explode('=', $item);
+                        $parts = explode('=', $item);
+                        $k = $parts[0] ?? null;
+                        $v = $parts[1] ?? null;
+                        if ($k !== null && $v !== null) {
                             self::$router->query[$k] = is_string($v) ? urldecode(trim(htmlspecialchars($v))) : $v;
-                        } catch (\Exception $e) {
-                            // Ignore malformed query parameters
                         }
                     }
                 }
