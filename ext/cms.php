@@ -569,7 +569,7 @@ class TinyCMS
 
             // Fix angle brackets and links in code blocks
             // Escapes HTML and removes internal doc links from code examples
-            $re = '/(```(.*?)\n)((.|\n)*?)\n```/mi';
+            $re = '/(```(.*?)\n)([\s\S]*?)\n```/mi';
             $content = preg_replace_callback($re, function ($matches) {
                 return $matches[1] . $matches[3] . "\n```";
             }, $content);
