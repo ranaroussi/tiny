@@ -25,6 +25,8 @@ class Markdown
     {
         if (!$text) return '';
 
+        // $text = ''; // use for debugigng
+
         $text = str_replace('\n', "\n", $text);
         $text = str_replace("\n1. ", "\n\n1. ", $text);
         $text = str_replace("\n\n- ", "\n\n\n- ", $text);
@@ -34,19 +36,21 @@ class Markdown
 
         $text = str_replace(' xmlns="http://www.w3.org/2000/svg"', "", $text);
 
-        // Apply list formatting only to text outside fenced code blocks.
-        // Uses string splitting instead of regex to avoid catastrophic
-        // backtracking on large documents (e.g. musl/Alpine).
-        $segments = explode('```', $text);
-        for ($i = 0; $i < count($segments); $i++) {
-            // Even indices are outside code fences, odd indices are inside
-            if ($i % 2 === 0) {
-                $segments[$i] = preg_replace('/\n\s+?- /m', "\n\n- ", $segments[$i]);
-                $segments[$i] = str_replace(":\n- ", ":\n\n- ", $segments[$i]);
-                $segments[$i] = str_replace("**\n- ", "**\n\n- ", $segments[$i]);
-            }
-        }
-        $text = implode('```', $segments);
+        // $text = preg_replace('/\n\s+?- /m', "\n\n- ", $text);
+        // $text = str_replace(":\n- ", ":\n\n- ", $text);
+        // $text = str_replace("**\n- ", "**\n\n- ", $text);
+        // ↓ only apply these to text not between ``` and ```
+        $text = preg_replace_callback('/(```[\s\S]*?```)|([\s\S]+?)(?=(```|$))/', function ($m) {
+            // If this is a fenced block, return as-is
+            if (!empty($m[1])) return $m[1];
+
+            $text = $m[2];
+            $text = preg_replace('/\n\s+?- /m', "\n\n- ", $text);
+            $text = str_replace(":\n- ", ":\n\n- ", $text);
+            $text = str_replace("**\n- ", "**\n\n- ", $text);
+            return $text;
+
+        }, $text);
 
         $text = (string)$this->processCols($text);
         $text = (string)$this->processTabs($text);
@@ -65,6 +69,9 @@ class Markdown
         $text = (string)$this->processCallouts($text);
         $text = (string)$this->processTables($text);
         $text = (string)$this->processSteps($text);
+
+        // die($text);
+
         $text = (string)$this->processDetails($text);
         $text = (string)$this->originalTransform($text);
         $text = (string)$this->cleanupHtml($text);
