@@ -27,6 +27,15 @@ class Markdown
 
         // $text = ''; // use for debugigng
 
+        // Ensure complex docs (e.g. large mermaid blocks) don't blow up regex rewrites
+        if (function_exists('ini_set')) {
+            $currentLimit = (int)ini_get('pcre.backtrack_limit');
+            $targetLimit = 2000000;
+            if ($currentLimit < $targetLimit) {
+                @ini_set('pcre.backtrack_limit', (string)$targetLimit);
+            }
+        }
+
         $text = str_replace('\n', "\n", $text);
         $text = str_replace("\n1. ", "\n\n1. ", $text);
         $text = str_replace("\n\n- ", "\n\n\n- ", $text);
