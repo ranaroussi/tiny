@@ -567,8 +567,28 @@ class Markdown
 
                 // $content = sre
                 $content = $this->originalTransform($content);
-                $content = preg_replace('/\*\*(.*?)\*\*/s', '<strong>$1</strong>', $content);
-                $content = preg_replace('/\*|_(.*?)\*|_/s', '<em>$1</em>', $content);
+
+                // Apply emphasis markup outside of inline code spans only.
+                $segments = preg_split(
+                    '/(<code\b[^>]*>.*?<\/code>)/is',
+                    $content,
+                    -1,
+                    PREG_SPLIT_DELIM_CAPTURE
+                );
+                if ($segments !== false) {
+                    foreach ($segments as &$segment) {
+                        if (preg_match('/^<code\b/i', $segment)) {
+                            continue;
+                        }
+                        $segment = preg_replace('/\*\*(.*?)\*\*/s', '<strong>$1</strong>', $segment);
+                        $segment = preg_replace('/\*|_(.*?)\*|_/s', '<em>$1</em>', $segment);
+                    }
+                    unset($segment);
+                    $content = implode('', $segments);
+                } else {
+                    $content = preg_replace('/\*\*(.*?)\*\*/s', '<strong>$1</strong>', $content);
+                    $content = preg_replace('/\*|_(.*?)\*|_/s', '<em>$1</em>', $content);
+                }
 
                 $items[] = '<li class="step">' . "\n" .
                           '  <h3 class="step-title">' . $title . '</h3>' . "\n" .
