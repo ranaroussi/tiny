@@ -257,9 +257,10 @@ class GitHub
     /**
      * Get user's membership role in an organization
      *
-     * Uses /user/memberships/orgs/{org} for the authenticated user's own membership
-     * (works with basic OAuth scopes), falls back to /orgs/{org}/memberships/{username}
-     * for checking other users (requires admin:org scope).
+     * Tries multiple approaches in order of scope requirements:
+     * 1. /user/memberships/orgs/{org} (needs read:org)
+     * 2. /orgs/{org}/memberships/{username} (needs admin:org)
+     * 3. /orgs/{org}/members?role=admin (works for org members with public_repo)
      *
      * @param string $org Organization name
      * @param string $username GitHub username to check (if null, checks authenticated user)
@@ -267,22 +268,36 @@ class GitHub
      */
     public function getOrgMembership($org, $username = null)
     {
-        // Try authenticated user's own membership endpoint first (works with basic scopes)
+        // Try authenticated user's own membership endpoint (needs read:org)
         try {
             $result = $this->request("/user/memberships/orgs/{$org}");
             return $result['role'] ?? null;
-        } catch (Exception $e) {
-            // Fall back to org memberships endpoint (requires admin:org scope)
-            if ($username) {
-                try {
-                    $result = $this->request("/orgs/{$org}/memberships/{$username}");
-                    return $result['role'] ?? null;
-                } catch (Exception $e2) {
-                    return null;
-                }
-            }
-            return null;
+        } catch (Exception $e) {}
+
+        // Fall back to org memberships endpoint (needs admin:org)
+        if ($username) {
+            try {
+                $result = $this->request("/orgs/{$org}/memberships/{$username}");
+                return $result['role'] ?? null;
+            } catch (Exception $e) {}
         }
+
+        // Last resort: check admin members list (works for org members with basic scopes)
+        if ($username) {
+            try {
+                $admins = $this->request("/orgs/{$org}/members?role=admin&per_page=100");
+                if (is_array($admins)) {
+                    foreach ($admins as $admin) {
+                        if (strcasecmp($admin['login'], $username) === 0) {
+                            return 'admin';
+                        }
+                    }
+                    return 'member';
+                }
+            } catch (Exception $e) {}
+        }
+
+        return null;
     }
 
     /**
