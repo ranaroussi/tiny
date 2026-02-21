@@ -247,11 +247,70 @@ class GitHub
     public function isOrgMember($org, $username)
     {
         try {
-            // Check org membership
             $this->request("/orgs/{$org}/members/{$username}");
             return true;
         } catch (Exception $e) {
             return false;
+        }
+    }
+
+    /**
+     * Get user's membership role in an organization
+     *
+     * Uses /user/memberships/orgs/{org} for the authenticated user's own membership
+     * (works with basic OAuth scopes), falls back to /orgs/{org}/memberships/{username}
+     * for checking other users (requires admin:org scope).
+     *
+     * @param string $org Organization name
+     * @param string $username GitHub username to check (if null, checks authenticated user)
+     * @return string|null Role ('admin' or 'member') or null if not a member
+     */
+    public function getOrgMembership($org, $username = null)
+    {
+        // Try authenticated user's own membership endpoint first (works with basic scopes)
+        try {
+            $result = $this->request("/user/memberships/orgs/{$org}");
+            return $result['role'] ?? null;
+        } catch (Exception $e) {
+            // Fall back to org memberships endpoint (requires admin:org scope)
+            if ($username) {
+                try {
+                    $result = $this->request("/orgs/{$org}/memberships/{$username}");
+                    return $result['role'] ?? null;
+                } catch (Exception $e2) {
+                    return null;
+                }
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Get organizations for the authenticated user
+     *
+     * @return array List of organizations
+     */
+    public function getUserOrgs()
+    {
+        try {
+            return $this->request("/user/orgs?per_page=100");
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Get organization info
+     *
+     * @param string $org Organization name
+     * @return array|null Organization data or null if not found
+     */
+    public function getOrg($org)
+    {
+        try {
+            return $this->request("/orgs/{$org}");
+        } catch (Exception $e) {
+            return null;
         }
     }
 
