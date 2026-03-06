@@ -466,31 +466,47 @@ class GitHub
             throw new Exception("File not found: $filePath");
         }
 
-        // GitHub uses a different endpoint for uploads
         $uploadUrl = "https://uploads.github.com/repos/$repo/releases/$releaseId/assets?name=" . urlencode($fileName);
 
         $headers = [
             'Accept: application/vnd.github+json',
-            'User-Agent: '. $this->userAgent,
-            'Content-Type: application/zip'
+            'User-Agent: ' . $this->userAgent,
+            'Content-Type: application/zip',
         ];
 
         if ($this->token) {
             $headers[] = "Authorization: Bearer {$this->token}";
         }
 
-        $fileData = file_get_contents($filePath);
+        $fileSize = filesize($filePath);
+        $headers[] = "Content-Length: {$fileSize}";
 
-        $response = tiny::http()->post($uploadUrl, [
-            'headers' => $headers,
-            'data' => $fileData
+        $fp = fopen($filePath, 'rb');
+
+        $ch = curl_init($uploadUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_INFILE => $fp,
+            CURLOPT_INFILESIZE => $fileSize,
+            CURLOPT_TIMEOUT => 120,
         ]);
 
-        if ($response->status_code >= 400) {
-            throw new Exception("GitHub asset upload error: HTTP `$response->status_code`: $response->body");
+        $body = curl_exec($ch);
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        fclose($fp);
+
+        if ($curlError) {
+            throw new Exception("GitHub asset upload curl error: {$curlError}");
         }
 
-        return $response->json;
+        if ($statusCode >= 400) {
+            throw new Exception("GitHub asset upload error: HTTP `$statusCode`: $body");
+        }
+
+        return json_decode($body, true);
     }
 
     /**
