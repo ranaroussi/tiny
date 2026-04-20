@@ -24,6 +24,61 @@
 class TinyResponse
 {
     /**
+     * Sends additional response headers.
+     *
+     * @param array $headers Either header strings ("Name: value") or key/value pairs.
+     */
+    private function sendHeaders(array $headers = []): void
+    {
+        foreach ($headers as $name => $value) {
+            if (is_int($name)) {
+                $header = trim((string)$value);
+            } else {
+                $header = trim((string)$name) . ': ' . trim((string)$value);
+            }
+
+            if ($header !== '') {
+                tiny::header($header);
+            }
+        }
+    }
+
+    /**
+     * Ensures a Vary token is present on the response.
+     *
+     * @param array $headers Existing response headers.
+     * @param string $token Header token to ensure is present.
+     * @return array Updated headers.
+     */
+    private function ensureVaryHeader(array $headers, string $token): array
+    {
+        $vary = [];
+
+        foreach ($headers as $name => $value) {
+            if (is_string($name) && strcasecmp($name, 'Vary') === 0) {
+                $vary = array_merge($vary, explode(',', (string)$value));
+                unset($headers[$name]);
+                continue;
+            }
+
+            if (is_int($name) && is_string($value) && str_starts_with(strtolower($value), 'vary:')) {
+                $vary = array_merge($vary, explode(',', trim(substr($value, 5))));
+                unset($headers[$name]);
+            }
+        }
+
+        $vary = array_values(array_filter(array_map('trim', $vary)));
+
+        if (!in_array($token, $vary, true)) {
+            $vary[] = $token;
+        }
+
+        $headers['Vary'] = implode(', ', $vary);
+
+        return $headers;
+    }
+
+    /**
      * Redirects the user to a specified URL.
      *
      * @param string $goto The URL to redirect to
@@ -168,10 +223,12 @@ class TinyResponse
      * @param int $code The HTTP status code (default: 200)
      * @param bool $die Whether to terminate script execution after sending (default: true)
      */
-    public function sendRaw(mixed $data, string $content_type = 'text/plain', int $code = 200, bool $die = true): void
+    public function sendRaw(mixed $data, string $content_type = 'text/plain', int $code = 200, bool $die = true, array $headers = []): void
     {
         try {
-            tiny::header("Content-type: $content_type; charset=utf-8", true, $code);
+            http_response_code($code);
+            tiny::header("Content-type: $content_type; charset=utf-8");
+            $this->sendHeaders($headers);
         } catch (\Exception $e) {
             // Silently ignore exceptions when setting headers
         }
@@ -190,5 +247,19 @@ class TinyResponse
         if ($die) {
             tiny::die();
         }
+    }
+
+    /**
+     * Sends a markdown response with the headers required for content negotiation.
+     *
+     * @param mixed $data The markdown content to be sent
+     * @param int $code The HTTP status code (default: 200)
+     * @param bool $die Whether to terminate script execution after sending (default: true)
+     * @param array $headers Optional additional response headers
+     */
+    public function sendMarkdown(mixed $data, int $code = 200, bool $die = true, array $headers = []): void
+    {
+        $headers = $this->ensureVaryHeader($headers, 'Accept');
+        $this->sendRaw($data, 'text/markdown', $code, $die, $headers);
     }
 }
