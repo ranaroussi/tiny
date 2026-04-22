@@ -35,6 +35,7 @@ class TinyRequest
 
     private ?array $bodyCached = null;
     private ?string $jsonCached = null;
+    private ?array $markdownNegotiationCached = null;
 
     private array $req_params;
 
@@ -198,5 +199,140 @@ class TinyRequest
 
         // If none of the above conditions are met, this is not an async request
         return false;
+    }
+
+    // ========= Markdown Negotiation =========
+
+    /**
+     * Negotiates the preferred page format from the request URI and Accept header.
+     *
+     * Returns a normalized decision array that indicates whether markdown should
+     * be served, whether the request is not acceptable, and whether the response
+     * should vary by the Accept header.
+     *
+     * @return array{markdown: bool, not_acceptable: bool, vary: bool}
+     */
+    public function getMarkdownNegotiation(): array
+    {
+        if ($this->markdownNegotiationCached !== null) {
+            return $this->markdownNegotiationCached;
+        }
+
+        $acceptHeader = trim((string)(array_change_key_case($this->headers, CASE_LOWER)['accept'] ?? ''));
+        $matches = [
+            'text/markdown' => ['q' => 0.0, 'specificity' => -1, 'index' => PHP_INT_MAX],
+            'text/html' => ['q' => 0.0, 'specificity' => -1, 'index' => PHP_INT_MAX],
+            'application/xhtml+xml' => ['q' => 0.0, 'specificity' => -1, 'index' => PHP_INT_MAX],
+        ];
+
+        foreach (explode(',', $acceptHeader) as $index => $part) {
+            $part = trim($part);
+
+            if ($part === '') {
+                continue;
+            }
+
+            $segments = array_map('trim', explode(';', strtolower($part)));
+            $acceptedType = array_shift($segments) ?? '';
+
+            if ($acceptedType === '') {
+                continue;
+            }
+
+            $q = 1.0;
+
+            foreach ($segments as $segment) {
+                if (!str_starts_with($segment, 'q=')) {
+                    continue;
+                }
+
+                $q = max(0.0, min(1.0, (float)substr($segment, 2)));
+                break;
+            }
+
+            [$type, $subtype] = array_pad(explode('/', $acceptedType, 2), 2, '*');
+
+            foreach ($matches as $mimeType => $best) {
+                [$targetType, $targetSubtype] = array_pad(explode('/', $mimeType, 2), 2, '*');
+
+                $specificity = match (true) {
+                    $type === '*' && $subtype === '*' => 0,
+                    $type === $targetType && $subtype === '*' => 1,
+                    $type === $targetType && $subtype === $targetSubtype => 2,
+                    default => -1,
+                };
+
+                if ($specificity < 0) {
+                    continue;
+                }
+
+                if (
+                    $specificity > $best['specificity'] ||
+                    ($specificity === $best['specificity'] && $q > $best['q']) ||
+                    ($specificity === $best['specificity'] && $q === $best['q'] && $index < $best['index'])
+                ) {
+                    $matches[$mimeType] = [
+                        'q' => $q,
+                        'specificity' => $specificity,
+                        'index' => $index,
+                    ];
+                }
+            }
+        }
+
+        $prefers = static fn(array $left, array $right): bool => (
+            $left['q'] > $right['q'] ||
+            ($left['q'] === $right['q'] && $left['specificity'] > $right['specificity'])
+        );
+
+        if (str_ends_with(tiny::router()->uri, '.md')) {
+            return $this->markdownNegotiationCached = [
+                'markdown' => true,
+                'not_acceptable' => $acceptHeader !== '' && $matches['text/markdown']['q'] <= 0.0,
+                'vary' => false,
+            ];
+        }
+
+        if ($acceptHeader === '') {
+            return $this->markdownNegotiationCached = [
+                'markdown' => false,
+                'not_acceptable' => false,
+                'vary' => false,
+            ];
+        }
+
+        $html = $prefers($matches['application/xhtml+xml'], $matches['text/html'])
+            ? $matches['application/xhtml+xml']
+            : $matches['text/html'];
+
+        return $this->markdownNegotiationCached = [
+            'markdown' => $prefers($matches['text/markdown'], $html),
+            'not_acceptable' => $matches['text/markdown']['q'] <= 0.0 && $html['q'] <= 0.0,
+            'vary' => true,
+        ];
+    }
+
+    /**
+     * Determines whether the current request should receive markdown content.
+     *
+     * Applies the response side effects from content negotiation, including a
+     * 406 response when the request is not acceptable and a Vary header when the
+     * result depends on the Accept header.
+     *
+     * @return bool True when markdown should be returned, false otherwise.
+     */
+    public function isMarkdownRequest(): bool
+    {
+        $decision = $this->getMarkdownNegotiation();
+
+        if ($decision['not_acceptable']) {
+            tiny::response()->sendRaw('Not Acceptable', 'text/plain', 406, true, ['Vary' => 'Accept']);
+        }
+
+        if (!$decision['markdown'] && $decision['vary']) {
+            tiny::header('Vary: Accept');
+        }
+
+        return $decision['markdown'];
     }
 }
