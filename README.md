@@ -416,14 +416,17 @@ See [`docs/extensions/scheduler.md`](docs/extensions/scheduler.md) for the full 
 
 Tiny ships with a built-in, zero-ceremony testing harness. No PHPUnit XML, no bootstrap scripts, no mock libraries — just PHP files you run from the command line.
 
-**Three test-friendly primitives:**
+**Setup: create `.env.test`**
 
-- **`tiny::swap()`** — inject mock/stub singletons (`db`, `cache`, `clickhouse`) in test mode
-- **`tiny::test()`** — load a controller in test mode (returns the instance, no HTTP needed)
-- **`TinyTestResponse`** — a capture-only response returned by `tiny::response()` in test mode; records redirect URLs, rendered views, JSON output, and status codes instead of terminating the script
-- **Auto `:memory:` SQLite** — when `ENV=test` and `DB_TYPE=sqlite` with no explicit file, Tiny auto-connects to an in-memory database
+```env
+ENV=test
+DB_TYPE=sqlite
+TINY_CACHE_DISABLED=true
+```
 
-**Example test file** — `tests/users/create.php`:
+When `ENV=test` + `DB_TYPE=sqlite` with no `DB_SQLITE_FILE`, Tiny auto-connects to `:memory:` — a fresh in-memory database for every test run. `TINY_CACHE_DISABLED=true` keeps tests deterministic by preventing cache pollution between runs.
+
+**Test a controller** — `tests/users/create.php`:
 
 ```php
 <?php
@@ -435,7 +438,7 @@ require __DIR__ . '/../../tiny/tiny.php';
 // Seed a fresh :memory: database
 tiny::db()->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
 
-// Setup POST data
+// Simulate POST request
 $_POST = ['name' => 'Ran'];
 $_SERVER['REQUEST_METHOD'] = 'POST';
 
@@ -446,7 +449,7 @@ $response = tiny::response(); // TinyTestResponse
 try {
     $ctrl->post(tiny::request(), $response);
 } catch (TinyTestExit $e) {
-    // Redirects, renders, and sends throw this in test mode — capture the state
+    // Terminating methods throw this in test mode — capture the state
 }
 
 // Assert
@@ -456,7 +459,13 @@ assert(tiny::db()->getOne('users', "name = 'Ran'")['name'] === 'Ran');
 echo "PASS\n";
 ```
 
-**Swap the database for a stub:**
+Run it:
+
+```bash
+php tests/users/create.php
+```
+
+**Mocking with `tiny::swap()`** — for unit-style isolation, replace the real DB with a fake:
 
 ```php
 class FakeDB extends DB
@@ -469,11 +478,7 @@ class FakeDB extends DB
     }
 }
 
-$_SERVER['ENV'] = 'test';
-require __DIR__ . '/../../tiny/tiny.php';
-
-$fake = new FakeDB();
-tiny::swap('db', $fake);
+tiny::swap('db', new FakeDB());
 ```
 
 See [`docs/core-concepts/testing.md`](docs/core-concepts/testing.md) for the full reference.
