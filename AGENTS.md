@@ -60,6 +60,41 @@ migrations/         # SQLite-tracked migration files
 - `tiny::set()` / `tiny::get()` / `tiny::data()` — global data bag
 - `tiny::helpers()` / `tiny::registerHelper()` — load or register helpers
 
+## Testing
+
+Tiny has a built-in, zero-ceremony testing harness — no PHPUnit, no bootstrap scripts, no mock libraries. Test files are plain PHP scripts run from the command line.
+
+- **`tiny::swap('db', $fake)`** — inject a mock/stub singleton in test env (`db`, `cache`, `clickhouse`).
+- **`tiny::test('users')`** — load a controller in test env and return its instance.
+- **`TinyTestResponse`** — capture-only response returned by `tiny::response()` in test mode; records `redirectUrl`, `renderedView`, `renderParams`, `output`, `status`, `contentType`.
+- **`TinyTestExit`** — exception thrown by terminating response methods (`redirect`, `render`, `send`, etc.) in test mode. Always catch it in tests.
+- **Auto `:memory:` SQLite** — when `ENV=test` + `DB_TYPE=sqlite` with no file specified, Tiny auto-connects to `:memory:`.
+
+**Test pattern:**
+
+```php
+$_SERVER['ENV'] = 'test';
+require __DIR__ . '/../../tiny/tiny.php';
+
+// Optionally swap the DB
+tiny::swap('db', new FakeDB());
+
+// Setup request globals
+$_POST = ['name' => 'Ran'];
+$_SERVER['REQUEST_METHOD'] = 'POST';
+
+// Load controller and call method
+$ctrl = tiny::test('users');
+$response = tiny::response();
+
+try {
+    $ctrl->post(tiny::request(), $response);
+} catch (TinyTestExit) {}
+
+assert($response->redirectUrl === '/users');
+echo "PASS\n";
+```
+
 ## When Modifying Code
 
 1. Match existing code style (PHP 8.3 features, `declare(strict_types=1)`).

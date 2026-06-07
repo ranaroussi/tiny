@@ -582,6 +582,104 @@ Supports GFM extensions: callouts, tabs, cards, columns, toggles, steps. Auto-ca
 
 ---
 
+## Testing
+
+Tiny has a built-in, zero-ceremony testing harness. Test files are plain PHP scripts — no PHPUnit, no bootstrap scripts, no mock libraries.
+
+### Test-friendly primitives
+
+- **`tiny::swap('db', $fake)`** — inject a mock/stub singleton (`db`, `cache`, `clickhouse`) in test env only.
+- **`tiny::test('users')`** — load a controller in test env and return its instance.
+- **`TinyTestResponse`** — capture-only response returned by `tiny::response()` in test mode. Records `redirectUrl`, `renderedView`, `renderParams`, `output`, `status`, `contentType`.
+- **`TinyTestExit`** — exception thrown by terminating response methods (`redirect`, `render`, `send`, etc.) in test mode. Always catch it.
+- **Auto `:memory:` SQLite** — when `ENV=test` + `DB_TYPE=sqlite` with no file, auto-connects to `:memory:`.
+
+### Test pattern
+
+```php
+<?php
+declare(strict_types=1);
+
+$_SERVER['ENV'] = 'test';
+require __DIR__ . '/../../tiny/tiny.php';
+
+// Seed in-memory database
+tiny::db()->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
+
+$_POST = ['name' => 'Ran'];
+$_SERVER['REQUEST_METHOD'] = 'POST';
+
+$ctrl = tiny::test('users');
+$response = tiny::response();
+
+try {
+    $ctrl->post(tiny::request(), $response);
+} catch (TinyTestExit) {}
+
+assert($response->redirectUrl === '/users');
+assert(tiny::db()->getOne('users')['name'] === 'Ran');
+echo "PASS\n";
+```
+
+### Testing with a mock DB
+
+```php
+$_SERVER['ENV'] = 'test';
+require __DIR__ . '/../../tiny/tiny.php';
+
+class FakeDB extends DB
+{
+    public array $inserted = [];
+    public function insert(string $table, array $data): mixed
+    {
+        $this->inserted[] = $data;
+        return 1;
+    }
+}
+
+tiny::swap('db', new FakeDB());
+```
+
+### Testing GET / view renders
+
+```php
+$ctrl = tiny::test('users');
+$response = tiny::response();
+
+try {
+    $ctrl->get(tiny::request(), $response);
+} catch (TinyTestExit) {}
+
+assert($response->renderedView === 'users/index');
+assert(is_array($response->renderParams['users']));
+```
+
+### Testing JSON APIs
+
+```php
+$ctrl = tiny::test('api/users');
+$response = tiny::response();
+
+try {
+    $ctrl->get(tiny::request(), $response);
+} catch (TinyTestExit) {}
+
+assert($response->status === 200);
+assert($response->contentType === 'application/json');
+$json = json_decode($response->output, true);
+assert(is_array($json['users']));
+```
+
+### Best practices
+
+1. **Set `$_SERVER['ENV'] = 'test'` before requiring `tiny.php`.**
+2. **Always catch `TinyTestExit`** from terminating response methods.
+3. **Use `:memory:` SQLite for integration tests** — zero config, fresh DB per run.
+4. **Use `tiny::swap('db', ...)` for unit tests** — faster, no database needed.
+5. **Reset `$_POST` / `$_GET` / `$_SERVER['REQUEST_METHOD']` between tests** — globals are shared.
+
+---
+
 ## Anti-Patterns to Avoid
 
 1. **Don't add an ORM.** Use the raw SQL wrapper.

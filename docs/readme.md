@@ -47,6 +47,7 @@ This documentation covers everything from a 60-second quickstart through every e
 **Tooling**
 - IP-gated debugger (`dd`, `dump`, `log`, `ddump`)
 - CLI for scaffolding and migrations
+- Built-in zero-ceremony testing harness (`tiny::swap()`, `tiny::test()`, `TinyTestResponse`, auto `:memory:` SQLite)
 
 **Integrations (30+ helpers)**
 - Payments: Stripe, S3-compatible Spaces, invoice PDFs
@@ -61,7 +62,7 @@ This documentation covers everything from a 60-second quickstart through every e
 ## How to read this site
 
 1. **[Getting Started](getting-started/readme.md)** — install, configure, runtime modes, deploy.
-2. **[Core Concepts](core-concepts/readme.md)** — MVC, routing, controllers, request/response, views, models, database, middleware, HTMX.
+2. **[Core Concepts](core-concepts/readme.md)** — MVC, routing, controllers, request/response, views, models, database, middleware, HTMX, testing.
 3. **[Extensions](extensions/readme.md)** — every first-party extension that lives in `tiny/ext/`.
 4. **[Helpers](helpers/readme.md)** — the integration catalog plus how to register custom helpers.
 5. **[Examples](examples/readme.md)** — end-to-end walkthroughs (TODO app, API, chat, file upload, user management).

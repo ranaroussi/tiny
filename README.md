@@ -412,6 +412,74 @@ See [`docs/extensions/scheduler.md`](docs/extensions/scheduler.md) for the full 
 
 ---
 
+## Testing
+
+Tiny ships with a built-in, zero-ceremony testing harness. No PHPUnit XML, no bootstrap scripts, no mock libraries — just PHP files you run from the command line.
+
+**Three test-friendly primitives:**
+
+- **`tiny::swap()`** — inject mock/stub singletons (`db`, `cache`, `clickhouse`) in test mode
+- **`tiny::test()`** — load a controller in test mode (returns the instance, no HTTP needed)
+- **`TinyTestResponse`** — a capture-only response returned by `tiny::response()` in test mode; records redirect URLs, rendered views, JSON output, and status codes instead of terminating the script
+- **Auto `:memory:` SQLite** — when `ENV=test` and `DB_TYPE=sqlite` with no explicit file, Tiny auto-connects to an in-memory database
+
+**Example test file** — `tests/users/create.php`:
+
+```php
+<?php
+declare(strict_types=1);
+
+$_SERVER['ENV'] = 'test';
+require __DIR__ . '/../../tiny/tiny.php';
+
+// Seed a fresh :memory: database
+tiny::db()->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
+
+// Setup POST data
+$_POST = ['name' => 'Ran'];
+$_SERVER['REQUEST_METHOD'] = 'POST';
+
+// Load controller and invoke
+$ctrl = tiny::test('users');
+$response = tiny::response(); // TinyTestResponse
+
+try {
+    $ctrl->post(tiny::request(), $response);
+} catch (TinyTestExit $e) {
+    // Redirects, renders, and sends throw this in test mode — capture the state
+}
+
+// Assert
+assert($response->redirectUrl === '/users');
+assert(tiny::db()->getOne('users', "name = 'Ran'")['name'] === 'Ran');
+
+echo "PASS\n";
+```
+
+**Swap the database for a stub:**
+
+```php
+class FakeDB extends DB
+{
+    public array $inserted = [];
+    public function insert(string $table, array $data): mixed
+    {
+        $this->inserted[] = $data;
+        return 1;
+    }
+}
+
+$_SERVER['ENV'] = 'test';
+require __DIR__ . '/../../tiny/tiny.php';
+
+$fake = new FakeDB();
+tiny::swap('db', $fake);
+```
+
+See [`docs/core-concepts/testing.md`](docs/core-concepts/testing.md) for the full reference.
+
+---
+
 ## Deployment
 
 For production, only the `html/` directory should be web-exposed. Everything else (`tiny/`, `app/`, `vendor/`, `.env.prod`) lives one directory up.
@@ -470,7 +538,7 @@ class CreateUsersTable
 Full documentation lives in [`docs/`](docs/):
 
 - **Getting started:** [overview](docs/getting-started/readme.md), [configuration](docs/getting-started/configuration.md), [runtime modes](docs/getting-started/runtime-modes.md), [git deploy](docs/getting-started/git-deploy.md)
-- **Core concepts:** [MVC](docs/core-concepts/mvc.md), [routing](docs/core-concepts/routing.md), [controllers](docs/core-concepts/controllers.md), [request & response](docs/core-concepts/request-response.md), [views](docs/core-concepts/views.md), [models](docs/core-concepts/models.md), [database](docs/core-concepts/database.md), [middleware](docs/core-concepts/middleware.md), [HTMX](docs/core-concepts/htmx.md)
+- **Core concepts:** [MVC](docs/core-concepts/mvc.md), [routing](docs/core-concepts/routing.md), [controllers](docs/core-concepts/controllers.md), [request & response](docs/core-concepts/request-response.md), [views](docs/core-concepts/views.md), [models](docs/core-concepts/models.md), [database](docs/core-concepts/database.md), [middleware](docs/core-concepts/middleware.md), [HTMX](docs/core-concepts/htmx.md), [testing](docs/core-concepts/testing.md)
 - **Extensions:** [cache](docs/extensions/cache.md), [components](docs/extensions/components.md), [cookie](docs/extensions/cookie.md), [CMS](docs/extensions/cms.md), [CSRF](docs/extensions/csrf.md), [database](docs/extensions/database.md), [debugger](docs/extensions/debugger.md), [flash](docs/extensions/flash.md), [HTTP](docs/extensions/http.md), [layout](docs/extensions/layout.md), [migrations](docs/extensions/migrations.md), [scheduler](docs/extensions/scheduler.md), [SSE](docs/extensions/sse.md), [ClickHouse](docs/extensions/clickhouse.md), [Swoole](docs/extensions/swoole.md)
 - **Helpers:** [catalog & custom helpers](docs/helpers/readme.md)
 - **Examples:** [TODO app](docs/examples/todo-app.md), [API](docs/examples/api.md), [chat (SSE)](docs/examples/chat.md), [file upload](docs/examples/file-upload.md), [user management](docs/examples/user-management.md)
