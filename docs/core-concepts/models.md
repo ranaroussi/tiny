@@ -2,63 +2,55 @@
 
 # Models
 
-Models in Tiny handle data and business logic. They provide an abstraction layer for working with your application's data, whether it's from a database, API, or other source.
+Models in Tiny encapsulate data access and business rules. They extend `TinyModel`, live in `app/models/`, and are loaded with `tiny::model('name')`.
 
-## Basic Structure
+## Basic structure
 
-Models should be placed in the `app/models` directory:
+`app/models/user.php`:
 
 ```php
 <?php
-// app/models/user.php
-
-class UserModel
+class UserModel extends TinyModel
 {
-    public function getAll(): array
+    public function all(): array
     {
         return tiny::db()->getAll('users', '*', 'name ASC');
     }
 
-    public function getOne(int $id): ?object
+    public function byId(int $id): ?array
     {
-        return tiny::db()->getOne('users', ['id' => $id]);
+        return tiny::db()->getOne('users', ['id' => $id]) ?: null;
     }
 
-    public function create(array $data): bool|int
+    public function create(array $data): int|bool
     {
         return tiny::db()->insert('users', [
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'created_at' => date('Y-m-d H:i:s')
+            'name'       => $data['name'],
+            'email'      => $data['email'],
+            'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
 
     public function update(int $id, array $data): bool
     {
-        return tiny::db()->update('users',
-            $data,
-            ['id' => $id]
-        );
+        return (bool) tiny::db()->update('users', $data, ['id' => $id]);
     }
 
     public function delete(int $id): bool
     {
-        return tiny::db()->delete('users', ['id' => $id]);
+        return (bool) tiny::db()->delete('users', ['id' => $id]);
     }
 }
 ```
 
-## Using Models
+> **Naming convention:** the file is `app/models/user.php`, the class is `UserModel`. `tiny::model('user')` looks for `app/models/user.php` and instantiates the class found there.
 
-Load and use models in your controllers:
+## Using models from controllers
 
 ```php
-<?php
-// app/controllers/users.php
-
 class Users extends TinyController
 {
-    private $model;
+    private UserModel $model;
 
     public function __construct()
     {
@@ -68,142 +60,138 @@ class Users extends TinyController
 
     public function get($request, $response)
     {
-        tiny::data()->users = $this->model->getAll();
-        $response->render();
+        $response->render('users/index', ['users' => $this->model->all()]);
     }
 }
 ```
 
-## Database Operations
+Models are cached per request, so calling `tiny::model('user')` twice returns the same instance.
 
-### Basic Queries
+## Validation with schemas
+
+`TinyModel` ships with a schema validator. Define schemas as associative arrays and call `isValid($data, $schema)`:
+
 ```php
-// Select all records
-$users = tiny::db()->getAll('users');
-
-// Select with conditions
-$activeUsers = tiny::db()->get('users',
-    'status = "active"',
-    '*',
-    'created_at DESC',
-    10
-);
-
-// Select one record
-$user = tiny::db()->getOne('users', ['id' => $id]);
-```
-
-### Raw Queries
-```php
-// Execute raw query
-$result = tiny::db()->execute(
-    "UPDATE users SET status = ? WHERE id = ?",
-    ['active', $id]
-);
-
-// Get results from raw query
-$users = tiny::db()->getQuery(
-    "SELECT * FROM users WHERE created_at > ?"
-    [date('Y-m-d', strtotime('-30 days'))]
-);
-```
-
-### Transactions
-```php
-public function transferFunds(int $fromId, int $toId, float $amount): bool
+<?php
+class UserModel extends TinyModel
 {
+    public array $schemas = [
+        'account' => [
+            'name'   => 'string(100)',
+            'email'  => 'string(255)',
+            'active' => 'bool',
+            'role'   => 'string',
+            'tags'   => '[array(50)]',     // optional, max 50 items
+            'bio'    => '[string]|null',   // either string or null (optional)
+        ],
+    ];
+
+    public function updateAccount(array $data): bool
+    {
+        if (!$this->isValid($data, $this->schemas['account'])) {
+            return false;  // $this->validationErrors is now populated
+        }
+        return (bool) tiny::db()->update('users', $data, ['id' => $data['id']]);
+    }
+}
+```
+
+### Schema grammar
+
+| Token | Meaning |
+|---|---|
+| `string` | Must be a string |
+| `int` | Must be an integer |
+| `bool` | Must be a boolean |
+| `float` / `double` | Must be a float |
+| `array` | Must be an array |
+| `object` | Must be an object |
+| `callable` / `resource` | PHP standard |
+| `datetime` | Parseable by `strtotime` |
+| `string(255)` | String, max 255 chars |
+| `array(10)` | Array, max 10 items |
+| `[string]` | Optional (allows `null` / missing) |
+| `string\|int` | Union — must satisfy any side |
+| `MyEnum` | PHP enum case value |
+| `MyClass` | Instance of class |
+
+After validation, errors are available as `$model->validationErrors` (field → reason map). Use `validationErrorsToAlpineJs()` to project them into an Alpine.js binding string:
+
+```php
+<div x-data="{ invalid: {} }" x-init="<?= $model->validationErrorsToAlpineJs() ?>">
+    <input :class="{ 'border-red-500': invalid.email }">
+</div>
+```
+
+## Database operations from models
+
+All DB helpers (see [Database](database.md)) are available via `tiny::db()`:
+
+```php
+public function activeUsers(int $limit = 50): array
+{
+    return tiny::db()->get(
+        'users',
+        ['status' => 'active'],
+        'id, name, email, last_login',
+        'last_login DESC',
+        $limit
+    );
+}
+
+public function recentSignups(string $since): array
+{
+    return tiny::db()->getQuery(
+        "SELECT * FROM users WHERE created_at > ? ORDER BY created_at DESC",
+        [$since]
+    );
+}
+```
+
+## Caching reads
+
+`tiny::cache()->remember()` is the standard pattern for hot lookups:
+
+```php
+public function byId(int $id): ?array
+{
+    return tiny::cache()->remember("user:$id", 60, function () use ($id) {
+        return tiny::db()->getOne('users', ['id' => $id]);
+    }) ?: null;
+}
+
+public function invalidate(int $id): void
+{
+    tiny::cache()->delete("user:$id");
+}
+```
+
+Use `tiny::cache()->deleteByPrefix("user:")` to nuke an entire family of keys at once.
+
+## Transactions inside models
+
+```php
+public function transfer(int $fromId, int $toId, float $amount): bool
+{
+    $pdo = tiny::db()->getPdo();
+    $pdo->beginTransaction();
     try {
-        tiny::db()->getPdo()->beginTransaction();
-
-        // Deduct from source account
-        tiny::db()->execute(
-            "UPDATE accounts SET balance = balance - ? WHERE id = ?",
-            [$amount, $fromId]
-        );
-
-        // Add to destination account
-        tiny::db()->execute(
-            "UPDATE accounts SET balance = balance + ? WHERE id = ?",
-            [$amount, $toId]
-        );
-
-        tiny::db()->getPdo()->commit();
+        tiny::db()->execute("UPDATE accounts SET balance = balance - ? WHERE id = ?", [$amount, $fromId]);
+        tiny::db()->execute("UPDATE accounts SET balance = balance + ? WHERE id = ?", [$amount, $toId]);
+        $pdo->commit();
         return true;
-    } catch (Exception $e) {
-        tiny::db()->getPdo()->rollBack();
-        tiny::log()->error('Transfer failed', ['error' => $e->getMessage()]);
+    } catch (\Throwable $e) {
+        $pdo->rollBack();
+        tiny::log($e->getMessage());
         return false;
     }
 }
 ```
 
-## Data Validation
+## Best practices
 
-Implement validation in your models:
-
-```php
-public function validate(array $data): array
-{
-    $errors = [];
-
-    if (empty($data['name'])) {
-        $errors['name'] = 'Name is required';
-    }
-
-    if (empty($data['email'])) {
-        $errors['email'] = 'Email is required';
-    } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-        $errors['email'] = 'Invalid email format';
-    }
-
-    if (empty($data['password'])) {
-        $errors['password'] = 'Password is required';
-    } elseif (strlen($data['password']) < 8) {
-        $errors['password'] = 'Password must be at least 8 characters';
-    }
-
-    return $errors;
-}
-```
-
-## Caching
-
-Implement caching in your models:
-
-```php
-public function getUser(int $id): ?object
-{
-    $key = "user:$id";
-
-    return tiny::cache()->remember($key, 3600, function() use ($id) {
-        return tiny::db()->getOne('users', ['id' => $id]);
-    });
-}
-```
-
-## Best Practices
-
-1. **Data Integrity**
-   - Validate data before saving
-   - Use transactions for related operations
-   - Handle errors gracefully
-
-2. **Performance**
-   - Cache frequently accessed data
-   - Optimize database queries
-   - Use indexes appropriately
-
-3. **Security**
-   - Sanitize input data
-   - Use prepared statements
-   - Implement access control
-
-4. **Organization**
-   - One model per entity
-   - Keep methods focused
-   - Use meaningful names
-
-5. **Maintainability**
-   - Document complex queries
-   - Use consistent patterns
-   - Keep business logic in models
+1. **One model per entity.** `UserModel`, `OrderModel`, `InvoiceModel` — not a god-object.
+2. **Validation lives with the schema.** Store schemas on the model and call `isValid()` before any write.
+3. **Cache reads, invalidate writes.** The cache layer is cheap; use it.
+4. **Keep transactions narrow.** Begin → commit → return; don't span HTTP boundaries.
+5. **Never return raw PDO statements from a model.** Always return arrays / objects / scalars.

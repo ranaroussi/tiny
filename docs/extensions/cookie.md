@@ -1,200 +1,125 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Cookie Extension
+# Cookies
 
-The Cookie extension provides a secure and convenient way to manage browser cookies in your Tiny PHP application.
+The cookie extension wraps `setcookie()` with structured values, sensible defaults, and a small chainable API. Each named cookie is its own object; reading and writing are explicit, and nothing is sent to the browser until you call `save()`.
 
-## Basic Usage
+## Configuration (read from `$_SERVER`)
 
-### Setting Cookies
+| Variable | Default | Purpose |
+|---|---|---|
+| `COOKIE_TTL` | `0` (session-only) | Default lifetime in seconds |
+| `COOKIE_DOMAIN` | `HTTP_HOST` | Default `Domain=` attribute |
+| `COOKIE_PATH` | `tiny::config()->url_path` | Default `Path=` attribute |
 
-```php
-// Simple cookie
-tiny::cookie('user_preference')->set('dark_mode');
+Set these in your `.env` to apply consistent defaults across cookies.
 
-// With expiration (in seconds)
-tiny::cookie('remember_me')->set('true', 86400); // 24 hours
-
-// With all options
-tiny::cookie('session')->set('abc123', [
-    'expires' => time() + 3600,
-    'path' => '/',
-    'domain' => '.example.com',
-    'secure' => true,
-    'httponly' => true
-]);
-```
-
-### Reading Cookies
+## API
 
 ```php
-// Get cookie value
-$value = tiny::cookie('user_preference')->get();
+$cookie = tiny::cookie('preferences');     // load existing or create new
 
-// With default value
-$theme = tiny::cookie('theme')->get('light');
-
-// Check if cookie exists
-if (tiny::cookie('remember_me')->exists()) {
-    // Cookie exists
-}
+$cookie->exists;                            // bool: was it sent in the request?
+$cookie->read();                            // entire data array
+$cookie->read('theme');                     // single key
+$cookie->write('theme', 'dark');            // set one key
+$cookie->write(['theme' => 'dark', …]);     // replace all data
+$cookie->save();                            // persist to the browser
+$cookie->save($expiry);                     // override TTL on save
+$cookie->destroy();                         // delete from the browser
 ```
 
-### Removing Cookies
+Cookies store arrays (PHP-serialized under the hood), so a single named cookie can hold a small structured record.
+
+## Reading a cookie
+
+`tiny::cookie('name')` parses the incoming cookie into `->data` immediately. If it doesn't exist, `->data` is `[]` and `->exists` is `false`.
 
 ```php
-// Delete a cookie
-tiny::cookie('user_preference')->destroy();
-
-// Delete with specific path/domain
-tiny::cookie('session')
-    ->setPath('/admin')
-    ->setDomain('.example.com')
-    ->destroy();
+$prefs = tiny::cookie('preferences');
+$theme = $prefs->read('theme') ?? 'light';
 ```
 
-## Advanced Features
-
-### Encrypted Cookies
+## Writing & saving
 
 ```php
-// Set encrypted cookie
-tiny::cookie('sensitive_data')
-    ->encrypt()
-    ->set($userData);
-
-// Get decrypted value
-$userData = tiny::cookie('sensitive_data')
-    ->encrypt()
-    ->get();
+$prefs = tiny::cookie('preferences');
+$prefs->write('theme', 'dark');
+$prefs->write('locale', 'en-US');
+$prefs->save();   // sends Set-Cookie header
 ```
 
-### Array Data
+Or replace the whole record at once:
 
 ```php
-// Store array data
-tiny::cookie('cart')->set([
-    'items' => ['product1', 'product2'],
-    'total' => 29.99
-]);
-
-// Retrieve array data
-$cart = tiny::cookie('cart')->get();
-echo $cart['total'];
+tiny::cookie('preferences')
+    ->write(['theme' => 'dark', 'locale' => 'en-US'])
+    ->save();
 ```
 
-### Cookie Options
+### Custom expiry
+
+By default cookies expire after `COOKIE_TTL` seconds (or at the end of the session if unset). Override per-cookie:
 
 ```php
-// Set cookie options
-$cookie = tiny::cookie('session')
-    ->setPath('/admin')
-    ->setDomain('.example.com')
-    ->setSecure(true)
-    ->setHttpOnly(true)
-    ->setSameSite('Strict');
-
-$cookie->set('value');
+tiny::cookie('remember-me')
+    ->write('token', $token)
+    ->save(time() + 30 * 86400);   // 30 days
 ```
 
-### Cookie Prefixes
+## Deleting a cookie
 
 ```php
-// Use cookie prefixes for additional security
-tiny::cookie('__Secure-token')->set($token);
-tiny::cookie('__Host-session')->set($sessionId);
+tiny::cookie('remember-me')->destroy();
 ```
 
-## Configuration
+This sets the cookie with an expired timestamp and also clears `$_COOKIE` for the current request.
 
-Configure default cookie settings in your `.env` file:
+## Patterns
 
-```env
-COOKIE_DOMAIN=example.com
-COOKIE_PATH=/
-COOKIE_TTL=86400
-COOKIE_SECURE=true
-COOKIE_HTTPONLY=true
-COOKIE_SAMESITE=Lax
-```
-
-## Best Practices
-
-1. **Security**
-   - Use HTTPS with secure flag
-   - Enable HttpOnly when possible
-   - Set appropriate SameSite
-   - Encrypt sensitive data
-   - Use cookie prefixes
-
-2. **Domain & Path**
-   - Set specific paths
-   - Use appropriate domains
-   - Consider subdomains
-   - Restrict cookie scope
-
-3. **Data Management**
-   - Store minimal data
-   - Use appropriate TTLs
-   - Clean up expired cookies
-   - Handle missing cookies
-
-4. **Compliance**
-   - Follow privacy laws
-   - Get user consent
-   - Document cookie usage
-   - Provide cookie policy
-
-## Examples
-
-### Authentication Cookie
+### "Remember me" token
 
 ```php
-// Set authentication cookie
 tiny::cookie('auth')
-    ->encrypt()
-    ->setHttpOnly(true)
-    ->setSecure(true)
-    ->setSameSite('Strict')
-    ->set([
-        'user_id' => $userId,
-        'token' => $token,
-        'expires' => time() + 86400
-    ]);
-
-// Check authentication
-$auth = tiny::cookie('auth')->encrypt()->get();
-if ($auth && time() < $auth['expires']) {
-    // User is authenticated
-}
+    ->write([
+        'user_id' => $user->id,
+        'token'   => $hashedRememberToken,
+    ])
+    ->save(time() + 30 * 86400);
 ```
 
-### Remember Me Functionality
+### User preferences
 
 ```php
-// Set remember me cookie
-if ($request->remember_me) {
-    tiny::cookie('remember_me')
-        ->encrypt()
-        ->setHttpOnly(true)
-        ->setSecure(true)
-        ->set([
-            'selector' => $selector,
-            'token' => $hashedToken
-        ], 2592000); // 30 days
+$prefs = tiny::cookie('preferences');
+
+if ($_POST['theme'] ?? null) {
+    $prefs->write('theme', $_POST['theme'])->save(time() + 365 * 86400);
 }
+
+$theme = $prefs->read('theme') ?? 'light';
 ```
 
-### User Preferences
+### Reading nested data
+
+Because the cookie body is an array, you can store small structured records:
 
 ```php
-// Save user preferences
-tiny::cookie('preferences')->set([
-    'theme' => 'dark',
-    'language' => 'en',
-    'notifications' => true
-]);
+$cart = tiny::cookie('cart')->read();
+$itemCount = count($cart['items'] ?? []);
+```
 
-// Get user preference with default
-$theme = tiny::cookie('preferences')->get()['theme'] ?? 'light';
+## Security notes
+
+The extension intentionally exposes the standard PHP cookie surface (`setcookie()`), so anything you can do there you can do here. A few practical recommendations:
+
+- **Don't put secrets in cookies.** Cookies are visible to the user; for sensitive payloads use sessions (server-side) and only send an opaque session ID.
+- **Set `Secure` cookies under HTTPS.** Add it to the server config or use the `session.cookie_secure` setting; the extension respects standard PHP cookie globals.
+- **Sign tokens you do store.** A "remember me" cookie should contain `[user_id, hmac(user_id || rotation_secret)]` so a tampered value is rejected on the next request.
+- **Keep cookies small.** They're sent on every request to your domain. The bigger they get, the slower every page load.
+- **Encrypt with `tiny::cypher()`** if you must store anything user-private but want server-side verifiability:
+
+```php
+$payload = tiny::cypher()->encrypt(json_encode($data));
+tiny::cookie('session')->write('p', $payload)->save();
 ```

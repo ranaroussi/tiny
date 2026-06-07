@@ -2,11 +2,11 @@
 
 # Middleware
 
-Middleware provides a mechanism for filtering HTTP requests entering your application. Common use cases include authentication, logging, CORS, and rate limiting.
+Middleware runs before controller dispatch. Typical uses are authentication, CORS, rate limiting, logging, and feature/version pinning.
 
-## Basic Structure
+## The contract
 
-Middleware files should be placed in the `app/middleware` directory:
+A middleware is a class with a single `handle(): void` method:
 
 ```php
 <?php
@@ -14,159 +14,157 @@ Middleware files should be placed in the `app/middleware` directory:
 
 class AuthMiddleware
 {
-    public function handle()
+    public function handle(): void
     {
-        if (!tiny::auth()->check()) {
-            return tiny::response()->redirect('/login');
+        if (empty($_SESSION['user_id'])) {
+            tiny::redirect('/login');
         }
     }
 }
 ```
 
-## Registering Middleware
+Two conventions are required:
 
-Middleware is loaded in the order specified in `app/middleware.php`. This order is important as each middleware is executed sequentially:
+1. **Filename:** `app/middleware/<name>.php`
+2. **Class name:** `<Name>Middleware` (kebab-case in the filename becomes PascalCase for the class — `rate-limit.php` → `RateLimitMiddleware`).
+
+The framework instantiates the class and calls `handle()`. There is no return value; if you need to halt execution, redirect or `tiny::exit()`.
+
+## Registering middleware
+
+Edit `app/middleware.php` and list the middleware you want active, in order:
 
 ```php
 <?php
 // app/middleware.php
 
-// Middleware will be executed in this order
-tiny::middleware('auth');       // First - Check authentication
-tiny::middleware('rate-limit'); // Second - Check rate limits
-tiny::middleware('cors');       // Third - Handle CORS
-tiny::middleware('logger');     // Fourth - Log request
+tiny::middleware('auth');
+tiny::middleware('rate-limit');
+tiny::middleware('cors');
+tiny::middleware('logger');
 ```
 
-The order matters because:
-- Earlier middleware can prevent later middleware from executing
-- Some middleware may depend on others being run first
-- Security middleware (auth, CSRF) should typically run early
-- Logging middleware often runs last to capture the full request lifecycle
+Each `tiny::middleware('foo')` call:
+- Looks for `app/middleware/foo.php`.
+- Skips silently if the file is missing.
+- Queues it for execution.
 
-For example, you might want this order:
-1. Authentication (verify user)
-2. Rate limiting (prevent abuse)
-3. CORS (handle cross-origin requests)
-4. Request logging (log authenticated user info)
+After the framework finishes loading middleware files, it calls `handle()` on each one in registration order. **Earlier middleware can short-circuit later middleware** by redirecting or exiting.
 
+> **Important:** middleware is not executed for CLI scripts (e.g. the scheduler). It only runs for web requests.
 
-## Common Middleware Examples
+## Conditional registration
+
+`tiny::middleware()` is just a function call — you can register middleware conditionally based on the request:
+
+```php
+<?php
+// app/middleware.php
+
+if (str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/admin')) {
+    tiny::middleware('admin-only');
+}
+
+if (($_SERVER['ENV'] ?? 'prod') !== 'local') {
+    tiny::middleware('https-only');
+}
+
+tiny::middleware('auth');
+tiny::middleware('csrf');
+```
+
+## Common middleware patterns
 
 ### Authentication
+
 ```php
 <?php
 // app/middleware/auth.php
 
 class AuthMiddleware
 {
-    public function handle()
+    public function handle(): void
     {
-        if (!tiny::auth()->check()) {
-            if (tiny::request()->isHtmx()) {
-                return tiny::response()->sendJSON([
-                    'error' => 'Unauthorized'
-                ], 401);
+        $userId = $_SESSION['user_id'] ?? null;
+        if (!$userId) {
+            if (tiny::router()->htmx) {
+                tiny::header('HX-Redirect: /login');
+                tiny::exit();
             }
+            tiny::redirect('/login');
+        }
 
-            tiny::flash('toast')->set([
-                'level' => 'error',
-                'message' => 'Please login to continue'
-            ]);
-
-            return tiny::response()->redirect('/login');
+        $user = tiny::db()->getOne('users', ['id' => $userId]);
+        if ($user) {
+            tiny::user($user);
         }
     }
 }
 ```
 
 ### CORS
+
 ```php
 <?php
 // app/middleware/cors.php
 
 class CorsMiddleware
 {
-    public function handle()
+    public function handle(): void
     {
         tiny::header('Access-Control-Allow-Origin: *');
-        tiny::header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        tiny::header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
         tiny::header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-        if (tiny::request()->method === 'OPTIONS') {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+            http_response_code(204);
             tiny::exit();
         }
     }
 }
 ```
 
-### Rate Limiting
+### Rate limiting
+
 ```php
 <?php
 // app/middleware/rate-limit.php
 
 class RateLimitMiddleware
 {
-    public function handle()
+    public function handle(): void
     {
-        $ip = tiny::request()->ip();
-        $key = "rate_limit:$ip";
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $rl = tiny::rateLimiter('api', 100, 60); // 100 requests / 60 seconds
 
-        if (!tiny::rateLimit()->allow($key, 60, 100)) {
-            return tiny::response()->sendJSON([
-                'error' => 'Too many requests'
-            ], 429);
+        if (!$rl->check($ip)) {
+            http_response_code(429);
+            echo json_encode(['error' => 'Too many requests']);
+            tiny::exit();
         }
     }
 }
 ```
 
-### Request Logging
+### Version pinning
+
 ```php
 <?php
-// app/middleware/logger.php
+// app/middleware/version.php
 
-class LoggerMiddleware
+class VersionMiddleware
 {
-    public function handle()
+    public function handle(): void
     {
-        $request = tiny::request();
-        $log = [
-            'ip' => $request->ip(),
-            'method' => $request->method,
-            'path' => $request->path,
-            'user_agent' => $request->headers['User-Agent'] ?? 'Unknown',
-            'timestamp' => date('Y-m-d H:i:s')
-        ];
-
-        tiny::log()->info('request', $log);
+        tiny::data()->app_version = $_SERVER['APP_VERSION'] ?? 'dev';
     }
 }
 ```
 
-## Best Practices
+## Best practices
 
-1. **Performance**
-   - Keep middleware lightweight
-   - Use caching where appropriate
-   - Process only what's necessary
-
-2. **Organization**
-   - One responsibility per middleware
-   - Use descriptive names
-   - Group related middleware
-
-3. **Error Handling**
-   - Return appropriate responses
-   - Log errors when needed
-   - Provide clear error messages
-
-4. **Security**
-   - Validate input data
-   - Protect against common attacks
-   - Use proper status codes
-
-5. **Configuration**
-   - Use environment variables
-   - Make middleware configurable
-   - Document configuration options
+1. **One responsibility per middleware.** Don't bundle auth + logging + CORS into a single file.
+2. **Order matters.** Auth → rate-limit → CORS → logging is a sensible default.
+3. **Be fast.** Middleware runs on every request — avoid heavy I/O without caching.
+4. **Be HTMX-aware.** Auth redirects should emit `HX-Redirect` for HTMX requests instead of plain 302 redirects.
+5. **Skip CLI.** Middleware doesn't run under CLI dispatch, so don't put scheduler-critical logic there.

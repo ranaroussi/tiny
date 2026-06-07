@@ -2,60 +2,49 @@
 
 # Building a TODO Application
 
-This example demonstrates how to build a simple TODO application using the Tiny PHP Framework. We'll cover database operations, authentication, validation, and more.
+A small CRUD app that exercises routing, controllers, models, CSRF, components, and flash messages. Assumes an existing `users` table and a logged-in user available via `tiny::user()`.
 
-## Project Structure
+## Project structure
 
 ```
-/your-project
+my-app/
 ├── app/
 │   ├── controllers/
-│   │   ├── todo.php
-│   │   └── auth.php
+│   │   └── todo.php             # /todo
 │   ├── models/
-│   │   └── todo.php
+│   │   └── todo.php             # TodoModel
 │   └── views/
 │       ├── components/
-│       │   ├── todo-item.php
-│       │   └── todo-form.php
+│       │   └── todo-item.php    # reusable list row
 │       └── todo/
 │           ├── index.php
 │           └── edit.php
-├── migrations/
-│   └── 20240101_create_todos_table.php
-└── html/
-    └── index.php
+└── migrations/
+    └── 20240101_create_todos.php
 ```
 
-## Database Migration
+## Migration
 
-Create a migration for the todos table:
+Create `migrations/20240101_create_todos.php`:
 
 ```php
 <?php
-// migrations/20240101_create_todos_table.php
 
-class CreateTodosTable
+class CreateTodos extends TinyMigration
 {
-    private PDO $db;
-
-    public function __construct()
-    {
-        $this->db = tiny::db()->getPdo();
-    }
-
     public function up(): void
     {
-        $this->db->exec("
+        tiny::db()->execute("
             CREATE TABLE todos (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
-                title VARCHAR(255) NOT NULL,
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                user_id     INT NOT NULL,
+                title       VARCHAR(255) NOT NULL,
                 description TEXT,
-                status ENUM('pending', 'completed') DEFAULT 'pending',
-                due_date DATE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                status      ENUM('pending', 'completed') DEFAULT 'pending',
+                due_date    DATE NULL,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_user (user_id),
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         ");
@@ -63,293 +52,296 @@ class CreateTodosTable
 
     public function down(): void
     {
-        $this->db->exec("DROP TABLE IF EXISTS todos");
+        tiny::db()->execute("DROP TABLE IF EXISTS todos");
     }
 }
+```
+
+Run it:
+
+```bash
+php tiny/cli migrations up
 ```
 
 ## Model
 
-Create the TODO model with validation and business logic:
+`app/models/todo.php`:
 
 ```php
 <?php
-// app/models/todo.php
 
 class TodoModel extends TinyModel
 {
-    public array $schemas = [
-        'todo' => [
-            'title' => 'string:255',
-            'description' => 'string',
-            'status' => 'string',
-            'due_date' => 'datetime'
-        ]
+    public array $schema = [
+        'title'       => 'string:255',
+        'description' => 'string',
+        'status'      => 'string:9',          // 'pending' | 'completed'
+        'due_date'    => 'date',
     ];
 
-    public function getAll(): array
+    public function listForUser(int $userId): array
     {
-        return tiny::db()->get(
-            'todos',
-            ['user_id' => tiny::user()->id],
-            '*',
-            'created_at DESC'
-        );
+        return tiny::db()->get('todos', ['user_id' => $userId], '*', 'created_at DESC');
     }
 
-    public function getOne(int $id): ?object
+    public function ownedBy(int $id, int $userId): ?object
     {
-        return tiny::db()->getOne(
-            'todos',
-            [
-                'id' => $id,
-                'user_id' => tiny::user()->id
-            ]
-        );
+        return tiny::db()->getOne('todos', ['id' => $id, 'user_id' => $userId]);
     }
 
-    public function create(array $data): bool|int
+    public function create(array $data, int $userId): int|false
     {
-        if (!$this->isValid($data, $this->schemas['todo'])) {
+        if (!$this->isValid($data, $this->schema)) {
             return false;
         }
-
-        $data['user_id'] = tiny::user()->id;
+        $data['user_id'] = $userId;
         return tiny::db()->insert('todos', $data);
     }
 
-    public function update(int $id, array $data): bool
+    public function update(int $id, int $userId, array $data): bool
     {
-        if (!$this->isValid($data, $this->schemas['todo'])) {
+        if (!$this->isValid($data, $this->schema)) {
             return false;
         }
-
-        return tiny::db()->update(
-            'todos',
-            $data,
-            [
-                'id' => $id,
-                'user_id' => tiny::user()->id
-            ]
-        );
+        return tiny::db()->update('todos', $data, ['id' => $id, 'user_id' => $userId]);
     }
 
-    public function delete(int $id): bool
+    public function destroy(int $id, int $userId): bool
     {
-        return tiny::db()->delete(
-            'todos',
-            [
-                'id' => $id,
-                'user_id' => tiny::user()->id
-            ]
-        );
+        return tiny::db()->delete('todos', ['id' => $id, 'user_id' => $userId]);
     }
 }
 ```
 
+`isValid()` populates `$this->validationErrors` on failure.
+
 ## Controller
 
-Create the TODO controller to handle requests:
+`app/controllers/todo.php`:
 
 ```php
 <?php
-// app/controllers/todo.php
 
 class Todo extends TinyController
 {
-    private $model;
+    private TodoModel $todos;
 
     public function __construct()
     {
-        $this->model = tiny::model('todo');
+        $this->todos = tiny::model('todo');
     }
 
     public function get($request, $response)
     {
-        if ($request->path->slug) {
-            tiny::data()->todo = $this->model->getOne((int)$request->path->slug);
-            if (!tiny::data()->todo) {
-                return $response->render(404);
+        $userId = tiny::user()->id;
+
+        // /todo/<id>/edit  → edit form
+        if ($request->path->section && $request->path->slug === 'edit') {
+            $todo = $this->todos->ownedBy((int)$request->path->section, $userId);
+            if (!$todo) {
+                return tiny::controller('404', true);
             }
-            return $response->render('todo/edit');
+            return $response->render('todo/edit', ['todo' => $todo]);
         }
 
-        tiny::data()->todos = $this->model->getAll();
-        $response->render('todo/index');
+        // /todo  → list
+        $response->render('todo/index', [
+            'todos' => $this->todos->listForUser($userId),
+        ]);
     }
 
     public function post($request, $response)
     {
         if (!$request->isValidCSRF()) {
-            $response->hasCSRFError();
-            return $response->render();
+            return $response->hasCSRFError();
         }
 
         $data = $request->body(true);
+        $id = $this->todos->create($data, tiny::user()->id);
 
-        if ($this->model->create($data)) {
-            tiny::flash('toast')->set([
-                'level' => 'success',
-                'message' => 'Todo created successfully'
-            ]);
+        if ($id === false) {
+            tiny::flash('form-errors')->set($this->todos->validationErrors);
             return $response->redirect('/todo');
         }
 
-        tiny::data()->errors = $this->model->validationErrors;
-        tiny::data()->todo = $data;
-        $response->render();
+        tiny::flash('toast')->set([
+            'level'   => 'success',
+            'message' => 'Todo added',
+        ]);
+        $response->redirect('/todo');
     }
 
     public function patch($request, $response)
     {
         if (!$request->isValidCSRF()) {
-            $response->hasCSRFError();
-            return $response->render();
+            return $response->hasCSRFError();
         }
 
-        $data = $request->body(true);
-        $id = (int)$request->path->slug;
+        $id     = (int)$request->path->section;
+        $userId = tiny::user()->id;
 
-        if ($this->model->update($id, $data)) {
-            tiny::flash('toast')->set([
-                'level' => 'success',
-                'message' => 'Todo updated successfully'
-            ]);
-            return $response->redirect('/todo');
+        if (!$this->todos->update($id, $userId, $request->body(true))) {
+            tiny::flash('form-errors')->set($this->todos->validationErrors);
+            return $response->redirect("/todo/$id/edit");
         }
 
-        tiny::data()->errors = $this->model->validationErrors;
-        tiny::data()->todo = $data;
-        $response->render('todo/edit');
+        tiny::flash('toast')->set(['level' => 'success', 'message' => 'Todo saved']);
+        $response->redirect('/todo');
     }
 
     public function delete($request, $response)
     {
         if (!$request->isValidCSRF()) {
-            $response->hasCSRFError();
             return $response->sendJSON(['error' => 'Invalid CSRF token'], 403);
         }
 
-        $id = (int)$request->path->slug;
+        $ok = $this->todos->destroy(
+            (int)$request->path->section,
+            tiny::user()->id
+        );
 
-        if ($this->model->delete($id)) {
-            return $response->sendJSON(['success' => true]);
-        }
-
-        return $response->sendJSON(['error' => 'Failed to delete todo'], 500);
+        $response->sendJSON(['success' => $ok], $ok ? 200 : 404);
     }
 }
 ```
+
+URLs handled:
+
+| Method | Path | Action |
+|---|---|---|
+| `GET` | `/todo` | List todos |
+| `GET` | `/todo/42/edit` | Edit form |
+| `POST` | `/todo` | Create |
+| `PATCH` | `/todo/42` | Update |
+| `DELETE` | `/todo/42` | Delete |
 
 ## Views
 
-Create the views for listing and editing todos:
+`app/views/todo/index.php`:
 
 ```php
-<!-- app/views/todo/index.php -->
-<div class="container mx-auto p-4">
-    <h1 class="text-2xl mb-4">My Todos</h1>
+<?php Layout::main(['title' => 'My todos']); ?>
 
-    <form method="POST" class="mb-8">
-        <?php tiny::csrf()->input() ?>
+    <h1>My todos</h1>
 
-        <div class="mb-4">
-            <input type="text"
-                   name="title"
-                   placeholder="What needs to be done?"
-                   class="w-full p-2 border rounded">
+    <?php $errs = tiny::flash('form-errors')->get() ?? []; ?>
+    <?php $toast = tiny::flash('toast')->get(); ?>
+    <?php if ($toast): ?>
+        <div class="alert alert-<?= htmlspecialchars($toast['level']) ?>">
+            <?= htmlspecialchars($toast['message']) ?>
         </div>
+    <?php endif ?>
 
-        <button type="submit"
-                class="px-4 py-2 bg-blue-500 text-white rounded">
-            Add Todo
-        </button>
+    <form method="POST" action="/todo">
+        <?php tiny::csrf()->input(); ?>
+        <input name="title" placeholder="What needs to be done?" required>
+        <?php if (isset($errs['title'])): ?><small class="error"><?= htmlspecialchars($errs['title']) ?></small><?php endif ?>
+        <button type="submit">Add</button>
     </form>
 
-    <div class="space-y-4">
-        <?php foreach (tiny::data()->todos as $todo): ?>
-            <?php tiny::component()->todoItem($todo) ?>
+    <ul id="todo-list">
+        <?php foreach ($todos as $todo): ?>
+            <?php Component::render('todoItem', $todo); ?>
         <?php endforeach ?>
-    </div>
-</div>
+    </ul>
 
-<!-- app/views/components/todo-item.php -->
-<div class="flex items-center justify-between p-4 bg-white shadow rounded">
-    <div>
-        <h3 class="font-bold"><?= $props->title ?></h3>
-        <p class="text-gray-600"><?= $props->description ?></p>
-    </div>
+    <script src="/static/js/todo.js" defer></script>
 
-    <div class="flex space-x-2">
-        <a href="/todo/<?= $props->id ?>"
-           class="px-3 py-1 bg-blue-100 text-blue-600 rounded">
-            Edit
-        </a>
-
-        <button onclick="deleteTodo(<?= $props->id ?>)"
-                class="px-3 py-1 bg-red-100 text-red-600 rounded">
-            Delete
-        </button>
-    </div>
-</div>
+<?php Layout::main(); ?>
 ```
 
-## JavaScript
+`app/views/components/todo-item.php`:
 
-Add client-side functionality:
+```php
+<?php
 
-```javascript
-// html/js/todo.js
-async function deleteTodo(id) {
-    if (!confirm('Are you sure?')) return;
+Component::register('todoItem', function (object $todo): void { ?>
+    <li data-id="<?= (int)$todo->id ?>">
+        <strong><?= htmlspecialchars($todo->title) ?></strong>
+        <?php if ($todo->description): ?><p><?= htmlspecialchars($todo->description) ?></p><?php endif ?>
 
-    const response = await fetch(`/todo/${id}`, {
+        <a href="/todo/<?= (int)$todo->id ?>/edit">Edit</a>
+        <button class="js-delete" data-id="<?= (int)$todo->id ?>">Delete</button>
+    </li>
+<?php });
+```
+
+`app/views/todo/edit.php`:
+
+```php
+<?php Layout::main(['title' => 'Edit todo']); ?>
+
+    <h1>Edit todo</h1>
+
+    <?php $errs = tiny::flash('form-errors')->get() ?? []; ?>
+
+    <form method="POST" action="/todo/<?= (int)$todo->id ?>">
+        <?php tiny::csrf()->input(); ?>
+        <input type="hidden" name="_method" value="PATCH">
+
+        <label>Title
+            <input name="title" value="<?= htmlspecialchars($todo->title) ?>" required>
+        </label>
+        <?php if (isset($errs['title'])): ?><small class="error"><?= htmlspecialchars($errs['title']) ?></small><?php endif ?>
+
+        <label>Description
+            <textarea name="description"><?= htmlspecialchars($todo->description ?? '') ?></textarea>
+        </label>
+
+        <label>Status
+            <select name="status">
+                <option value="pending"   <?= $todo->status === 'pending'   ? 'selected' : '' ?>>Pending</option>
+                <option value="completed" <?= $todo->status === 'completed' ? 'selected' : '' ?>>Completed</option>
+            </select>
+        </label>
+
+        <button type="submit">Save</button>
+    </form>
+
+<?php Layout::main(); ?>
+```
+
+(The `_method` hidden field is the standard PHP way to send a PATCH/DELETE through an HTML form; your router middleware or controller can read it and dispatch accordingly. Alternatively, use HTMX's `hx-patch`.)
+
+## Client-side delete
+
+`html/static/js/todo.js`:
+
+```js
+const token = document.querySelector('input[name=csrf_token]')?.value;
+
+document.body.addEventListener('click', async (e) => {
+    if (!e.target.matches('.js-delete')) return;
+    if (!confirm('Delete this todo?')) return;
+
+    const id = e.target.dataset.id;
+    const res = await fetch(`/todo/${id}`, {
         method: 'DELETE',
-        headers: {
-            'X-CSRF-Token': document.querySelector('[name="csrf_token"]').value
-        }
+        headers: { 'X-CSRF-Token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csrf_token: token }),
     });
 
-    const result = await response.json();
-
-    if (result.success) {
-        location.reload();
-    } else {
-        alert('Failed to delete todo');
+    if (res.ok) {
+        document.querySelector(`li[data-id="${id}"]`)?.remove();
     }
+});
+```
+
+## Component registration
+
+The `Component::register(...)` call at the top of `todo-item.php` runs once when the file is included. If you have many components, include them all from `app/common.php` (which Tiny autoloads) with a single glob:
+
+```php
+<?php
+// app/common.php
+foreach (glob(__DIR__ . '/views/components/*.php') as $file) {
+    require_once $file;
 }
 ```
 
-## Usage
+## Things to try next
 
-1. Run the migration:
-```bash
-php tiny/cli migrations up
-```
-
-2. Access your TODO application at `http://localhost/todo`
-
-## Features Demonstrated
-
-- CRUD operations
-- Form handling
-- CSRF protection
-- Validation
-- Flash messages
-- Component reuse
-- Database operations
-- Client-side interaction
-- Error handling
-
-## Next Steps
-
-You could enhance this application by adding:
-
-1. Due date handling
-2. Priority levels
-3. Categories/tags
-4. Search functionality
-5. Sorting options
-6. Pagination
-7. Task sharing
-8. File attachments
+- **HTMX** — replace the form's `<form method="POST" action="/todo">` with `<form hx-post="/todo" hx-target="#todo-list" hx-swap="beforeend">` and return just the `<li>` from the controller when `$request->htmx` is true.
+- **Filtering** — add `?status=pending` and read it via `$request->params('status')`.
+- **Due dates** — add a `<input type="date" name="due_date">`; the `date` validator in the model schema already covers it.
+- **Pagination** — extend `listForUser()` with `LIMIT`/`OFFSET` and surface `?page=` from `$request->params('page', 1)`.

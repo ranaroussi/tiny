@@ -1,351 +1,309 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Real-Time Chat Example
+# Real-time chat (SSE)
 
-This example demonstrates how to build a real-time chat application using Tiny PHP Framework's SSE extension and database integration.
+A minimal multi-room chat that pushes new messages to connected browsers using Server-Sent Events. Producer (POST `/messages`) writes to the database and publishes through `tiny::sse()->sendKey()`; consumer (GET `/chat/stream?room=N`) streams them with `tiny::sse()->streamKey()`.
 
-## Project Structure
+This is the simplest pattern — one cache key per room. For higher throughput, see the [PostgreSQL `LISTEN/NOTIFY` variant in the SSE docs](../extensions/sse.md#postgresql-listennotify).
+
+## Project structure
 
 ```
-/your-project
+my-app/
 ├── app/
 │   ├── controllers/
-│   │   ├── chat.php
-│   │   └── messages.php
+│   │   ├── chat.php             # /chat        and /chat/stream
+│   │   └── messages.php         # POST /messages
 │   ├── models/
-│   │   ├── message.php
-│   │   └── room.php
+│   │   └── message.php
 │   └── views/
 │       └── chat/
 │           ├── index.php
 │           └── room.php
-├── public/
-│   └── js/
-│       └── chat.js
-└── database/
-    └── migrations/
-        └── 001_create_chat_tables.php
+├── html/static/js/chat.js
+└── migrations/
+    └── 20240101_chat.php
 ```
 
-## Database Migration
+## Tables
 
 ```php
 <?php
-// database/migrations/001_create_chat_tables.php
-
-return [
-    'up' => "
-        CREATE TABLE rooms (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE messages (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            room_id INT NOT NULL,
-            user_id INT NOT NULL,
-            content TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (room_id) REFERENCES rooms(id),
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-    ",
-    'down' => "
-        DROP TABLE messages;
-        DROP TABLE rooms;
-    "
-];
+// migrations/20240101_chat.php
+class Chat extends TinyMigration
+{
+    public function up(): void
+    {
+        tiny::db()->execute("
+            CREATE TABLE rooms (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                name        VARCHAR(255) NOT NULL,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+        tiny::db()->execute("
+            CREATE TABLE messages (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                room_id     INT NOT NULL,
+                user_id     INT NOT NULL,
+                content     TEXT NOT NULL,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_room (room_id, created_at)
+            )
+        ");
+    }
+    public function down(): void
+    {
+        tiny::db()->execute("DROP TABLE IF EXISTS messages");
+        tiny::db()->execute("DROP TABLE IF EXISTS rooms");
+    }
+}
 ```
 
-## Chat Controller
+## Model
+
+`app/models/message.php`:
 
 ```php
 <?php
-// app/controllers/chat.php
+
+class MessageModel extends TinyModel
+{
+    public function recent(int $roomId, int $limit = 50): array
+    {
+        $stmt = tiny::db()->getPdo()->prepare("
+            SELECT m.id, m.content, m.created_at,
+                   u.id AS user_id, u.name AS user_name
+            FROM messages m
+            JOIN users u ON u.id = m.user_id
+            WHERE m.room_id = :room
+            ORDER BY m.id DESC
+            LIMIT :limit
+        ");
+        $stmt->bindValue('room',  $roomId, \PDO::PARAM_INT);
+        $stmt->bindValue('limit', $limit,  \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(\PDO::FETCH_OBJ);
+    }
+
+    public function create(int $roomId, int $userId, string $content): object
+    {
+        $id = tiny::db()->insert('messages', [
+            'room_id' => $roomId,
+            'user_id' => $userId,
+            'content' => $content,
+        ]);
+
+        $stmt = tiny::db()->getPdo()->prepare("
+            SELECT m.id, m.content, m.created_at,
+                   u.id AS user_id, u.name AS user_name
+            FROM messages m
+            JOIN users u ON u.id = m.user_id
+            WHERE m.id = :id
+        ");
+        $stmt->execute(['id' => $id]);
+        return $stmt->fetch(\PDO::FETCH_OBJ);
+    }
+}
+```
+
+## Chat controller
+
+`app/controllers/chat.php`:
+
+```php
+<?php
 
 class Chat extends TinyController
 {
-    private $roomModel;
-    private $messageModel;
-
-    public function __construct()
-    {
-        // Require authentication
-        if (!tiny::isAuthenticated()) {
-            return tiny::response()->redirect('/login');
-        }
-
-        $this->roomModel = tiny::model('room');
-        $this->messageModel = tiny::model('message');
-    }
-
-    // Show chat rooms
     public function get($request, $response)
     {
-        $rooms = $this->roomModel->all();
-        return $response->render('chat/index', ['rooms' => $rooms]);
-    }
-
-    // Show specific room
-    public function room($request, $response)
-    {
-        $roomId = $request->path->id;
-        $room = $this->roomModel->find($roomId);
-
-        if (!$room) {
-            return $response->redirect('/chat');
+        // /chat/stream?room=42 → SSE endpoint
+        if ($request->path->section === 'stream') {
+            return $this->stream($request, $response);
         }
 
-        // Get recent messages
-        $messages = $this->messageModel->getRecent($roomId, 50);
+        // /chat/<roomId> → room page
+        if ($request->path->section) {
+            $roomId = (int)$request->path->section;
+            $room   = tiny::db()->getOne('rooms', ['id' => $roomId]);
+            if (!$room) {
+                return tiny::controller('404', true);
+            }
+            $messages = array_reverse(tiny::model('message')->recent($roomId));
+            return $response->render('chat/room', [
+                'room'     => $room,
+                'messages' => $messages,
+            ]);
+        }
 
-        return $response->render('chat/room', [
-            'room' => $room,
-            'messages' => $messages
-        ]);
+        // /chat → room list
+        $rooms = tiny::db()->getAll('rooms', '*', 'name ASC');
+        $response->render('chat/index', ['rooms' => $rooms]);
     }
 
-    // SSE endpoint for real-time updates
-    public function stream($request, $response)
+    private function stream($request, $response)
     {
-        $roomId = $request->query->room;
+        $roomId = (int)$request->params('room');
+        if (!$roomId) {
+            return $response->sendJSON(['error' => 'room required'], 400);
+        }
 
-        // Initialize SSE
-        $sse = tiny::sse();
-        $sse->start();
-
-        // Send initial connection ID
-        $sse->send([
-            'type' => 'connected',
-            'id' => $sse->getId()
-        ]);
-
-        // Subscribe to room channel
-        $sse->subscribe("chat.room.$roomId", function($data) use ($sse) {
-            $sse->send($data);
-        });
-
-        // Keep connection alive
-        $sse->keepAlive(30);
+        // Stream from a per-room cache key.
+        tiny::sse()->streamKey("chat:room:$roomId", sleep: 1);
     }
 }
 ```
 
-## Message Controller
+## Message controller
+
+`app/controllers/messages.php`:
 
 ```php
 <?php
-// app/controllers/messages.php
 
 class Messages extends TinyController
 {
-    private $model;
-
-    public function __construct()
-    {
-        $this->model = tiny::model('message');
-    }
-
-    // Send message
     public function post($request, $response)
     {
-        $data = $request->body(true);
-
-        // Validate input
-        if (empty($data['content']) || empty($data['room_id'])) {
-            return $response->sendJSON([
-                'error' => 'Invalid message data'
-            ], 400);
+        if (!$request->isValidCSRF()) {
+            return $response->sendJSON(['error' => 'invalid csrf token'], 403);
         }
 
-        // Create message
-        $message = $this->model->create([
-            'room_id' => $data['room_id'],
-            'user_id' => tiny::user()->id,
-            'content' => $data['content']
+        $body    = $request->body(true);
+        $roomId  = (int)($body['room_id'] ?? 0);
+        $content = trim($body['content'] ?? '');
+
+        if (!$roomId || $content === '') {
+            return $response->sendJSON(['error' => 'room_id and content required'], 400);
+        }
+        if (mb_strlen($content) > 2000) {
+            return $response->sendJSON(['error' => 'content too long'], 422);
+        }
+
+        $message = tiny::model('message')->create($roomId, tiny::user()->id, $content);
+
+        // Publish to anyone subscribed to this room.
+        tiny::sse()->sendKey("chat:room:$roomId", [
+            'id'         => (int)$message->id,
+            'content'    => $message->content,
+            'user_id'    => (int)$message->user_id,
+            'user_name'  => $message->user_name,
+            'created_at' => $message->created_at,
         ]);
 
-        // Broadcast to room
-        tiny::sse()->broadcast("chat.room.{$data['room_id']}", [
-            'type' => 'message',
-            'data' => [
-                'id' => $message->id,
-                'content' => $message->content,
-                'user' => tiny::user()->name,
-                'timestamp' => $message->created_at
-            ]
-        ]);
-
-        return $response->sendJSON(['success' => true]);
+        $response->sendJSON(['ok' => true, 'id' => (int)$message->id]);
     }
 }
 ```
 
-## Chat View
+Two notes on the SSE pattern:
+
+- `sendKey()` writes the encoded payload to the cache and `streamKey()` reads + deletes it. **Each message is delivered to exactly one consumer.** That's fine for testing with a single tab; for multiple subscribers per room, switch to PostgreSQL `LISTEN/NOTIFY` (see [SSE extension docs](../extensions/sse.md)) or fan-out by writing one key per subscriber.
+- Under PHP-FPM, every SSE connection holds a worker. Use [Swoole](../extensions/swoole.md) or [FrankenPHP](../getting-started/runtime-modes.md) if you expect more than a handful of concurrent rooms.
+
+## Views
+
+`app/views/chat/index.php`:
 
 ```php
-<!-- app/views/chat/room.php -->
-<?php tiny::layout()->extend('default') ?>
+<?php Layout::main(['title' => 'Chat rooms']); ?>
 
-<?php tiny::layout()->section('content') ?>
-    <div class="chat-container">
-        <div class="chat-messages" id="messages">
-            <?php foreach ($messages as $message): ?>
-                <div class="message">
-                    <strong><?= $message->user->name ?>:</strong>
-                    <span><?= $message->content ?></span>
-                    <small><?= tiny::utils()->timeAgo($message->created_at) ?></small>
-                </div>
-            <?php endforeach ?>
-        </div>
+    <h1>Rooms</h1>
+    <ul>
+        <?php foreach ($rooms as $room): ?>
+            <li><a href="/chat/<?= (int)$room->id ?>"><?= htmlspecialchars($room->name) ?></a></li>
+        <?php endforeach ?>
+    </ul>
 
-        <form id="messageForm" class="chat-form">
-            <input type="text" id="messageInput" placeholder="Type your message...">
-            <button type="submit">Send</button>
-        </form>
-    </div>
-
-    <script>
-        const roomId = <?= $room->id ?>;
-        const userId = <?= tiny::user()->id ?>;
-    </script>
-    <script src="/js/chat.js"></script>
-<?php tiny::layout()->endSection() ?>
+<?php Layout::main(); ?>
 ```
 
-## JavaScript Client
+`app/views/chat/room.php`:
 
-```javascript
-// public/js/chat.js
+```php
+<?php Layout::main(['title' => $room->name]); ?>
 
-class Chat {
-    constructor(roomId) {
-        this.roomId = roomId;
-        this.messageForm = document.getElementById('messageForm');
-        this.messageInput = document.getElementById('messageInput');
-        this.messagesContainer = document.getElementById('messages');
+    <meta name="csrf-token" content="<?= htmlspecialchars($_SESSION['csrf_token'] ?? tiny::csrf()->generate()) ?>">
 
-        this.initSSE();
-        this.initEventListeners();
-    }
+    <h1><?= htmlspecialchars($room->name) ?></h1>
 
-    initSSE() {
-        this.eventSource = new EventSource(`/chat/stream?room=${this.roomId}`);
+    <ul id="messages">
+        <?php foreach ($messages as $m): ?>
+            <li data-id="<?= (int)$m->id ?>">
+                <strong><?= htmlspecialchars($m->user_name) ?></strong>:
+                <?= htmlspecialchars($m->content) ?>
+                <small><?= htmlspecialchars($m->created_at) ?></small>
+            </li>
+        <?php endforeach ?>
+    </ul>
 
-        this.eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
+    <form id="message-form">
+        <input id="content" maxlength="2000" placeholder="Type a message…" required>
+        <button type="submit">Send</button>
+    </form>
 
-            if (data.type === 'message') {
-                this.addMessage(data.data);
-            }
-        };
+    <script>
+        window.ROOM_ID = <?= (int)$room->id ?>;
+    </script>
+    <script src="/static/js/chat.js" defer></script>
 
-        this.eventSource.onerror = () => {
-            console.error('SSE connection failed');
-            this.reconnect();
-        };
-    }
+<?php Layout::main(); ?>
+```
 
-    initEventListeners() {
-        this.messageForm.onsubmit = (e) => {
-            e.preventDefault();
-            this.sendMessage();
-        };
-    }
+## Client
 
-    async sendMessage() {
-        const content = this.messageInput.value.trim();
-        if (!content) return;
+`html/static/js/chat.js`:
 
-        try {
-            const response = await fetch('/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({
-                    room_id: this.roomId,
-                    content: content
-                })
-            });
+```js
+const csrfToken = document.querySelector('meta[name=csrf-token]').content;
+const list      = document.getElementById('messages');
+const form      = document.getElementById('message-form');
+const input     = document.getElementById('content');
 
-            if (response.ok) {
-                this.messageInput.value = '';
-            }
-        } catch (error) {
-            console.error('Failed to send message:', error);
-        }
-    }
+// Subscribe.
+const es = new EventSource(`/chat/stream?room=${window.ROOM_ID}`);
+es.onmessage = ({ data }) => {
+    if (data === '[DONE]') return es.close();
+    const m = JSON.parse(data);
+    if (list.querySelector(`li[data-id="${m.id}"]`)) return;  // de-dup
+    const li = document.createElement('li');
+    li.dataset.id = m.id;
+    li.innerHTML = `<strong></strong>: <span></span> <small></small>`;
+    li.querySelector('strong').textContent = m.user_name;
+    li.querySelector('span').textContent   = m.content;
+    li.querySelector('small').textContent  = m.created_at;
+    list.appendChild(li);
+    list.scrollTop = list.scrollHeight;
+};
 
-    addMessage(message) {
-        const div = document.createElement('div');
-        div.className = 'message';
-        div.innerHTML = `
-            <strong>${message.user}:</strong>
-            <span>${message.content}</span>
-            <small>${this.formatTime(message.timestamp)}</small>
-        `;
+// Send.
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const content = input.value.trim();
+    if (!content) return;
 
-        this.messagesContainer.appendChild(div);
-        this.scrollToBottom();
-    }
+    const res = await fetch('/messages', {
+        method:  'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({
+            room_id:    window.ROOM_ID,
+            content,
+            csrf_token: csrfToken,
+        }),
+    });
 
-    scrollToBottom() {
-        this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
-    }
-
-    formatTime(timestamp) {
-        return new Date(timestamp).toLocaleTimeString();
-    }
-
-    reconnect() {
-        setTimeout(() => {
-            this.initSSE();
-        }, 5000);
-    }
-}
-
-// Initialize chat
-document.addEventListener('DOMContentLoaded', () => {
-    new Chat(roomId);
+    if (res.ok) input.value = '';
 });
 ```
 
-## Features Demonstrated
+## Things to try next
 
-- Real-time messaging
-- Server-Sent Events
-- Database integration
-- User authentication
-- Message broadcasting
-- Error handling
-- Reconnection logic
-- Message persistence
-
-## Best Practices
-
-1. **Real-Time Communication**
-   - Use SSE for real-time updates
-   - Implement reconnection logic
-   - Handle connection errors
-   - Optimize message delivery
-
-2. **Security**
-   - Authenticate users
-   - Validate input
-   - Protect against XSS
-   - Use CSRF protection
-
-3. **Performance**
-   - Limit message history
-   - Implement pagination
-   - Cache active rooms
-   - Optimize queries
-
-4. **User Experience**
-   - Show typing indicators
-   - Display read receipts
-   - Auto-scroll messages
-   - Handle offline state
+- **Typing indicators** — use a separate cache key (`chat:room:42:typing`) and `streamKey` from the client.
+- **History pagination** — add `/chat/<id>?before=<message_id>` and have the client prepend.
+- **Multiple subscribers per room** — switch the consumer to `streamPostgres()` and trigger a Postgres `NOTIFY` from `MessageModel::create()`.
+- **Presence** — write a heartbeat key per user that expires after 30s; render online users in the sidebar.
+- **Markdown** — pipe `content` through `tiny::markdown()->render()` before broadcasting.

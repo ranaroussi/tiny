@@ -1,361 +1,496 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# User Management Example
+# User management
 
-This example demonstrates how to implement a complete user management system including authentication, roles, and profile management.
+This example wires up the pieces of a typical auth flow — registration, login, logout, profile update, password reset — using only Tiny primitives and PHP's standard library. There is no `tiny::auth()` magic: identity is just a row in `users` plus a session cookie.
 
-## Project Structure
+## Project structure
 
 ```
-/your-project
+my-app/
 ├── app/
 │   ├── controllers/
-│   │   ├── auth/
-│   │   │   ├── login.php
-│   │   │   ├── register.php
-│   │   │   └── password.php
-│   │   └── users/
-│   │       ├── profile.php
-│   │       └── settings.php
-│   ├── models/
-│   │   ├── user.php
-│   │   └── role.php
+│   │   ├── login.php
+│   │   ├── logout.php
+│   │   ├── register.php
+│   │   ├── password.php           # /password and /password/reset/<token>
+│   │   └── profile.php
 │   ├── middleware/
 │   │   └── auth.php
+│   ├── middleware.php
+│   ├── models/
+│   │   └── user.php
 │   └── views/
 │       ├── auth/
 │       │   ├── login.php
 │       │   ├── register.php
-│       │   └── reset-password.php
-│       └── users/
-│           ├── profile.php
-│           └── settings.php
-└── database/
-    └── migrations/
-        └── 001_create_users_tables.php
+│       │   ├── password.php
+│       │   └── password-reset.php
+│       └── profile.php
+└── migrations/
+    └── 20240101_users.php
 ```
 
-## Database Migration
+## Tables
 
 ```php
 <?php
-// database/migrations/001_create_users_tables.php
-
-return [
-    'up' => "
-        CREATE TABLE users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            password VARCHAR(255) NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            status ENUM('active', 'inactive', 'banned') DEFAULT 'active',
-            email_verified_at TIMESTAMP NULL,
-            remember_token VARCHAR(100),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE roles (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(50) UNIQUE NOT NULL,
-            description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE user_roles (
-            user_id INT NOT NULL,
-            role_id INT NOT NULL,
-            PRIMARY KEY (user_id, role_id),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE password_resets (
-            email VARCHAR(255) NOT NULL,
-            token VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX password_resets_email_index (email)
-        );
-    ",
-    'down' => "
-        DROP TABLE user_roles;
-        DROP TABLE roles;
-        DROP TABLE password_resets;
-        DROP TABLE users;
-    "
-];
-```
-
-## User Model
-
-```php
-<?php
-// app/models/user.php
-
-class UserModel extends TinyModel
+// migrations/20240101_users.php
+class Users extends TinyMigration
 {
-    protected $table = 'users';
-    protected $hidden = ['password', 'remember_token'];
-
-    public function roles()
+    public function up(): void
     {
-        return $this->belongsToMany('role', 'user_roles');
+        tiny::db()->execute("
+            CREATE TABLE users (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                email           VARCHAR(255) UNIQUE NOT NULL,
+                password_hash   VARCHAR(255) NOT NULL,
+                name            VARCHAR(255) NOT NULL,
+                role            ENUM('user', 'admin') DEFAULT 'user',
+                status          ENUM('active', 'inactive', 'banned') DEFAULT 'active',
+                created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        ");
+        tiny::db()->execute("
+            CREATE TABLE password_resets (
+                token       VARCHAR(64) PRIMARY KEY,
+                user_id     INT NOT NULL,
+                expires_at  DATETIME NOT NULL,
+                INDEX idx_user (user_id),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        ");
     }
-
-    public function hasRole($role)
+    public function down(): void
     {
-        return $this->roles()->where('name', $role)->exists();
-    }
-
-    public function isAdmin()
-    {
-        return $this->hasRole('admin');
-    }
-
-    public function verifyPassword($password)
-    {
-        return tiny::utils()->verifyPassword($password, $this->password);
-    }
-
-    public function setPassword($password)
-    {
-        $this->password = tiny::utils()->hashPassword($password);
-        return $this;
-    }
-
-    public function generateVerificationToken()
-    {
-        return tiny::utils()->generateToken(32);
+        tiny::db()->execute("DROP TABLE IF EXISTS password_resets");
+        tiny::db()->execute("DROP TABLE IF EXISTS users");
     }
 }
 ```
 
-## Authentication Controllers
+## Model
+
+`app/models/user.php`:
 
 ```php
 <?php
-// app/controllers/auth/login.php
+
+class UserModel extends TinyModel
+{
+    public function findByEmail(string $email): ?object
+    {
+        return tiny::db()->getOne('users', ['email' => $email]);
+    }
+
+    public function findById(int $id): ?object
+    {
+        return tiny::db()->getOne('users', ['id' => $id]);
+    }
+
+    public function create(array $data): int|false
+    {
+        $errors = $this->validateRegistration($data);
+        if ($errors) {
+            tiny::flash('form-errors')->set($errors);
+            return false;
+        }
+
+        return tiny::db()->insert('users', [
+            'email'         => mb_strtolower($data['email']),
+            'name'          => trim($data['name']),
+            'password_hash' => password_hash($data['password'], PASSWORD_DEFAULT),
+        ]);
+    }
+
+    public function updateProfile(int $id, array $data): bool
+    {
+        $patch = array_intersect_key($data, ['name' => true, 'email' => true]);
+
+        if (!empty($data['password'])) {
+            if (mb_strlen($data['password']) < 8) {
+                tiny::flash('form-errors')->set(['password' => 'must be at least 8 characters']);
+                return false;
+            }
+            $patch['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
+        }
+
+        return tiny::db()->update('users', $patch, ['id' => $id]);
+    }
+
+    public function verify(string $email, string $password): ?object
+    {
+        $user = $this->findByEmail(mb_strtolower($email));
+        if (!$user || $user->status !== 'active') return null;
+        if (!password_verify($password, $user->password_hash)) return null;
+        return $user;
+    }
+
+    public function startPasswordReset(int $userId, int $ttlSeconds = 3600): string
+    {
+        $token = bin2hex(random_bytes(32));
+        tiny::db()->insert('password_resets', [
+            'token'      => $token,
+            'user_id'    => $userId,
+            'expires_at' => date('Y-m-d H:i:s', time() + $ttlSeconds),
+        ]);
+        return $token;
+    }
+
+    public function completePasswordReset(string $token, string $newPassword): bool
+    {
+        $row = tiny::db()->getOne('password_resets', ['token' => $token]);
+        if (!$row) return false;
+        if (strtotime($row->expires_at) < time()) return false;
+        if (mb_strlen($newPassword) < 8) return false;
+
+        tiny::db()->update('users',
+            ['password_hash' => password_hash($newPassword, PASSWORD_DEFAULT)],
+            ['id' => $row->user_id]
+        );
+        tiny::db()->delete('password_resets', ['token' => $token]);
+        return true;
+    }
+
+    private function validateRegistration(array $data): array
+    {
+        $errors = [];
+        if (!filter_var($data['email'] ?? '', FILTER_VALIDATE_EMAIL)) {
+            $errors['email'] = 'invalid email';
+        } elseif ($this->findByEmail(mb_strtolower($data['email']))) {
+            $errors['email'] = 'already registered';
+        }
+        if (empty($data['name'])) {
+            $errors['name'] = 'required';
+        }
+        if (mb_strlen($data['password'] ?? '') < 8) {
+            $errors['password'] = 'must be at least 8 characters';
+        }
+        return $errors;
+    }
+}
+```
+
+## Middleware
+
+`app/middleware/auth.php` — runs for every request and exposes `tiny::user()` when a session is active:
+
+```php
+<?php
+
+class AuthMiddleware
+{
+    public function handle(): void
+    {
+        if (empty($_SESSION['user_id'])) return;
+
+        $user = tiny::model('user')->findById((int)$_SESSION['user_id']);
+        if ($user && $user->status === 'active') {
+            tiny::user($user);
+        } else {
+            unset($_SESSION['user_id']);
+        }
+    }
+}
+```
+
+Register in `app/middleware.php`:
+
+```php
+<?php
+tiny::middleware('auth');
+```
+
+Controllers that require login enforce it themselves:
+
+```php
+private function requireLogin($response): void
+{
+    if (!tiny::user()) {
+        $response->redirect('/login');
+    }
+}
+```
+
+Or, even simpler, check at the top of `get`/`post`:
+
+```php
+if (!tiny::user()) return $response->redirect('/login');
+```
+
+## Auth controllers
+
+`app/controllers/register.php`:
+
+```php
+<?php
+
+class Register extends TinyController
+{
+    public function get($request, $response)
+    {
+        $response->render('auth/register');
+    }
+
+    public function post($request, $response)
+    {
+        if (!$request->isValidCSRF()) {
+            return $response->hasCSRFError();
+        }
+
+        $id = tiny::model('user')->create($request->body(true));
+        if ($id === false) {
+            return $response->redirect('/register');
+        }
+
+        $_SESSION['user_id'] = $id;
+        tiny::flash('toast')->set(['level' => 'success', 'message' => 'Welcome!']);
+        $response->redirect('/profile');
+    }
+}
+```
+
+`app/controllers/login.php`:
+
+```php
+<?php
 
 class Login extends TinyController
 {
     public function get($request, $response)
     {
-        return $response->render('auth/login');
+        if (tiny::user()) return $response->redirect('/profile');
+        $response->render('auth/login');
     }
 
     public function post($request, $response)
     {
-        $credentials = $request->body(true);
-
-        // Validate input
-        if (!tiny::utils()->isEmail($credentials['email'])) {
-            return $response->back()->withError('Invalid email format');
+        if (!$request->isValidCSRF()) {
+            return $response->hasCSRFError();
         }
 
-        // Attempt login
-        if (!tiny::auth()->attempt($credentials)) {
-            return $response->back()->withError('Invalid credentials');
+        $body = $request->body(true);
+
+        // Throttle by IP to slow down credential-stuffing.
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (!tiny::rateLimiter('login', 10, 60)->check($ip)) {
+            tiny::flash('toast')->set(['level' => 'error', 'message' => 'Too many attempts. Try again in a minute.']);
+            return $response->redirect('/login');
         }
 
-        // Handle remember me
-        if ($request->body->remember_me) {
-            tiny::auth()->rememberMe();
+        $user = tiny::model('user')->verify($body['email'] ?? '', $body['password'] ?? '');
+        if (!$user) {
+            tiny::flash('toast')->set(['level' => 'error', 'message' => 'Invalid email or password.']);
+            return $response->redirect('/login');
         }
 
-        return $response->redirect('/');
-    }
-}
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = $user->id;
 
-// app/controllers/auth/register.php
-class Register extends TinyController
-{
-    public function post($request, $response)
-    {
-        $data = $request->body(true);
-
-        // Validate user data
-        if (!$this->validate($data)) {
-            return $response->back()
-                ->withErrors($this->errors);
-        }
-
-        // Create user
-        $user = tiny::model('user')->create([
-            'email' => $data['email'],
-            'name' => $data['name'],
-            'password' => tiny::utils()->hashPassword($data['password'])
-        ]);
-
-        // Send verification email
-        $this->sendVerificationEmail($user);
-
-        // Auto login
-        tiny::auth()->login($user);
-
-        return $response->redirect('/')
-            ->with('success', 'Account created successfully');
+        $response->redirect('/profile');
     }
 }
 ```
 
-## Profile Management
+`app/controllers/logout.php`:
 
 ```php
 <?php
-// app/controllers/users/profile.php
+
+class Logout extends TinyController
+{
+    public function get($request, $response)   { $this->post($request, $response); }
+
+    public function post($request, $response)
+    {
+        $_SESSION = [];
+        if (ini_get('session.use_cookies')) {
+            $p = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000,
+                $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+        }
+        session_destroy();
+        $response->redirect('/');
+    }
+}
+```
+
+## Password reset
+
+`app/controllers/password.php`:
+
+```php
+<?php
+
+class Password extends TinyController
+{
+    public function get($request, $response)
+    {
+        // /password               → request form
+        // /password/reset/<token> → reset form
+        if ($request->path->section === 'reset' && $request->path->slug) {
+            return $response->render('auth/password-reset', ['token' => $request->path->slug]);
+        }
+        $response->render('auth/password');
+    }
+
+    public function post($request, $response)
+    {
+        if (!$request->isValidCSRF()) {
+            return $response->hasCSRFError();
+        }
+        $body = $request->body(true);
+
+        // /password           → start flow (send the email)
+        if (!$request->path->section) {
+            $user = tiny::model('user')->findByEmail(mb_strtolower($body['email'] ?? ''));
+            if ($user) {
+                $token = tiny::model('user')->startPasswordReset($user->id);
+                $link  = tiny::getHomeURL('password/reset/' . $token, true);
+
+                // If TINY_MAILGUN_API_KEY is configured:
+                if (!empty($_SERVER['TINY_MAILGUN_API_KEY'])) {
+                    tiny::mailgun()->send($user->email,
+                        'Reset your password',
+                        "Use this link within 1 hour: $link");
+                } else {
+                    tiny::log("Password reset link for {$user->email}: $link");
+                }
+            }
+            // Don't reveal whether the email exists.
+            tiny::flash('toast')->set(['level' => 'info', 'message' => 'If that email is registered, a reset link has been sent.']);
+            return $response->redirect('/login');
+        }
+
+        // /password/reset/<token> → complete the reset
+        if ($request->path->section === 'reset' && $request->path->slug) {
+            $ok = tiny::model('user')->completePasswordReset(
+                $request->path->slug,
+                $body['password'] ?? ''
+            );
+            if (!$ok) {
+                tiny::flash('toast')->set(['level' => 'error', 'message' => 'Invalid or expired reset link.']);
+                return $response->redirect('/password');
+            }
+            tiny::flash('toast')->set(['level' => 'success', 'message' => 'Password updated. Sign in below.']);
+            return $response->redirect('/login');
+        }
+    }
+}
+```
+
+## Profile
+
+`app/controllers/profile.php`:
+
+```php
+<?php
 
 class Profile extends TinyController
 {
-    public function __construct()
-    {
-        // Require authentication
-        if (!tiny::isAuthenticated()) {
-            return tiny::response()->redirect('/login');
-        }
-    }
-
     public function get($request, $response)
     {
-        return $response->render('users/profile', [
-            'user' => tiny::user()
-        ]);
+        if (!tiny::user()) return $response->redirect('/login');
+        $response->render('profile', ['user' => tiny::user()]);
     }
 
     public function post($request, $response)
     {
-        $data = $request->body(true);
+        if (!tiny::user()) return $response->redirect('/login');
+        if (!$request->isValidCSRF()) return $response->hasCSRFError();
 
-        // Handle avatar upload
-        if ($request->files->avatar) {
-            $avatar = tiny::spaces()->upload(
-                'avatars',
-                $request->files->avatar
-            );
-            $data['avatar_url'] = $avatar;
+        if (!tiny::model('user')->updateProfile(tiny::user()->id, $request->body(true))) {
+            return $response->redirect('/profile');
         }
 
-        // Update profile
-        tiny::user()->update($data);
-
-        return $response->back()
-            ->with('success', 'Profile updated successfully');
+        tiny::flash('toast')->set(['level' => 'success', 'message' => 'Profile updated']);
+        $response->redirect('/profile');
     }
 }
 ```
 
-## Authentication Middleware
+## Role check (admin pages)
+
+Roles are a single column. Gate handlers explicitly:
 
 ```php
-<?php
-// app/middleware/auth.php
-
-return [
-    'auth' => function($request, $response) {
-        if (!tiny::isAuthenticated()) {
-            if ($request->isAjax()) {
-                return $response->sendJSON([
-                    'error' => 'Unauthorized'
-                ], 401);
-            }
-            return $response->redirect('/login');
-        }
-    },
-
-    'role' => function($role) {
-        return function($request, $response) use ($role) {
-            if (!tiny::user()->hasRole($role)) {
-                return $response->redirect('/')
-                    ->with('error', 'Unauthorized access');
-            }
-        };
+public function get($request, $response)
+{
+    if (!tiny::user() || tiny::user()->role !== 'admin') {
+        return tiny::controller('404', true);
     }
-];
+    // ...
+}
 ```
 
-## Profile View
+For multi-role setups, swap the `role` column for a `user_roles` join table and adapt the check.
+
+## Views
+
+`app/views/auth/register.php`:
 
 ```php
-<!-- app/views/users/profile.php -->
-<?php tiny::layout()->extend('default') ?>
+<?php Layout::main(['title' => 'Create an account']); ?>
 
-<?php tiny::layout()->section('content') ?>
-    <div class="profile-container">
-        <h1>Profile Settings</h1>
+    <h1>Create an account</h1>
+    <?php $err = tiny::flash('form-errors')->get() ?? []; ?>
 
-        <?php if ($message = tiny::flash()->get()): ?>
-            <div class="alert alert-success"><?= $message ?></div>
-        <?php endif ?>
+    <form method="POST" action="/register">
+        <?php tiny::csrf()->input(); ?>
 
-        <form action="/profile" method="POST" enctype="multipart/form-data">
-            <?= tiny::csrf()->field() ?>
+        <label>Name <input name="name" required></label>
+        <?php if (isset($err['name'])): ?><small class="error"><?= htmlspecialchars($err['name']) ?></small><?php endif ?>
 
-            <div class="form-group">
-                <label>Avatar</label>
-                <input type="file" name="avatar" accept="image/*">
-            </div>
+        <label>Email <input type="email" name="email" required></label>
+        <?php if (isset($err['email'])): ?><small class="error"><?= htmlspecialchars($err['email']) ?></small><?php endif ?>
 
-            <div class="form-group">
-                <label>Name</label>
-                <input type="text" name="name" value="<?= $user->name ?>" required>
-            </div>
+        <label>Password <input type="password" name="password" minlength="8" required></label>
+        <?php if (isset($err['password'])): ?><small class="error"><?= htmlspecialchars($err['password']) ?></small><?php endif ?>
 
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="email" value="<?= $user->email ?>" required>
-            </div>
+        <button>Sign up</button>
+    </form>
 
-            <div class="form-group">
-                <label>New Password</label>
-                <input type="password" name="password">
-                <small>Leave blank to keep current password</small>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Update Profile</button>
-        </form>
-    </div>
-<?php tiny::layout()->endSection() ?>
+<?php Layout::main(); ?>
 ```
 
-## Features Demonstrated
+`app/views/profile.php`:
 
-- User authentication
-- Role-based authorization
-- Profile management
-- Password reset
-- Email verification
-- Remember me functionality
-- File uploads
-- Form validation
-- Flash messages
+```php
+<?php Layout::main(['title' => 'Your profile']); ?>
 
-## Best Practices
+    <h1>Your profile</h1>
 
-1. **Security**
-   - Hash passwords
-   - Validate input
-   - Use CSRF protection
-   - Implement rate limiting
-   - Secure session handling
+    <?php $toast = tiny::flash('toast')->get(); ?>
+    <?php if ($toast): ?>
+        <div class="alert alert-<?= htmlspecialchars($toast['level']) ?>"><?= htmlspecialchars($toast['message']) ?></div>
+    <?php endif ?>
 
-2. **User Experience**
-   - Clear error messages
-   - Email notifications
-   - Profile completeness
-   - Account recovery
-   - Session management
+    <form method="POST" action="/profile">
+        <?php tiny::csrf()->input(); ?>
+        <label>Name  <input name="name"  value="<?= htmlspecialchars($user->name) ?>"></label>
+        <label>Email <input name="email" value="<?= htmlspecialchars($user->email) ?>"></label>
+        <label>New password (leave blank to keep) <input type="password" name="password" minlength="8"></label>
+        <button>Save</button>
+    </form>
 
-3. **Data Management**
-   - Validate email uniqueness
-   - Handle soft deletes
-   - Manage user roles
-   - Track user activity
-   - Clean expired tokens
+    <form method="POST" action="/logout">
+        <?php tiny::csrf()->input(); ?>
+        <button>Sign out</button>
+    </form>
 
-4. **Performance**
-   - Cache user data
-   - Optimize queries
-   - Handle file uploads
-   - Manage sessions
-   - Background tasks
+<?php Layout::main(); ?>
+```
 
-</rewritten_file>
+(Login and password-reset views follow the same shape — a CSRF input plus the relevant fields.)
+
+## Best practices
+
+1. **Use `password_hash` / `password_verify`** with `PASSWORD_DEFAULT`. Re-hash on login if `password_needs_rehash()` returns true.
+2. **`session_regenerate_id(true)` on login.** Stops session-fixation attacks.
+3. **Throttle login attempts by IP.** A 10-per-minute limit (as above) costs almost nothing.
+4. **Don't reveal account existence** in the password-reset flow. Always show the same confirmation.
+5. **Expire reset tokens.** One-hour TTL is standard; delete the row on use.
+6. **CSRF every POST.** The `$request->isValidCSRF()` check should be the first thing in every state-changing handler.
+7. **Lowercase emails for comparison** (`mb_strtolower`). Users won't notice; you'll avoid duplicate accounts.
+8. **Keep the user table flat.** Hang preferences, addresses, OAuth links etc. off it in joined tables.

@@ -1,94 +1,91 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Cache Extension
+# Cache
 
-The Cache extension provides a simple interface for storing and retrieving data from memory caches like APCu or Memcached.
+The cache extension wraps two engines behind a single interface: **APCu** (in-process, default) and **Memcached** (distributed). Both back the framework's own internal caching (config, router, schema) — so even if you never call `tiny::cache()` directly, you get it for free.
 
-## Configuration
+The instance is created lazily on first access and reused for the whole request.
 
-Configure caching in your `.env` file:
+## Choosing an engine
 
-```env
-CACHE_ENGINE=apcu # or memcached
-MEMCACHED_HOST=localhost
-MEMCACHED_PORT=11211
-```
-
-## Basic Usage
+By default, Tiny uses APCu. Pass `'memcached'` to `tiny::cache()` to switch:
 
 ```php
-// Store a value
-tiny::cache()->set('user_123', $userData, 3600); // Cache for 1 hour
-
-// Retrieve a value
-$userData = tiny::cache()->get('user_123');
-
-// Delete a value
-tiny::cache()->delete('user_123');
-
-// Check if key exists
-if (tiny::cache()->has('user_123')) {
-    // Key exists
-}
+$cache = tiny::cache('memcached');
 ```
 
-## Advanced Features
+Memcached host/port are read from `tiny::config()->memcached`, falling back to `localhost:11211`. Set them during bootstrap if you use Memcached.
 
-### Remember Pattern
-
-Cache a value if it doesn't exist:
+## API
 
 ```php
-$value = tiny::cache()->remember('expensive_query', 3600, function() {
-    // This will only run if the cache key doesn't exist
-    return tiny::db()->get('large_table', ['status' => 'active']);
-});
+$cache = tiny::cache();
+
+// Read
+$value = $cache->get('user_42');               // null if missing
+
+// Write
+$cache->set('user_42', $user, ttl: 3600);      // ttl seconds; 0 = no expiry
+
+// Delete
+$cache->delete('user_42');
+
+// Remember (read-through)
+$user = $cache->remember('user_42', 3600, fn () => tiny::db()->get('users', ['id' => 42]));
+
+// Prefix operations
+$keys = $cache->getByPrefix('user_');
+$cache->deleteByPrefix('user_');
 ```
 
-### Prefix Operations
-
-Work with groups of cached items:
-
-```php
-// Get all keys matching a prefix
-$keys = tiny::cache()->getByPrefix('user_');
-
-// Delete all items matching a prefix
-tiny::cache()->deleteByPrefix('user_');
-```
+`getByPrefix()` and `deleteByPrefix()` rely on:
+- **APCu** — `APCUIterator` (fast, accurate)
+- **Memcached** — `getAllKeys()` (slow, optional in newer versions of the extension)
 
 ## APCu vs Memcached
 
-### APCu
-- Single server only
-- Faster (in-memory)
-- No network overhead
-- Process-bound
+| | **APCu** | **Memcached** |
+|---|---|---|
+| Topology | Single PHP process | Multiple servers |
+| Speed | Fastest (in-memory) | Network round-trip |
+| Shared across workers? | Yes (same PHP-FPM pool) | Yes (cluster) |
+| Survives PHP restart? | No | Yes |
+| Prefix iteration? | Always | Best-effort |
 
-### Memcached
-- Distributed caching
-- Multiple server support
-- Network-based
-- Shared across processes
+For a single-server app or a serverless deploy, APCu is almost always the right choice. Switch to Memcached only when you need cache shared across machines.
 
-## Best Practices
+## Patterns
 
-1. **Key Naming**
-   - Use consistent naming conventions
-   - Include version/context in keys
-   - Keep keys reasonably short
+### Read-through with `remember()`
 
-2. **TTL (Time To Live)**
-   - Set appropriate expiration times
-   - Consider data volatility
-   - Use infinite TTL sparingly
+```php
+$products = tiny::cache()->remember('products:featured', 600, function () {
+    return tiny::db()->getAll('products', ['featured' => true]);
+});
+```
 
-3. **Error Handling**
-   - Always have a fallback
-   - Handle cache misses gracefully
-   - Monitor cache usage
+### Group invalidation
 
-4. **Cache Invalidation**
-   - Clear related caches when data changes
-   - Use prefixes for group invalidation
-   - Consider cache warming strategies
+Namespace cache keys by entity, then nuke the whole namespace when it changes:
+
+```php
+function userKey(int $id, string $suffix): string {
+    return "user:$id:$suffix";
+}
+
+tiny::cache()->set(userKey($id, 'profile'), $profile, 3600);
+tiny::cache()->set(userKey($id, 'orders'),  $orders,  600);
+
+// On user update:
+tiny::cache()->deleteByPrefix("user:$id:");
+```
+
+### Don't cache request-scoped data
+
+For per-request memoization use `tiny::data()` instead — it's automatically cleared between requests under Swoole/FrankenPHP, and it doesn't compete for cache slots.
+
+## Notes
+
+- Cache is **not** a queue. Don't use it for inter-request messaging beyond what SSE's `streamKey()` does.
+- APCu is per-process under CLI; if you call `tiny::cache()` from a CLI script, you get a private cache that doesn't share state with FPM workers.
+- TTL is best-effort. Memcached evicts under memory pressure regardless of TTL.

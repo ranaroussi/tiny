@@ -2,51 +2,31 @@
 
 # Core Concepts
 
-Tiny PHP Framework follows a clean and intuitive architecture based on the MVC (Model-View-Controller) pattern. This section covers the core concepts that make up the framework.
+The conceptual tour of the framework. Read these in order if you're new to Tiny.
 
-## Table of Contents
+## Architecture
 
-1. [MVC Architecture](mvc.md)
-   - Understanding the Model-View-Controller pattern
-   - How Tiny implements MVC
-   - Best practices
+1. **[MVC architecture](mvc.md)** — how Tiny implements Model-View-Controller, and the request lifecycle.
 
-2. [Routing](routing.md)
-   - URL structure
-   - Route handling
-   - Parameters and slugs
-   - HTTP methods
+## Request handling
 
-3. [Controllers](controllers.md)
-   - Controller basics
-   - Request handling
-   - Response methods
-   - Data passing
-   - Middleware integration
+2. **[Routing](routing.md)** — the filesystem-based router, 3-segment URL resolution, and the fallback algorithm.
+3. **[Controllers](controllers.md)** — `TinyController`, HTTP-verb dispatch, request/response helpers.
+4. **[Request & Response](request-response.md)** — the full `TinyRequest` / `TinyResponse` API reference.
+5. **[Middleware](middleware.md)** — pre-controller hooks (auth, CORS, logging, rate limiting).
 
-4. [Views & Components](views.md)
-   - Template system
-   - Layouts
-   - Components
-   - Data binding
-   - Reusable UI elements
+## Views
 
-5. [Models](models.md)
-   - Data modeling
-   - Validation
-   - Business logic
-   - Database interaction
+6. **[Views](views.md)** — templates, components, layouts, asset helpers.
+7. **[HTMX & React](htmx.md)** — built-in HTMX awareness and React SSR/SPA rendering via `tiny::renderReact()`.
 
-6. [Database Access](database.md)
-   - Connection management
-   - Query building
-   - Migrations
-   - Raw SQL queries
-   - Transaction handling
+## Data
 
-7. [Middleware](middleware.md)
-   - Request filtering
-   - Response modification
-   - Authentication
-   - Authorization
-   - Custom middleware
+8. **[Models](models.md)** — `TinyModel`, schema validation, caching patterns.
+9. **[Database](database.md)** — raw-SQL helpers for MySQL, PostgreSQL, SQLite.
+
+## See also
+
+- [Extensions](../extensions/readme.md) — first-party modules (cache, CSRF, SSE, scheduler, CMS, ClickHouse, …)
+- [Helpers](../helpers/readme.md) — integration catalog (Stripe, Mailgun, OAuth, S3, …)
+- [Architecture & vision](../architecture.md) — the design philosophy behind Tiny

@@ -2,192 +2,167 @@
 
 # Helpers
 
-Tiny PHP Framework comes preloaded with several helper functions and utilities to simplify common programming tasks. These helpers are designed to make your code more readable and maintainable.
+Helpers are integration modules and utility classes living in `tiny/helpers/`. Unlike extensions, helpers are **not** auto-loaded — you opt in by setting `TINY_AUTOLOAD_HELPERS` in your env file:
 
-## Commonly Used Helpers
+```env
+# Load specific helpers
+TINY_AUTOLOAD_HELPERS=stripe,mailgun,utils
 
-1. [Stripe](stripe.md)
-   - Payment processing
-   - Subscription management
-   - Webhook handling
-   - Customer management
+# Or load all helpers
+TINY_AUTOLOAD_HELPERS=*
+```
 
-2. [Spaces (S3)](spaces.md)
-   - File storage
-   - CDN integration
-   - Access control
-   - File operations
+Once loaded, each helper is exposed as `tiny::<name>()` and returns a singleton instance.
 
-3. [Rate Limiter](rate-limiter.md)
-   - Request throttling
-   - API rate limiting
-   - Abuse prevention
-   - Custom rules
+```php
+$payment = tiny::stripe()->charge([...]);
+$url     = tiny::spaces()->upload('bucket', 'key', $bytes);
+$loc     = tiny::geos()->getLocation();
+```
 
-4. [OAuth](oauth.md)
-   - Social authentication
-   - Provider management
-   - Token handling
-   - Profile mapping
+## Catalog
 
-5. [Geos](geos.md)
-   - Location detection
-   - Country/region handling
-   - IP geolocation
-   - Currency localization
+### Payments & storage
 
-6. [Utils](utils.md)
-   - String manipulation
-   - Array operations
-   - Date formatting
-   - Common utilities
+| Helper | Accessor | Purpose | Detailed docs |
+|---|---|---|---|
+| Stripe | `tiny::stripe()` | Payments, subscriptions, customers, webhook signatures | [stripe.md](stripe.md) |
+| Spaces / S3 | `tiny::spaces()` | DigitalOcean Spaces / S3-compatible storage; signed URLs, CDN purging | [spaces.md](spaces.md) |
+| Invoice | `tiny::invoice()` | Generates PDF invoices |  |
 
-## Adding Custom Helpers
+### Email
 
-Place your custom helpers in the `app/helpers/` directory:
+| Helper | Accessor | Purpose |
+|---|---|---|
+| Mailgun | `tiny::mailgun()` | Send via Mailgun |
+| Sendgrid | `tiny::sendgrid()` | Send via SendGrid |
+| Email | `tiny::emailUtils()` | Generic email helper (formatting, parsing) |
+| EmailValidator | `tiny::emailValidator($email)` | Validates emails, including a disposable-domain blacklist |
+
+### Marketing & analytics
+
+| Helper | Accessor | Purpose |
+|---|---|---|
+| HubSpot | `tiny::hubspot()` | CRM sync |
+| Customer.io | `tiny::customerio()` | Behavioural messaging |
+| Encharge | `tiny::encharge()` | Marketing automation |
+| GetResponse | `tiny::getresponse()` | Email marketing |
+| Mixpanel | `tiny::mixpanel()` | Event analytics |
+| Userflow | `tiny::userflow()` | Product tours |
+| Logsnag | `tiny::logsnag()` | Event notifications |
+
+### Messaging
+
+| Helper | Accessor | Purpose |
+|---|---|---|
+| Twilio | `tiny::twilio()` | SMS / voice |
+| Vonage | `tiny::vonage()` | SMS / voice (formerly Nexmo) |
+
+### Auth & identity
+
+| Helper | Accessor | Purpose | Detailed docs |
+|---|---|---|---|
+| OAuth | `tiny::oauth()` | OAuth providers (Google, GitHub, etc.) | [oauth.md](oauth.md) |
+| Avatar | `tiny::avatar()` | Generate identicon-style avatars |  |
+| Cypher | `tiny::cypher()` | AES-256 encryption with TTL |  |
+| UUID | `tiny::uuidUtils()` | UUID v3 / v4 / v5 generation and validation |  |
+
+### Geo
+
+| Helper | Accessor | Purpose | Detailed docs |
+|---|---|---|---|
+| Geos | `tiny::geos()` | GeoIP2 lookup, country/currency rules | [geos.md](geos.md) |
+
+### Files & media
+
+| Helper | Accessor | Purpose |
+|---|---|---|
+| DocReader | `tiny::docReader()` | Read text from PDF/DOCX/etc. |
+| Markdown | `tiny::markdown()` | GFM-flavoured markdown with extensions |
+| OpenGraph | `tiny::opengraph()` | Parse / emit Open Graph metadata, generate OG images |
+| HTML | `tiny::html()` | HTML manipulation helpers |
+| Caddy | `tiny::caddy()` | Generate Caddyfile snippets |
+
+### Utilities
+
+| Helper | Accessor | Purpose | Detailed docs |
+|---|---|---|---|
+| Utils | `tiny::utils()` | String / array / date helpers | [utils.md](utils.md) |
+| Rate limiter | `tiny::rateLimiter($name, $reqs, $secs)` | Cache-backed request throttling | [rate-limiter.md](rate-limiter.md) |
+| Shell | `tiny::shell()` | Safe shell command execution |  |
+
+> **Rate limiter accessor signature.** Unlike the other helpers, `rateLimiter` takes constructor arguments on every call — they're forwarded to the underlying `RateLimiter` class. Usage:
+>
+> ```php
+> $rl = tiny::rateLimiter('api', 10, 1);   // 10 requests per second
+> $rl->add(1000, 3600);                    // plus 1000 per hour
+> if (!$rl->check($_SERVER['REMOTE_ADDR'])) {
+>     return $response->sendJSON(['error' => 'Too many requests'], 429);
+> }
+> ```
+
+## Configuration
+
+Each helper reads its credentials from environment variables. Convention is `TINY_<HELPER>_<KEY>`:
+
+```env
+TINY_STRIPE_PK=pk_test_…
+TINY_STRIPE_SK=sk_test_…
+TINY_STRIPE_WEBHOOK_SIGNATURE=whsec_…
+
+TINY_MAILGUN_API_KEY=…
+TINY_MAILGUN_DOMAIN=m.example.com
+TINY_MAILGUN_FROM_ADDRESS=noreply@example.com
+
+TINY_S3_REGION=nyc3
+TINY_S3_ENDPOINT=https://nyc3.digitaloceanspaces.com
+TINY_S3_BUCKET=my-bucket
+TINY_S3_KEY=…
+TINY_S3_SECRET=…
+TINY_S3_CDN=https://cdn.example.com
+```
+
+See [Configuration reference](../getting-started/configuration.md) for the full list.
+
+## Custom helpers
+
+Two ways to add your own:
+
+### 1. Drop a file in `tiny/helpers/`
 
 ```php
 <?php
-// app/helpers/my_helper.php
+// tiny/helpers/myservice.php
+declare(strict_types=1);
 
-function format_currency($amount, $currency = 'USD'): string
+class TinyMyservice
 {
-    return money_format('%i', $amount) . ' ' . $currency;
+    public function ping(): bool { return true; }
 }
+```
 
-// Register with tiny class (optional)
-tiny::register('currency', function() {
-    return new class {
-        public function format($amount, $currency = 'USD') {
-            return format_currency($amount, $currency);
-        }
-    };
+Add `TINY_AUTOLOAD_HELPERS=myservice` (or `*`) to your env and call `tiny::myservice()->ping()`.
+
+### 2. Register a factory at runtime
+
+For project-specific helpers you don't want in the framework folder, register a factory closure (typically from `app/common.php`):
+
+```php
+<?php
+tiny::registerHelper('analytics', function () {
+    return new \App\Services\Analytics($_SERVER['TINY_ANALYTICS_TOKEN']);
+});
+
+tiny::registerHelper('mailer', function () {
+    return new \App\Services\Mailer();
 });
 ```
 
-## Helper Examples
+Subsequent calls to `tiny::analytics()` return the singleton built by the closure. Arguments passed to the accessor are forwarded to the factory on first call.
 
-### Stripe Helper
+## Best practices
 
-```php
-// Process payment
-$payment = tiny::stripe()->charge([
-    'amount' => 2000, // $20.00
-    'currency' => 'usd',
-    'customer' => $customerId
-]);
-
-// Create subscription
-$subscription = tiny::stripe()->subscribe($customerId, [
-    'price' => 'price_H2ZlLQs9w0cp',
-    'trial_period_days' => 14
-]);
-```
-
-### Spaces Helper
-
-```php
-// Upload file
-$url = tiny::spaces()->upload(
-    'bucket-name',
-    'path/to/file.pdf',
-    $fileContent
-);
-
-// Generate signed URL
-$signedUrl = tiny::spaces()->signedUrl(
-    'bucket-name',
-    'private/file.pdf',
-    '+2 hours'
-);
-```
-
-### Rate Limiter Helper
-
-```php
-// Check rate limit
-if (!tiny::rateLimit()->allow('api', 60, 100)) {
-    // Too many requests
-    throw new TooManyRequestsException();
-}
-
-// Custom rate limit
-tiny::rateLimit()->create('uploads', [
-    'max_requests' => 10,
-    'period' => 3600,
-    'by' => 'user_id'
-]);
-```
-
-### OAuth Helper
-
-```php
-// Configure provider
-tiny::oauth()->configure('google', [
-    'client_id' => 'your-client-id',
-    'client_secret' => 'your-client-secret'
-]);
-
-// Get user profile
-$profile = tiny::oauth()->getUserProfile('google');
-
-// Handle callback
-$token = tiny::oauth()->handleCallback('google');
-```
-
-### Geo Helper
-
-```php
-// Get user location
-$location = tiny::geo()->getLocation();
-
-// Check country
-if (tiny::geo()->isCountry('US')) {
-    // Show US-specific content
-}
-
-// Format currency by location
-$price = tiny::geo()->formatCurrency(29.99);
-```
-
-### Utils Helper
-
-```php
-// String manipulation
-$slug = tiny::utils()->slugify('Hello World!');
-$excerpt = tiny::utils()->excerpt($longText, 150);
-
-// Array operations
-$flattened = tiny::utils()->arrayFlatten($nestedArray);
-$filtered = tiny::utils()->arrayFilter($array, $callback);
-
-// Date formatting
-$formatted = tiny::utils()->formatDate('2024-03-15', 'human');
-$timeAgo = tiny::utils()->timeAgo('2024-03-15 14:30:00');
-```
-
-## Best Practices
-
-1. **Organization**
-   - Group related helpers
-   - Use descriptive names
-   - Document functionality
-   - Follow naming conventions
-
-2. **Performance**
-   - Cache expensive operations
-   - Optimize frequently used helpers
-   - Use lazy loading
-   - Monitor resource usage
-
-3. **Security**
-   - Validate input
-   - Sanitize output
-   - Handle errors
-   - Follow security best practices
-
-4. **Maintenance**
-   - Keep helpers focused
-   - Update documentation
-   - Test thoroughly
-   - Version control changes
+1. **Only autoload what you use.** `TINY_AUTOLOAD_HELPERS=*` is convenient but adds cold-start cost.
+2. **Wrap third-party calls with caching** where possible — APIs are slow and rate-limited.
+3. **Don't pass secrets through user-controlled input.** Helper credentials should always come from env.
+4. **Build domain-specific facades on top of helpers.** Don't call `tiny::stripe()` directly from a controller; wrap it in a service that knows your business rules.

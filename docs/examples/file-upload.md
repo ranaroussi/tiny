@@ -1,13 +1,13 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# File Upload Example
+# File uploads
 
-This example demonstrates how to handle file uploads in Tiny PHP Framework, including validation, storage, and image processing.
+This example accepts a single uploaded file, validates it, stores it on disk (with an optional S3-compatible mirror), and renders a confirmation. It uses PHP's built-in `$_FILES` superglobal — Tiny doesn't wrap it.
 
-## Project Structure
+## Project structure
 
 ```
-/your-project
+my-app/
 ├── app/
 │   ├── controllers/
 │   │   └── uploads.php
@@ -17,256 +17,246 @@ This example demonstrates how to handle file uploads in Tiny PHP Framework, incl
 │       └── uploads/
 │           ├── form.php
 │           └── success.php
-├── public/
-│   └── uploads/
-│       ├── images/
-│       └── documents/
-└── config/
-    └── uploads.php
+├── html/
+│   └── static/uploads/          # local destination; served as /static/uploads/...
+└── migrations/
+    └── 20240101_uploads.php
+```
+
+## Table
+
+```php
+<?php
+// migrations/20240101_uploads.php
+class Uploads extends TinyMigration
+{
+    public function up(): void
+    {
+        tiny::db()->execute("
+            CREATE TABLE uploads (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                user_id     INT NOT NULL,
+                filename    VARCHAR(255) NOT NULL,
+                mime_type   VARCHAR(100) NOT NULL,
+                size_bytes  INT NOT NULL,
+                url         VARCHAR(500) NOT NULL,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+    }
+    public function down(): void
+    {
+        tiny::db()->execute("DROP TABLE IF EXISTS uploads");
+    }
+}
 ```
 
 ## Configuration
 
-```php
-<?php
-// config/uploads.php
+Put limits in your `.env`:
 
-return [
-    'max_size' => 10 * 1024 * 1024, // 10MB
-    'allowed_types' => [
-        'image' => ['image/jpeg', 'image/png', 'image/gif'],
-        'document' => ['application/pdf', 'application/msword']
-    ],
-    'storage' => [
-        'local' => [
-            'path' => 'public/uploads'
-        ],
-        'spaces' => [
-            'bucket' => 'your-bucket',
-            'folder' => 'uploads'
-        ]
-    ]
-];
+```env
+TINY_UPLOAD_MAX_BYTES=10485760   # 10 MB
+TINY_UPLOAD_DIR=/srv/my-app/html/static/uploads
+TINY_UPLOAD_PUBLIC_PREFIX=/static/uploads
 ```
 
-## Upload Controller
+## Model
+
+`app/models/upload.php`:
 
 ```php
 <?php
-// app/controllers/uploads.php
-
-class Uploads extends TinyController
-{
-    private $model;
-
-    public function __construct()
-    {
-        $this->model = tiny::model('upload');
-    }
-
-    // Show upload form
-    public function get($request, $response)
-    {
-        return $response->render('uploads/form');
-    }
-
-    // Handle file upload
-    public function post($request, $response)
-    {
-        // Validate file
-        $file = $request->files->upload;
-
-        if (!$file || !$file->isValid()) {
-            return $response->back()->withError('Invalid file upload');
-        }
-
-        // Check file type
-        if (!$this->model->isAllowedType($file->getMimeType())) {
-            return $response->back()->withError('File type not allowed');
-        }
-
-        // Process upload
-        try {
-            $result = $this->model->store($file);
-
-            return $response->redirect('/uploads/success')
-                ->with('file', $result);
-        } catch (Exception $e) {
-            return $response->back()
-                ->withError('Upload failed: ' . $e->getMessage());
-        }
-    }
-}
-```
-
-## Upload Model
-
-```php
-<?php
-// app/models/upload.php
 
 class UploadModel extends TinyModel
 {
-    private $config;
+    public const ALLOWED_MIME = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/gif'  => 'gif',
+        'image/webp' => 'webp',
+        'application/pdf' => 'pdf',
+    ];
 
-    public function __construct()
+    public function store(array $file, int $userId): array
     {
-        $this->config = tiny::config('uploads');
-    }
+        $this->validateFile($file);
 
-    public function store($file)
-    {
-        // Generate safe filename
-        $filename = tiny::utils()->safeFilename($file->getName());
-        $type = $this->getFileType($file->getMimeType());
+        $ext  = self::ALLOWED_MIME[$file['type']];
+        $name = bin2hex(random_bytes(8)) . '.' . $ext;
 
-        // Store file locally or in cloud
-        if ($this->config['storage']['driver'] === 'spaces') {
-            return $this->storeInSpaces($file, $type, $filename);
+        $dir       = rtrim($_SERVER['TINY_UPLOAD_DIR'] ?? '', '/');
+        $publicDir = rtrim($_SERVER['TINY_UPLOAD_PUBLIC_PREFIX'] ?? '/static/uploads', '/');
+
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
         }
 
-        return $this->storeLocally($file, $type, $filename);
-    }
-
-    private function storeLocally($file, $type, $filename)
-    {
-        $path = $this->config['storage']['local']['path'] . '/' . $type;
-        $fullPath = $path . '/' . $filename;
-
-        // Create directory if it doesn't exist
-        if (!is_dir($path)) {
-            mkdir($path, 0755, true);
+        $fullPath = "$dir/$name";
+        if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+            throw new \RuntimeException('move_uploaded_file failed');
         }
 
-        // Move uploaded file
-        if (!$file->moveTo($fullPath)) {
-            throw new Exception('Failed to move uploaded file');
+        $url = "$publicDir/$name";
+
+        // Optional: mirror to S3-compatible storage if configured.
+        if (!empty($_SERVER['TINY_S3_BUCKET'])) {
+            $url = tiny::spaces()->uploadFromDisk($fullPath, "uploads/$name");
         }
 
-        // If it's an image, create thumbnails
-        if ($type === 'images') {
-            $this->createThumbnails($fullPath);
-        }
-
-        return [
-            'filename' => $filename,
-            'path' => $fullPath,
-            'url' => '/uploads/' . $type . '/' . $filename,
-            'type' => $type
-        ];
-    }
-
-    private function storeInSpaces($file, $type, $filename)
-    {
-        $key = $this->config['storage']['spaces']['folder'] . '/' . $type . '/' . $filename;
-
-        // Upload to DigitalOcean Spaces
-        $url = tiny::spaces()->upload($key, $file->getTempName(), [
-            'ACL' => 'public-read',
-            'ContentType' => $file->getMimeType()
+        $id = tiny::db()->insert('uploads', [
+            'user_id'    => $userId,
+            'filename'   => $name,
+            'mime_type'  => $file['type'],
+            'size_bytes' => $file['size'],
+            'url'        => $url,
         ]);
 
-        return [
-            'filename' => $filename,
-            'path' => $key,
-            'url' => $url,
-            'type' => $type
-        ];
+        return tiny::db()->getOne('uploads', ['id' => $id]);
     }
 
-    private function createThumbnails($path)
+    private function validateFile(array $file): void
     {
-        $sizes = [
-            'small' => [150, 150],
-            'medium' => [300, 300],
-            'large' => [600, 600]
-        ];
-
-        foreach ($sizes as $size => [$width, $height]) {
-            $thumbPath = $this->getThumbPath($path, $size);
-
-            tiny::image($path)
-                ->resize($width, $height)
-                ->save($thumbPath);
+        if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            throw new \RuntimeException('upload error: ' . $file['error']);
         }
+
+        $max = (int)($_SERVER['TINY_UPLOAD_MAX_BYTES'] ?? 10 * 1024 * 1024);
+        if ($file['size'] > $max) {
+            throw new \RuntimeException("file too large (max $max bytes)");
+        }
+
+        // Re-check MIME from contents, not the client-supplied header.
+        $detected = mime_content_type($file['tmp_name']);
+        if (!isset(self::ALLOWED_MIME[$detected])) {
+            throw new \RuntimeException("file type not allowed: $detected");
+        }
+
+        // Override the client value with the trusted one.
+        $file['type'] = $detected;
     }
 }
 ```
 
-## Upload Form View
+The MIME check uses `mime_content_type()` against the actual bytes — never trust the value the browser sends in `$_FILES['…']['type']`.
+
+## Controller
+
+`app/controllers/uploads.php`:
 
 ```php
-<!-- app/views/uploads/form.php -->
-<?php tiny::layout()->extend('default') ?>
+<?php
 
-<?php tiny::layout()->section('content') ?>
-    <div class="upload-form">
-        <h1>File Upload</h1>
+class Uploads extends TinyController
+{
+    public function get($request, $response)
+    {
+        $response->render('uploads/form');
+    }
 
-        <?php if ($error = tiny::flash('error')->get()): ?>
-            <div class="alert alert-error"><?= $error ?></div>
-        <?php endif ?>
+    public function post($request, $response)
+    {
+        if (!$request->isValidCSRF()) {
+            return $response->hasCSRFError();
+        }
 
-        <form action="/upload" method="POST" enctype="multipart/form-data">
-            <?= tiny::csrf()->field() ?>
+        $file = $_FILES['upload'] ?? null;
+        if (!$file) {
+            tiny::flash('toast')->set(['level' => 'error', 'message' => 'No file uploaded']);
+            return $response->redirect('/uploads');
+        }
 
-            <div class="form-group">
-                <label for="upload">Choose File</label>
-                <input type="file" name="upload" id="upload" required>
-                <small>Max size: 10MB. Allowed types: JPG, PNG, GIF, PDF, DOC</small>
-            </div>
+        try {
+            $upload = tiny::model('upload')->store($file, tiny::user()->id);
+        } catch (\Throwable $e) {
+            tiny::flash('toast')->set([
+                'level'   => 'error',
+                'message' => $e->getMessage(),
+            ]);
+            return $response->redirect('/uploads');
+        }
 
-            <button type="submit" class="btn btn-primary">Upload</button>
-        </form>
-    </div>
-
-    <script>
-        // Optional: Add client-side validation and preview
-        document.getElementById('upload').onchange = function(e) {
-            const file = e.target.files[0];
-            if (file.size > <?= $config['max_size'] ?>) {
-                alert('File is too large');
-                e.target.value = '';
-            }
-        };
-    </script>
-<?php tiny::layout()->endSection() ?>
+        $response->render('uploads/success', ['upload' => $upload]);
+    }
+}
 ```
 
-## Features Demonstrated
+## Form view
 
-- File validation
-- Secure file storage
-- Cloud storage integration
-- Image processing
-- Thumbnail generation
-- Progress tracking
-- Error handling
-- CSRF protection
+`app/views/uploads/form.php`:
 
-## Best Practices
+```php
+<?php Layout::main(['title' => 'Upload a file']); ?>
 
-1. **Security**
-   - Validate file types
-   - Use secure filenames
-   - Set upload limits
-   - Check file contents
-   - Implement CSRF protection
+    <h1>Upload a file</h1>
 
-2. **Storage**
-   - Use appropriate paths
-   - Handle duplicates
-   - Clean temporary files
-   - Organize by type/date
+    <?php $toast = tiny::flash('toast')->get(); ?>
+    <?php if ($toast): ?>
+        <div class="alert alert-<?= htmlspecialchars($toast['level']) ?>">
+            <?= htmlspecialchars($toast['message']) ?>
+        </div>
+    <?php endif ?>
 
-3. **User Experience**
-   - Show progress
-   - Preview uploads
-   - Handle errors gracefully
-   - Provide feedback
+    <form method="POST" action="/uploads" enctype="multipart/form-data">
+        <?php tiny::csrf()->input(); ?>
 
-4. **Performance**
-   - Process async when possible
-   - Optimize images
-   - Use appropriate storage
-   - Clean up failed uploads
+        <label>Choose a file
+            <input type="file" name="upload"
+                   accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                   required>
+        </label>
+        <small>JPG, PNG, GIF, WebP, or PDF. Max 10 MB.</small>
+
+        <button type="submit">Upload</button>
+    </form>
+
+<?php Layout::main(); ?>
+```
+
+## Success view
+
+`app/views/uploads/success.php`:
+
+```php
+<?php Layout::main(['title' => 'Upload complete']); ?>
+
+    <h1>Upload complete</h1>
+
+    <p>Stored as <code><?= htmlspecialchars($upload->filename) ?></code>
+       (<?= number_format($upload->size_bytes) ?> bytes).</p>
+
+    <p><a href="<?= htmlspecialchars($upload->url) ?>" target="_blank">View file</a></p>
+    <p><a href="/uploads">Upload another</a></p>
+
+<?php Layout::main(); ?>
+```
+
+## Notes on size limits
+
+PHP enforces upload limits in `php.ini` before your code ever runs:
+
+```ini
+upload_max_filesize = 10M
+post_max_size       = 12M     # must be ≥ upload_max_filesize, with headroom for fields
+max_file_uploads    = 20
+```
+
+If you let an oversize file through these, `$_FILES['upload']['error']` will be `UPLOAD_ERR_INI_SIZE`, which is what the `validateFile()` check catches.
+
+## Streaming directly to S3 (skipping local disk)
+
+When `TINY_S3_BUCKET` is set, the model above uploads the moved file to S3-compatible storage via `tiny::spaces()->uploadFromDisk()`. If you want to skip the local disk entirely, stream straight from `tmp_name`:
+
+```php
+$url = tiny::spaces()->uploadFromDisk($file['tmp_name'], "uploads/$name");
+unlink($file['tmp_name']);   // optional; PHP cleans tmp on shutdown anyway
+```
+
+## Best practices
+
+1. **Verify MIME from bytes**, not the browser-supplied header.
+2. **Never store user filenames as-is.** Always generate a server-side name (random or hashed).
+3. **Store outside the web root by default.** Only place files under `html/` when you genuinely want them served directly.
+4. **Bound the size with both `php.ini` and your validator.** Defense in depth.
+5. **Strip EXIF for images** if you accept user-uploaded photos (privacy). PHP's `imagecreatefromjpeg` + `imagejpeg` round-trip drops it.
+6. **CSRF-protect the form.** A multipart form still needs the token in a hidden field.

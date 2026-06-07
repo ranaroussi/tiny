@@ -1,128 +1,128 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Debugger Extension
+# Debugger
 
-The Debugger extension provides powerful debugging tools to help you inspect variables, handle errors, and manage logs during development.
+The debugger gives you five tools for inspecting and logging state. They're gated by an IP whitelist so it's safe to leave instrumented code in production — non-whitelisted visitors see nothing.
 
-## Basic Usage
-
-### Variable Inspection
+All five live on the `tiny` facade itself (mixed in via the `TinyDebugger` trait):
 
 ```php
-// Debug single variable
-tiny::debug($variable);
-
-// Debug multiple variables
-tiny::debug($var1, $var2, $var3);
-
-// Debug with label
-tiny::debug('User Data:', $userData);
-
-// Debug and die
-tiny::dd($variable);
-```
-
-### Stack Traces
-
-```php
-// Get current stack trace
-tiny::debug()->trace();
-
-// Get stack trace for an exception
-try {
-    // Some code
-} catch (Exception $e) {
-    tiny::debug()->trace($e);
-}
-```
-
-### Error Handling
-
-```php
-// Log error with context
-tiny::debug()->error('Database connection failed', [
-    'host' => $host,
-    'error' => $e->getMessage()
-]);
-
-// Custom error handling
-tiny::debug()->handleError(function($error) {
-    // Custom error handling logic
-    mail('admin@example.com', 'Error Alert', $error);
-});
-```
-
-## Advanced Features
-
-### Log Management
-
-```php
-// Write to log file
-tiny::debug()->log('Important event occurred');
-
-// Log with level
-tiny::debug()->log('Payment processed', 'info');
-
-// Log with context
-tiny::debug()->log('User action', 'info', [
-    'user_id' => $userId,
-    'action' => $action
-]);
-```
-
-### Output Formatting
-
-```php
-// Pretty print arrays/objects
-tiny::debug()->pretty($data);
-
-// Format as table
-tiny::debug()->table($arrayData);
-
-// Syntax highlighted code
-tiny::debug()->code($phpCode);
-```
-
-### Performance Monitoring
-
-```php
-// Start timer
-tiny::debug()->timer('query');
-
-// Some code to measure
-$result = $db->query();
-
-// End timer and get duration
-$duration = tiny::debug()->timer('query')->end();
+tiny::debug(...$vars);     // pretty-print to the response (HTML), with file:line trace
+tiny::dump(...$vars);      // same as debug() but quieter (no trace block)
+tiny::dd(...$vars);        // debug() then exit
+tiny::ddump(...$vars);     // dump() then exit
+tiny::log(...$vars);       // append to LOG_FILE; safe in production
 ```
 
 ## Configuration
 
-Configure debugging in your `.env` file:
+| Variable | Default | Purpose |
+|---|---|---|
+| `DEBUG_WHITELIST` | `*` | Comma-separated IPs that may see `dd/dump/debug` output. `*` = everyone (set in dev only) |
+| `LOG_FILE` | `sys_get_temp_dir()/tiny.log` | Destination for `tiny::log()` |
+
+In production, set `DEBUG_WHITELIST` to your office IP (or unset it entirely):
 
 ```env
-DEBUG=true
-DEBUG_WHITELIST=127.0.0.1,::1
-LOG_FILE=/path/to/debug.log
-LOG_LEVEL=debug
+DEBUG_WHITELIST=203.0.113.4,198.51.100.10
+LOG_FILE=/var/log/myapp/debug.log
 ```
 
-## Best Practices
+When a request comes in from outside the whitelist, all four display methods become no-ops — `tiny::dd()` won't even exit. `tiny::log()` always writes, regardless of IP.
 
-1. **Security**
-   - Disable debugging in production
-   - Use IP whitelisting
-   - Sanitize sensitive data
-   - Manage log access
+## Examples
 
-2. **Performance**
-   - Use selective debugging
-   - Clean up debug code
-   - Monitor log sizes
-   - Use appropriate log levels
+### Inspect during a request
 
-3. **Organization**
-   - Group related debug calls
-   - Use meaningful labels
-   - Structure log messages
-   - Clean up old logs
+```php
+class Users extends TinyController
+{
+    public function get($request, $response)
+    {
+        $users = tiny::model('user')->all();
+        tiny::debug($users, $request->query);
+        $response->render('users/index', ['users' => $users]);
+    }
+}
+```
+
+Visiting `/users` from your whitelisted IP shows the dump above the rendered page.
+
+### Hard halt for "what is this thing?"
+
+```php
+$row = tiny::db()->getOne('orders', ['id' => $id]);
+tiny::dd($row);   // dump and stop here
+```
+
+### Production logging
+
+```php
+try {
+    chargeCard($order);
+} catch (StripeException $e) {
+    tiny::log('charge failed', $e->getMessage(), ['order_id' => $order->id]);
+    $response->redirect('/checkout/failed');
+}
+```
+
+`tiny::log()` accepts any mix of strings, arrays, and objects — it serializes the lot to JSON, prefixes a timestamp, and appends to `LOG_FILE`.
+
+### Quiet inline dumps
+
+```php
+tiny::dump($computed);   // no trace block, just the value
+```
+
+Use `dump()` when you're checking a known variable in a tight loop; use `debug()` when you want the call-site info.
+
+## What renders
+
+`debug()` / `dump()` output is wrapped in an inline-styled block at the top of the response:
+
+```
+== tiny::debug ==                                        [/app/controllers/users.php:14]
+─────────────────────────────────────────────────────────────────────────────────────────
+array(3) {
+  [0] => object(stdClass)#42 { ... }
+  ...
+}
+```
+
+So if a non-whitelisted user *does* somehow trip a call, the worst case is empty markup — never raw data.
+
+## Patterns
+
+### Conditional verbose logging
+
+```php
+if ($_SERVER['ENV'] !== 'prod') {
+    tiny::log('debug context', compact('user', 'order'));
+}
+```
+
+### Inspect a chained call
+
+```php
+$user = tiny::db()
+    ->dd('select * from users where id = ?', [$id])   // dump the rendered SQL
+    ->getOne('users', ['id' => $id]);
+```
+
+(Many extension classes have their own `->dd()` helpers — see [database.md](database.md) for `TinyDB::dd()`.)
+
+### Stack traces in logs
+
+`tiny::log()` doesn't include a stack trace by default. When you need one:
+
+```php
+tiny::log('something went wrong', (new \Exception)->getTraceAsString());
+```
+
+## Best practices
+
+1. **Never enable `DEBUG_WHITELIST=*` in production.** It's a one-line credential exposure if you do.
+2. **Prefer `tiny::log()` for ongoing diagnostics**; it's IP-agnostic and won't pollute the response.
+3. **Don't `dd()` in middleware** unless you're actively debugging — it kills the request unconditionally for whitelisted IPs and is easy to forget about.
+4. **Rotate `LOG_FILE`** with logrotate or your platform's equivalent. The framework doesn't manage rotation.
+5. **Scrub secrets before logging.** Tokens, passwords, and PII don't belong in `tiny::log()` calls.

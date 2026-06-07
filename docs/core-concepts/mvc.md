@@ -2,164 +2,123 @@
 
 # MVC Architecture
 
-The Model-View-Controller (MVC) pattern is at the heart of Tiny PHP Framework. It provides a clean separation of concerns and helps organize your code effectively.
-
-## Overview
+Tiny is a classical MVC framework with one quirk: there is no route table. The URL path maps directly to the filesystem (`app/controllers/...`), and from there it's the familiar Model → Controller → View flow.
 
 ```
-Request → Router → Controller (+ Model) → View → Response
+Request → Router → Middleware → Controller → Model → View → Response
 ```
 
-## Components
+## Controllers (`app/controllers/`)
 
-### Models (`app/models/`)
-
-Models handle data and business logic:
+Controllers extend `TinyController`. Each HTTP verb is a method (`get`, `post`, `put`, `patch`, `delete`). See [Controllers](controllers.md) for the full reference.
 
 ```php
 <?php
-
-class UserModel extends TinyModel
-{
-    // Define validation schemas
-    public array $schemas = [
-        'account' => [
-            'name' => 'string:100',
-            'email' => 'string:255',
-            'active' => 'bool'
-        ]
-    ];
-
-    public function getAccount(): object
-    {
-        return tiny::db()->getOne('users', ['id' => tiny::user()->id]);
-    }
-
-    public function updateAccount(array $data): bool
-    {
-        if (!$this->isValid($data, $this->schemas['account'])) {
-            return false;
-        }
-        return tiny::db()->update('users', $data, ['id' => tiny::user()->id]);
-    }
-}
-```
-
-### Views (`app/views/`)
-
-Views handle the presentation layer:
-
-```php
-<!-- app/views/user/profile.php -->
-<div class="profile">
-    <h1><?= tiny::data()->user->name ?></h1>
-    <p><?= tiny::data()->user->email ?></p>
-
-    <?php tiny::component()->userStats() ?>
-</div>
-```
-
-### Controllers (`app/controllers/`)
-
-Controllers handle request/response flow:
-
-```php
-<?php
-
 class UserProfile extends TinyController
 {
-    private $model;
-
-    public function __construct()
-    {
-        $this->model = tiny::model('user');
-    }
-
     public function get($request, $response)
     {
-        tiny::data()->user = $this->model->getAccount();
-        $response->render();
+        $user = tiny::model('user')->byId($request->path->slug);
+        $response->render('user/profile', ['user' => $user]);
     }
 
     public function patch($request, $response)
     {
-        $data = $request->body(true);
-
         if (!$request->isValidCSRF()) {
-            $response->hasCSRFError();
-            return $response->render();
+            return $response->hasCSRFError();
         }
-
-        if ($this->model->updateAccount($data)) {
-            tiny::flash('toast')->set([
-                'level' => 'success',
-                'message' => 'Profile updated successfully'
-            ]);
+        $data = $request->body(true);
+        if (tiny::model('user')->update($data)) {
+            tiny::flash('toast')->set(['level' => 'success', 'message' => 'Updated']);
             return $response->redirect('/profile');
         }
-
-        tiny::data()->errors = $this->model->validationErrors;
-        $response->render();
+        $response->render('user/profile', ['errors' => tiny::model('user')->validationErrors]);
     }
 }
 ```
 
-## Data Flow
+## Models (`app/models/`)
 
-1. **Request Handling**
-   - User makes a request to `/profile`
-   - Router maps URL to `UserProfile` controller
-   - Middleware processes request
+Models extend `TinyModel` and own data access + validation. Load them with `tiny::model('user')`.
 
-2. **Controller Processing**
-   - Controller instantiates required model
-   - Handles HTTP method (GET, POST, etc.)
-   - Processes input data
-   - Interacts with model for data operations
+```php
+<?php
+class UserModel extends TinyModel
+{
+    public array $schemas = [
+        'account' => [
+            'name'   => 'string(100)',
+            'email'  => 'string(255)',
+            'active' => 'bool',
+        ],
+    ];
 
-3. **Model Operations**
-   - Validates data using schemas
-   - Performs database operations
-   - Implements business logic
-   - Returns data/results to controller
+    public function byId(int $id): ?array
+    {
+        return tiny::cache()->remember("user:$id", 60, function () use ($id) {
+            return tiny::db()->getOne('users', ['id' => $id]);
+        }) ?: null;
+    }
 
-4. **View Rendering**
-   - Controller passes data to view via `tiny::data()`
-   - View renders HTML using data
-   - Components are included as needed
-   - Layout wraps the final output
+    public function update(array $data): bool
+    {
+        if (!$this->isValid($data, $this->schemas['account'])) {
+            return false;
+        }
+        return (bool) tiny::db()->update('users', $data, ['id' => $data['id']]);
+    }
+}
+```
 
-5. **Response**
-   - Final HTML is sent to browser
-   - Redirects are handled if needed
-   - Error responses are formatted appropriately
+`TinyModel::isValid()` runs schema validation; the result is stored in `$this->validationErrors`. There's also `validationErrorsToAlpineJs()` for one-shot Alpine.js error binding.
 
-## Best Practices
+See [Models](models.md) for the validation grammar and more patterns.
 
-1. **Models**
-   - Keep business logic in models
-   - Use validation schemas
-   - Handle database operations
-   - Return clean data objects
+## Views (`app/views/`)
 
-2. **Views**
-   - Use components for reusable UI elements
-   - Keep logic minimal
-   - Use layouts for consistent structure
-   - Escape output properly
+Views are plain PHP templates. They can use the global `tiny::data()` bag, the `Component` and `Layout` singletons, and any helper:
 
-3. **Controllers**
-   - Keep thin and focused
-   - Handle request/response flow
-   - Validate CSRF tokens
-   - Use flash messages for user feedback
+```php
+<?php Layout::default(['title' => 'Profile']); ?>
 
-4. **General**
-   - Follow single responsibility principle
-   - Use dependency injection
-   - Keep code DRY
-   - Document complex logic
+<h1><?= htmlspecialchars(tiny::get('user')['name']) ?></h1>
 
-For more information:
-- See [Database Operations](../core-concepts/database.md)
-- Check [Extensions](../extensions/readme.md)
+<?php if ($errors = tiny::get('errors')): ?>
+    <ul class="errors">
+    <?php foreach ($errors as $field => $msg): ?>
+        <li><?= htmlspecialchars($msg) ?></li>
+    <?php endforeach; ?>
+    </ul>
+<?php endif; ?>
+
+<?php Component::render('user-card', ['user' => tiny::get('user')]); ?>
+```
+
+See [Views](views.md), [Components](../extensions/components.md), and [Layouts](../extensions/layout.md).
+
+## Request flow in detail
+
+1. **Bootstrap** — `html/index.php` loads `tiny/tiny.php`, which initialises config, DB (if `TINY_DB_AUTOCONNECT` ≠ false), router, helpers, and middleware.
+2. **Routing** — the URL is resolved to a controller file. See [Routing](routing.md).
+3. **Middleware** — each registered middleware's `handle()` runs (web requests only). See [Middleware](middleware.md).
+4. **Controller dispatch** — the matching HTTP-verb method is invoked with `(TinyRequest $request, TinyResponse $response)`.
+5. **Response** — the controller calls `$response->render(...)`, `$response->sendJSON(...)`, or similar. Output is buffered (and optionally minified) before being sent to the client.
+
+## Best practices
+
+- **Controllers are thin.** They orchestrate; they don't compute.
+- **Models own data + business rules.** Validation lives next to the schema.
+- **Views are dumb.** No SQL, no HTTP calls — just rendering.
+- **Use `tiny::cache()->remember()` aggressively** for hot reads.
+- **Share request-scoped state via `tiny::data()` / `tiny::set()` / `tiny::get()`** — that's exactly what it's for.
+
+## See also
+
+- [Routing](routing.md)
+- [Controllers](controllers.md)
+- [Request & Response](request-response.md)
+- [Views](views.md)
+- [Models](models.md)
+- [Database](database.md)
+- [Middleware](middleware.md)
+- [HTMX integration](htmx.md)

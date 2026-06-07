@@ -1,211 +1,116 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Layout Extension
+# Layouts
 
-The Layout extension provides a powerful way to create reusable page layouts and manage the structure of your views.
+Layouts in Tiny are plain PHP. There is no templating DSL, no `@yield`, no `extends`. A "layout" is a pair of files (`open.php` and `close.php`) that wrap your view's content. You invoke them as if they were methods on the global `Layout` constant.
 
-## Basic Usage
+This page covers `TinyLayout`. For views and components see [views.md](../core-concepts/views.md) and [components.md](components.md).
 
-### Creating Layouts
+## File convention
 
-Create a base layout in `app/views/layouts/default.php`:
+Layouts live in `app/views/layouts/<name>/`:
+
+```
+app/views/layouts/
+├── main/
+│   ├── open.php       # rendered first time Layout::main(...) is called
+│   └── close.php      # rendered second time Layout::main(...) is called
+└── modal/
+    ├── open.php
+    └── close.php
+```
+
+## The `Layout` constant
+
+Tiny's bootstrap defines `Layout` as a `TinyLayout` instance pointing at `app/views/layouts/`. Calls to it dispatch through `__call`:
 
 ```php
-<!DOCTYPE html>
-<html lang="en">
+<?php Layout::main(['title' => 'Dashboard', 'user' => $user]); ?>
+
+    <h1>Welcome, <?= htmlspecialchars($user->name) ?></h1>
+    <p>Here are your widgets…</p>
+
+<?php Layout::main(); ?>
+```
+
+First call: opens the layout, props are stored, `open.php` is included.
+Second call: pops the stored props, `close.php` is included.
+
+Between the two calls, the view renders its body — sandwiched inside the layout shell.
+
+You can equally use `tiny::layout()` if `Layout` isn't defined as a constant in your app's bootstrap:
+
+```php
+<?php tiny::layout()->main(['title' => 'Dashboard']); ?>
+…
+<?php tiny::layout()->main(); ?>
+```
+
+## Reading props inside the layout
+
+`open.php` and `close.php` access the props via `Layout::props($name, $fallback)`:
+
+```php
+<!-- app/views/layouts/main/open.php -->
+<!doctype html>
+<html lang="<?= Layout::props('lang', 'en') ?>">
 <head>
-    <meta charset="UTF-8">
-    <title><?= tiny::data()->title ?? 'My App' ?></title>
-    <?php tiny::layout()->head() ?>
+    <meta charset="utf-8">
+    <title><?= htmlspecialchars(Layout::props('title', 'My App')) ?></title>
+    <?php foreach (Layout::props('css', []) as $href): ?>
+        <link rel="stylesheet" href="<?= htmlspecialchars($href) ?>">
+    <?php endforeach ?>
 </head>
 <body>
-    <header>
-        <?php tiny::layout()->section('header') ?>
-    </header>
+<main>
+```
 
-    <main>
-        <?php tiny::layout()->content() ?>
-    </main>
-
-    <footer>
-        <?php tiny::layout()->section('footer') ?>
-    </footer>
-
-    <?php tiny::layout()->scripts() ?>
+```php
+<!-- app/views/layouts/main/close.php -->
+</main>
+<footer>&copy; <?= date('Y') ?></footer>
+<?php foreach (Layout::props('js', []) as $src): ?>
+    <script src="<?= htmlspecialchars($src) ?>"></script>
+<?php endforeach ?>
 </body>
 </html>
 ```
 
-### Using Layouts in Views
+## Nesting
+
+Layouts compose by nesting:
 
 ```php
-<!-- app/views/home.php -->
-<?php tiny::layout()->extend('default') ?>
-
-<?php tiny::layout()->section('header') ?>
-    <h1>Welcome to My App</h1>
-<?php tiny::layout()->endSection() ?>
-
-<?php tiny::layout()->section('content') ?>
-    <div class="content">
-        <p>This is the main content.</p>
-    </div>
-<?php tiny::layout()->endSection() ?>
-
-<?php tiny::layout()->section('footer') ?>
-    <p>&copy; <?= date('Y') ?> My App</p>
-<?php tiny::layout()->endSection() ?>
+<?php Layout::main(['title' => 'Admin']); ?>
+    <?php Layout::admin(['sidebar' => $items]); ?>
+        <h2>Users</h2>
+        <?php tiny::component()->userTable(['users' => $users]); ?>
+    <?php Layout::admin(); ?>
+<?php Layout::main(); ?>
 ```
 
-## Advanced Features
+The first/second-call mechanism means each layout closes itself; nesting is just lexical scope in the view file.
 
-### Adding Assets
+## With components
+
+Layouts are great for page chrome (head, nav, footer). Reusable widgets belong in [components](components.md). A common shape:
 
 ```php
-// Add CSS files
-tiny::layout()->css([
-    '/css/main.css',
-    '/css/components.css'
-]);
+<?php Layout::main(['title' => 'Dashboard']); ?>
 
-// Add JavaScript files
-tiny::layout()->js([
-    '/js/app.js',
-    '/js/utils.js'
-]);
+    <?php tiny::component()->navBar(['active' => 'dashboard']); ?>
 
-// Add inline styles
-tiny::layout()->style('
-    .custom-class {
-        background: #f0f0f0;
-    }
-');
+    <h1>Dashboard</h1>
+    <?php tiny::component()->statsGrid(['stats' => $stats]); ?>
+    <?php tiny::component()->recentOrders(['orders' => $orders]); ?>
 
-// Add inline scripts
-tiny::layout()->script('
-    document.addEventListener("DOMContentLoaded", function() {
-        // Your code here
-    });
-');
+<?php Layout::main(); ?>
 ```
 
-### Nested Layouts
+## Best practices
 
-```php
-<!-- app/views/layouts/admin.php -->
-<?php tiny::layout()->extend('default') ?>
-
-<?php tiny::layout()->section('header') ?>
-    <nav class="admin-nav">
-        <!-- Admin navigation -->
-    </nav>
-<?php tiny::layout()->endSection() ?>
-
-<!-- app/views/admin/dashboard.php -->
-<?php tiny::layout()->extend('admin') ?>
-
-<?php tiny::layout()->section('content') ?>
-    <div class="dashboard">
-        <!-- Dashboard content -->
-    </div>
-<?php tiny::layout()->endSection() ?>
-```
-
-### Dynamic Sections
-
-```php
-// Check if section exists
-if (tiny::layout()->hasSection('sidebar')) {
-    tiny::layout()->section('sidebar');
-}
-
-// Default content for sections
-tiny::layout()->section('sidebar', function() {
-    echo '<div class="default-sidebar">Default content</div>';
-});
-```
-
-### Component Integration
-
-```php
-<!-- Include components in layouts -->
-<?php tiny::layout()->section('header') ?>
-    <?php tiny::component()->navigation() ?>
-    <?php tiny::component()->searchBar() ?>
-<?php tiny::layout()->endSection() ?>
-```
-
-## Best Practices
-
-1. **Structure Organization**
-   - Keep layouts in `app/views/layouts/`
-   - Use meaningful layout names
-   - Maintain consistent structure
-   - Separate concerns (content/presentation)
-
-2. **Asset Management**
-   - Group related assets
-   - Use asset versioning
-   - Consider load order
-   - Optimize for performance
-
-3. **Section Naming**
-   - Use descriptive section names
-   - Keep names consistent
-   - Document required sections
-   - Provide defaults when needed
-
-4. **Reusability**
-   - Create modular layouts
-   - Share common sections
-   - Use components for repeated elements
-   - Keep layouts DRY
-
-5. **SEO and Meta Data**
-   ```php
-   tiny::layout()->meta([
-       'description' => 'Page description',
-       'keywords' => 'key, words',
-       'robots' => 'index,follow'
-   ]);
-
-   tiny::layout()->title('Page Title | My App');
-   ```
-
-## Example: Complete Layout System
-
-```php
-<!-- app/views/layouts/default.php -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title><?= tiny::layout()->getTitle() ?></title>
-    <?php tiny::layout()->meta() ?>
-    <?php tiny::layout()->head() ?>
-</head>
-<body class="<?= tiny::layout()->bodyClass() ?>">
-    <?php tiny::component()->header() ?>
-
-    <div class="container">
-        <?php if (tiny::layout()->hasSection('sidebar')): ?>
-            <aside class="sidebar">
-                <?php tiny::layout()->section('sidebar') ?>
-            </aside>
-        <?php endif ?>
-
-        <main class="content">
-            <?php tiny::layout()->content() ?>
-        </main>
-    </div>
-
-    <?php tiny::component()->footer() ?>
-    <?php tiny::layout()->scripts() ?>
-</body>
-</html>
-```
-
-This layout system provides a flexible and maintainable way to structure your application's views while keeping your code DRY and organized.
-
-For more information about components:
--- See [Components](../extensions/readme.md#components)
+1. **Keep layouts dumb.** Move computation into the controller or a component. The layout should only emit HTML and read props.
+2. **Always close.** Forgetting the second `Layout::main()` produces a half-rendered page; the framework can't auto-close because PHP doesn't have block scope.
+3. **Pass everything via props.** Don't reach into `tiny::data()` from a layout file — props are easier to grep and refactor.
+4. **One layout per page.** Nesting is fine, but if you find yourself with three deep, consider splitting into components instead.
+5. **Match HTML escaping discipline.** Layouts emit raw HTML and rely on you to `htmlspecialchars()` user data.

@@ -2,168 +2,167 @@
 
 # Views
 
-Views in Tiny handle the presentation layer of your application. They are PHP files that contain HTML and can include dynamic content using PHP code.
+Views in Tiny are plain PHP templates living in `app/views/`. They are invoked from controllers via `$response->render('path/to/view', $params)` and have access to the global `tiny::*` API plus two helpers: `Component` and `Layout`.
 
-## Basic Structure
-
-Views should be placed in the `app/views` directory and use `.php` extension:
+## Basic structure
 
 ```php
 <!-- app/views/users/index.php -->
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-    <title><?= tiny::data()->title ?></title>
+    <title><?= htmlspecialchars(tiny::get('title')) ?></title>
 </head>
 <body>
     <h1>Users</h1>
     <ul>
-    <?php foreach (tiny::data()->users as $user): ?>
-        <li><?= $user->name ?></li>
+    <?php foreach (tiny::get('users') as $user): ?>
+        <li><?= htmlspecialchars($user['name']) ?></li>
     <?php endforeach; ?>
     </ul>
 </body>
 </html>
 ```
 
-## Using Layouts
+## Layouts
 
-Layouts provide a template for common page elements:
+Layouts wrap page chrome. Register them as PHP files in `app/views/layouts/` — the file `main.php` becomes `Layout::main(...)`:
 
 ```php
 <!-- app/views/layouts/main.php -->
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-    <title><?= tiny::data()->title ?></title>
-    <?php tiny::component()->head() ?>
+    <title><?= htmlspecialchars(Layout::props('title', 'My App')) ?></title>
+    <link rel="stylesheet" href="<?= tiny::getStaticURL('css/app.css') ?>">
 </head>
 <body>
-    <?php tiny::component()->header() ?>
-
-    <main>
-        <?= tiny::data()->content ?>
-    </main>
-
-    <?php tiny::component()->footer() ?>
+    <?php Component::render('header'); ?>
+    <main><?= Layout::props('content') ?></main>
+    <?php Component::render('footer'); ?>
 </body>
 </html>
 ```
 
-Using a layout:
-```php
-<!-- app/views/users/profile.php -->
-<?php tiny::layout('main') ?>
+Invoke a layout from a view:
 
-<div class="profile">
-    <h1><?= tiny::data()->user->name ?></h1>
-    <p><?= tiny::data()->user->email ?></p>
-</div>
+```php
+<!-- app/views/users/index.php -->
+<?php Layout::main([
+    'title'   => 'Users',
+    'content' => '<h1>Users</h1>',
+]); ?>
 ```
+
+`Layout::props($name, $fallback)` reads a value passed in; the fallback is used when the key isn't present.
+
+See [Layout extension](../extensions/layout.md) for details.
 
 ## Components
 
-Components are reusable view elements:
+Components are reusable view fragments. Define them in `app/views/components/` by **registering** a callable:
 
 ```php
 <!-- app/views/components/user-card.php -->
-<div class="user-card">
-    <img src="<?= $user->avatar ?>" alt="<?= $user->name ?>">
-    <h3><?= $user->name ?></h3>
-    <p><?= $user->bio ?></p>
-</div>
+<?php
+Component::register('userCard', function (array $user): void { ?>
+    <article class="user-card">
+        <img src="<?= htmlspecialchars($user['avatar']) ?>" alt="">
+        <h3><?= htmlspecialchars($user['name']) ?></h3>
+        <p><?= htmlspecialchars($user['bio']) ?></p>
+    </article>
+<?php });
 ```
 
-Using components:
+Use it from any view in three equivalent ways:
+
 ```php
-<!-- In any view -->
-<?php foreach (tiny::data()->users as $user): ?>
-    <?php tiny::component()->userCard(['user' => $user]) ?>
-<?php endforeach; ?>
+<?php Component::render('userCard', $user); ?>
+<?php echo Component::return('userCard', $user); ?>
+<?php Component::userCard($user); ?>   <!-- magic-method shortcut -->
 ```
 
-## Data Access
+See [Components extension](../extensions/components.md) for the full API.
 
-Access data shared from controllers:
+## Passing data to views
+
+Three equivalent options:
 
 ```php
-<!-- Direct property access -->
-<h1><?= tiny::data()->title ?></h1>
+// Controller — preferred
+$response->render('users/index', ['users' => $users, 'title' => 'Users']);
 
-<!-- Using get() method -->
-<h1><?= tiny::get('title') ?></h1>
+// Controller — global bag
+tiny::data()->users = $users;
+tiny::set('title', 'Users');
 
-<!-- Checking if data exists -->
-<?php if (isset(tiny::data()->user)): ?>
-    <p>Welcome, <?= tiny::data()->user->name ?></p>
-<?php endif; ?>
+// View — reading
+tiny::data()->users;
+tiny::get('title', 'Default Title');   // optional fallback
 ```
 
-## Flash Messages
-
-Display temporary messages:
+## Flash messages in views
 
 ```php
-<!-- Display toast messages -->
 <?php if ($toast = tiny::flash('toast')->get()): ?>
-    <div class="toast <?= $toast['level'] ?>">
-        <?= $toast['message'] ?>
+    <div class="toast toast--<?= htmlspecialchars($toast['level']) ?>">
+        <?= htmlspecialchars($toast['message']) ?>
     </div>
 <?php endif; ?>
 ```
 
-## Form Handling
+## CSRF tokens
 
-Create forms with CSRF protection:
+For every form that does state-changing work, embed a CSRF input:
 
 ```php
-<form method="POST" action="/users">
-    <?php tiny::csrf()->input() ?>
-
-    <input type="text" name="name" value="<?= tiny::old('name') ?>">
-
-    <?php if ($error = tiny::error('name')): ?>
-        <span class="error"><?= $error ?></span>
-    <?php endif; ?>
-
+<form method="post" action="/users">
+    <?php tiny::csrf()->input(); ?>
+    <input type="text" name="name">
     <button type="submit">Save</button>
 </form>
 ```
 
-## Asset Management
+The `input()` helper echoes a hidden field with the current token.
 
-Include CSS and JavaScript files:
+## Static asset URLs
 
 ```php
-<!-- In head component -->
-<link rel="stylesheet" href="<?= tiny::asset('css/app.css') ?>">
-<script src="<?= tiny::asset('js/app.js') ?>" defer></script>
+<link rel="stylesheet" href="<?= tiny::getStaticURL('css/app.css') ?>">
+<script src="<?= tiny::getStaticURL('js/app.js') ?>" defer></script>
+<img src="<?= tiny::getStaticURL('images/logo.svg') ?>">
 ```
 
-## Best Practices
+`tiny::staticURL($file)` echoes; `tiny::getStaticURL($file)` returns the string. Both honour `TINY_STATIC_DIR` (which can be a CDN URL).
 
-1. **Organization**
-   - Use subdirectories for related views
-   - Keep components small and focused
-   - Use consistent naming conventions
+## Home URLs
 
-2. **Security**
-   - Always escape output using `<?= ?>` (shorthand for `htmlspecialchars()`)
-   - Use CSRF protection in forms
-   - Validate user input server-side
+```php
+<a href="<?= tiny::getHomeURL('/about') ?>">About</a>
+<a href="<?= tiny::getHomeURL('/contact', full: true) ?>">Contact (absolute URL)</a>
+```
 
-3. **Performance**
-   - Keep logic minimal in views
-   - Use components for reusable elements
-   - Cache where appropriate
+`tiny::homeURL()` echoes the same value.
 
-4. **Maintainability**
-   - Use layouts for consistent structure
-   - Keep views simple and focused
-   - Document complex view logic
+## HTMX integration
 
-5. **Accessibility**
-   - Use semantic HTML
-   - Include ARIA attributes
-   - Test with screen readers
-</rewritten_file>
+When the current request was made by HTMX (`HX-Request` header present), `$request->htmx` is `true`. Render partials or full pages accordingly:
+
+```php
+<?php if (tiny::request()->htmx): ?>
+    <!-- just the list, the rest of the page stays -->
+    <?php foreach (tiny::get('users') as $u): Component::render('userCard', $u); endforeach; ?>
+<?php else: ?>
+    <?php Layout::main(['title' => 'Users', 'content' => /* full HTML */]); ?>
+<?php endif; ?>
+```
+
+See [HTMX integration](htmx.md) for the full story.
+
+## Best practices
+
+1. **Escape every output** — `htmlspecialchars()` (or `<?= htmlspecialchars(...) ?>`). No exceptions.
+2. **Components for reuse, layouts for chrome.** Don't mix them up.
+3. **Keep logic out of views.** No queries, no HTTP calls — only rendering.
+4. **Use `tiny::get($key)` over `tiny::data()->$key`** when you want default fallbacks.
+5. **CSRF every form.** Always.

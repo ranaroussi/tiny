@@ -2,15 +2,12 @@
 
 # Controllers
 
-Controllers in Tiny handle HTTP requests and manage the application's flow. They are responsible for processing input, interacting with models, and preparing data for views.
+Controllers handle a single URL. They extend `TinyController` and live in `app/controllers/`. Each public method named after an HTTP verb (`get`, `post`, `put`, `patch`, `delete`, `options`) handles the matching request.
 
-## Basic Structure
-
-Controllers should be placed in the `app/controllers` directory and extend the `TinyController` class:
+## Basic structure
 
 ```php
 <?php
-
 class Users extends TinyController
 {
     private $model;
@@ -23,170 +20,162 @@ class Users extends TinyController
 
     public function get($request, $response)
     {
-        $users = $this->model->getAll();
-        tiny::data()->users = $users;
-        $response->render();
+        $users = $this->model->all();
+        $response->render('users/index', ['users' => $users]);
     }
 }
 ```
 
-## HTTP Methods
+The constructor of `TinyController` initialises `$this->method` (the request verb) and `$this->allowedMethods` (the verbs the framework will accept). Always call `parent::__construct()` if you define your own.
 
-Controllers automatically map HTTP methods to corresponding methods:
+## HTTP methods
 
 ```php
 class Users extends TinyController
 {
-    // GET /users
-    public function get($request, $response)
-    {
-        $response->render();
-    }
-
-    // POST /users
-    public function post($request, $response)
-    {
-        $data = $request->body(true);
-        // Handle creation
-    }
-
-    // PATCH /users
-    public function patch($request, $response)
-    {
-        $data = $request->body(true);
-        // Handle update
-    }
-
-    // DELETE /users
-    public function delete($request, $response)
-    {
-        // Handle deletion
-    }
+    public function get($request, $response)    { /* GET    /users */ }
+    public function post($request, $response)   { /* POST   /users */ }
+    public function patch($request, $response)  { /* PATCH  /users */ }
+    public function put($request, $response)    { /* PUT    /users */ }
+    public function delete($request, $response) { /* DELETE /users */ }
+    // options() is handled by TinyController by default (HTTP 204 + CORS header)
 }
 ```
 
-## Request Handling
+## The request object
 
-The `$request` object provides access to request data:
+`$request` is a `TinyRequest`. The public surface is:
 
 ```php
-public function get($request, $response)
-{
-    // URL parameters
-    $section = $request->path->section;
-    $slug = $request->path->slug;
+$request->method;             // "GET" | "POST" | …
+$request->headers;            // associative array from getallheaders()
+$request->user;               // object set by middleware / tiny::user()
+$request->htmx;               // bool, true when HX-Request header present
+$request->query;              // $_GET
+$request->path->controller;   // first URL segment
+$request->path->section;      // second URL segment
+$request->path->slug;         // remaining URL segment(s)
+$request->path->full;         // "/users/profile/edit"
+$request->csrf_token;         // populated after body() runs
 
-    // Query parameters
-    $page = $request->query['page'] ?? 1;
-
-    // POST/PUT data
-    $data = $request->body(true); // true for associative array
-
-    // Files
-    $file = $request->files->upload;
-
-    // Headers
-    $token = $request->headers['Authorization'];
-
-    // CSRF validation
-    if (!$request->isValidCSRF()) {
-        $response->hasCSRFError();
-        return $response->render();
-    }
-}
+$request->params();           // merged $_REQUEST (case-insensitive lookups)
+$request->params('email');    // single key, optional fallback as 2nd arg
+$request->body();             // request body as object (JSON or form-encoded)
+$request->body(true);         // same, as associative array
+$request->json();             // raw php://input string
+$request->isValidCSRF();      // bool, validates token in body
+$request->isAsync();          // bool: Swoole | X-Requested-With | ?async=true
 ```
 
-## Response Handling
+> See [Request & Response](request-response.md) for the exhaustive reference.
 
-The `$response` object provides methods for sending responses:
+## The response object
+
+`$response` is a `TinyResponse`:
 
 ```php
-public function get($request, $response)
-{
-    // Render default view
-    $response->render();
+// Render a view (terminates by default)
+$response->render('users/index');
+$response->render('users/index', ['users' => $users]);
+$response->render('users/index', ['users' => $users], false); // don't exit
 
-    // Render specific view
-    $response->render('users/profile');
+// Send plain text / JSON-encoded payload
+$response->send($payload);                  // 200 OK
+$response->send($payload, 201);
+$response->sendJSON(['ok' => true]);        // sets content-type
+$response->sendJSON($data, 422);
 
-    // Send JSON
-    $response->sendJSON([
-        'status' => 'success',
-        'data' => $data
-    ]);
+// Send a file's contents as the response body
+$response->sendFile('/path/to/report.pdf');
 
-    // Redirect
-    $response->redirect('/');
+// Redirect (HTMX-aware; uses HX-Redirect when applicable)
+$response->redirect('/login');
+$response->redirect('/login', 'htmx');      // force HX-Redirect
 
-    // Redirect back with error
-    $response->back()->withError('Invalid input');
+// Flush partial output for streamed responses
+$response->flush('partial content');
 
-    // Set status code
-    $response->sendJSON($data, 201);
-}
+// CSRF error display
+$response->hasCSRFError();                  // immediately
+$response->hasCSRFError('MY-CODE', true);   // on next page load (via flash)
 ```
 
-## Data Sharing
+`$response->render()` automatically emits `HX-Push-Url` matching the current `permalink`, so HTMX-driven partial renders correctly update the browser URL.
 
-Share data with views using `tiny::data()`:
+## Sharing data with views
+
+There are three equivalent ways to pass data into a view:
 
 ```php
-public function get($request, $response)
-{
-    // Share single value
-    tiny::data()->user = $this->model->getUser();
+// 1) Inline via render() — preferred for view-specific data
+$response->render('users/index', ['users' => $users, 'total' => 42]);
 
-    // Share multiple values
-    tiny::data()->merge([
-        'user' => $user,
-        'posts' => $posts,
-        'comments' => $comments
-    ]);
+// 2) Set on the global data bag
+tiny::data()->users = $users;
+tiny::set('total', 42);
 
-    $response->render();
-}
+// 3) Read inside the view
+tiny::data()->users;
+tiny::get('total');
 ```
 
-## Flash Messages
+`tiny::data()` is a plain `stdClass` shared across the request. Use it for cross-cutting things (current user, site config, feature flags) and prefer the `render($file, $params)` form for per-view data.
 
-Send temporary messages to the user:
+## Flash messages
 
 ```php
 public function post($request, $response)
 {
-    if ($this->model->create($data)) {
-        tiny::flash('toast')->set([
-            'level' => 'success',
-            'message' => 'User created successfully'
-        ]);
+    if ($this->model->create($request->body(true))) {
+        tiny::flash('toast')->set(['level' => 'success', 'message' => 'User created']);
         return $response->redirect('/users');
     }
+    tiny::flash('toast')->set(['level' => 'error', 'message' => 'Failed to create user']);
+    $response->redirect('/users/new');
 }
 ```
 
-## Best Practices
+In the next request:
 
-1. **Keep Controllers Thin**
-   - Move business logic to models
-   - Keep methods focused and small
-   - Use dependency injection
+```php
+$toast = tiny::flash('toast')->get(); // consumed; pass true to peek
+```
 
-2. **Security**
-   - Always validate CSRF tokens for state-changing operations
-   - Sanitize input data
-   - Use proper HTTP methods
+See [`flash`](../extensions/flash.md) for details.
 
-3. **Response Types**
-   - Use appropriate status codes
-   - Format JSON responses consistently
-   - Handle errors gracefully
+## CSRF
 
-4. **Organization**
-   - Group related controllers in subdirectories
-   - Use meaningful names
-   - Follow RESTful conventions
+Always validate CSRF on state-changing verbs:
 
-5. **Error Handling**
-   - Use try-catch blocks for risky operations
-   - Provide meaningful error messages
-   - Log errors appropriately
+```php
+public function post($request, $response)
+{
+    if (!$request->isValidCSRF()) {
+        return $response->hasCSRFError();
+    }
+    // … safe to mutate state
+}
+```
+
+Render a token field in your form view with:
+
+```php
+<form method="post">
+    <?php tiny::csrf()->input(); ?>
+    <!-- … -->
+</form>
+```
+
+## Organising controllers
+
+- **Subdirectories** group related routes: `app/controllers/account/billing.php` → `/account/billing`.
+- **`index.php`** acts as the default for a directory: `account/index.php` → `/account`.
+- **Hyphenated leaves** are equivalent to a `section/slug` URL: `users/profile-edit.php` → `/users/profile/edit`.
+
+## Best practices
+
+1. **Keep controllers thin.** Move business logic into models or helpers.
+2. **Validate CSRF on every mutating verb.**
+3. **Prefer `$response->render($view, $params)`** over scattering `tiny::data()` assignments.
+4. **Use a custom `404.php` controller** for branded error pages.
+5. **Use middleware** for auth, rate-limiting, version pinning — not boilerplate in every controller.

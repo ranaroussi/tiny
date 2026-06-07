@@ -1,145 +1,106 @@
-[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
+[Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Examples](../examples) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Getting Started with Tiny PHP
+# Getting Started
 
-## Installation
+This section walks you from `git clone` to a running page in under five minutes.
 
-1. Create a new directory for your project:
+- [Quickstart](#quickstart)
+- [Project layout](#project-layout)
+- [Configuration](configuration.md) — full `TINY_*` env var reference
+- [Runtime modes](runtime-modes.md) — PHP-FPM, Swoole, FrankenPHP, OPcache preload
+- [Git-push deployment](git-deploy.md)
 
-```bash
-mkdir my-project && cd my-project
-```
-
-2. Clone the Tiny framework repository:
-
-```bash
-git clone https://github.com/ranaroussi/tiny.git .
-```
-
-3. Create the project structure:
+## Quickstart
 
 ```bash
+# 1. Create the project directory
+mkdir my-app && cd my-app
+
+# 2. Clone the framework
+git clone https://github.com/ranaroussi/tiny.git
+
+# 3. Scaffold the application (unpacks the sample project)
 php tiny/cli create
-```
 
-4. Install dependencies:
-
-```bash
+# 4. Install dependencies
 composer install
-```
 
-## Project Structure
-
-After installation, your project structure will look like this:
-
-```
-/your-project
-├── app/
-│   ├── controllers/
-│   ├── models/
-│   ├── views/
-│   │   ├── components/
-│   │   └── layouts/
-│   └── middleware/
-│   └── middleware.php
-├── html/
-│   └── index.php
-├── migrations/
-├── tiny/
-├── vendor/
-├── .env.example
-├── composer.json
-└── env.php
-```
-
-### Directory Structure Explained
-
-- `app/`: Contains your application code
-  - `controllers/`: Controller classes that handle requests
-  - `models/`: Model classes for data and business logic
-  - `views/`: View templates and components
-  - `middleware/`: Request/response middleware
-- `html/`: Public directory (document root)
-- `migrations/`: Database migration files
-- `tiny/`: The Tiny framework core
-- `vendor/`: Composer dependencies
-- `.env.example`: Environment configuration template
-- `composer.json`: Composer configuration
-- `env.php`: Environment detection
-
-## Configuration
-
-1. Copy `.env.example` to `.env.local` for local development:
-
-```bash
+# 5. Configure environment
 cp .env.example .env.local
+# edit .env.local with your DB and integration credentials
+
+# 6. Serve ./html with your web server (Caddy, nginx, Apache, FrankenPHP, PHP-FPM)
 ```
 
-2. Edit `.env.local` with your configuration:
+Open `http://localhost` and you should see the sample landing page rendered by `app/controllers/home.php`.
 
-```env
-# Application
-SITE_NAME="My App"
-DEBUG=true
-DEBUG_WHITELIST=*
-TIMEZONE=UTC
+## Project layout
 
-# Database
-DB_TYPE=mysql
-DB_HOST=localhost
-DB_NAME=myapp
-DB_USER=root
-DB_PASS=
-DB_PORT=3306
+After `php tiny/cli create` your tree looks like this:
 
-# Cache
-CACHE_ENGINE=apcu # or memcached
-MEMCACHED_HOST=localhost
-MEMCACHED_PORT=11211
-
-# Security
-COOKIE_DOMAIN=localhost
-COOKIE_PATH=/
-COOKIE_TTL=86400
-COOKIE_SECURE=true
-COOKIE_HTTPONLY=true
-COOKIE_SAMESITE=Lax
-
-# Session
-SESSION_NAME=tiny_session
-SESSION_TTL=86400
+```
+my-app/
+├── app/
+│   ├── controllers/       # one PHP file per route
+│   ├── models/            # TinyModel subclasses
+│   ├── views/
+│   │   ├── components/    # reusable view snippets (Component::render)
+│   │   └── layouts/       # page chrome (Layout::*)
+│   ├── middleware/        # one class per file: <Name>Middleware
+│   ├── middleware.php     # registers active middleware with tiny::middleware()
+│   ├── common.php         # optional, autoloaded if present
+│   ├── jobs/              # scheduler job classes (optional)
+│   └── cms/               # markdown content for tiny::cms() (optional)
+├── html/                  # ← document root
+│   └── index.php          # bootstraps tiny and dispatches to controllers
+├── migrations/            # migration classes (managed by tiny/cli migrations)
+├── tiny/                  # the framework
+├── vendor/                # composer dependencies
+├── .env.local             # per-env config (also .env.dev, .env.prod, ...)
+├── composer.json
+└── env.php                # defines the ENV constant (local|dev|stage|prod)
 ```
 
-3. Configure your web server to point to the `html` directory as the document root.
+### What each piece does
 
-## Creating Your First Page
+| Path | Role |
+|---|---|
+| `html/` | The only directory exposed to the world. Contains `index.php` (bootstrap) plus static assets in `static/`. |
+| `app/controllers/` | One PHP file per route. The file path **is** the URL. |
+| `app/views/` | Templates rendered via `$response->render('path/to/view')` or `tiny::render(...)`. |
+| `app/models/` | Domain logic. Load with `tiny::model('user')`; class must be `UserModel extends TinyModel`. |
+| `app/middleware/` + `middleware.php` | Pre-controller hooks. `auth.php` exports `AuthMiddleware::handle()`. |
+| `app/common.php` | Autoloaded on every request — put global utility functions here. |
+| `migrations/` | Versioned schema changes. Tracked in a local SQLite ledger. |
+| `tiny/` | The framework itself. Treat as a submodule / vendored copy. |
+| `env.php` | One line: `const ENV = 'local';` — picks which `.env.<env>` to load. |
 
-1. Create a controller (`app/controllers/hello.php`):
+## Minimal first page
+
+Create the controller `app/controllers/hello.php`:
 
 ```php
 <?php
-
 class Hello extends TinyController
 {
     public function get($request, $response)
     {
-        tiny::data()->message = "Hello from Tiny PHP!";
-        $response->render();
+        $response->render('hello', ['name' => $request->query['name'] ?? 'world']);
     }
 }
 ```
 
-2. Create a view (`app/views/hello.php`):
+Create the view `app/views/hello.php`:
 
 ```php
-<h1><?= tiny::data()->message ?></h1>
+<h1>Hello, <?= htmlspecialchars(tiny::get('name')) ?>!</h1>
 ```
 
-3. Access your page at `http://localhost/hello`
+Visit `http://localhost/hello?name=ada`. That's it.
 
-## Next Steps
+## Next steps
 
-Learn about
-
-- [Core Concepts](../core-concepts)
-- [Deploying using Git](git-deploy.md)
+- **[Configuration](configuration.md)** — every supported `TINY_*` environment variable.
+- **[Runtime modes](runtime-modes.md)** — how to run Tiny on Swoole, FrankenPHP, or with OPcache preloading.
+- **[Core Concepts](../core-concepts/readme.md)** — the conceptual tour: routing, controllers, views, models, middleware, HTMX.
+- **[Git-push deployment](git-deploy.md)** — bare-repo + `post-receive` workflow.

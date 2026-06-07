@@ -1,305 +1,340 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Building an API
+# Building a JSON API
 
-This example demonstrates how to build a RESTful API using Tiny PHP Framework.
+This example builds a small versioned JSON API with token authentication, rate limiting, structured errors, and CORS. It uses only first-party Tiny primitives — no extra packages.
 
-## Project Structure
+## Project structure
 
 ```
-/your-project
+my-app/
 ├── app/
 │   ├── controllers/
 │   │   └── api/
-│   │       ├── v1/
-│   │       │   ├── auth.php
-│   │       │   ├── users.php
-│   │       │   └── posts.php
-│   │       └── index.php
-│   ├── models/
-│   │   ├── user.php
-│   │   └── post.php
-│   └── middleware/
-│       └── api.php
+│   │       └── v1/
+│   │           ├── auth.php          # POST /api/v1/auth
+│   │           └── posts.php         # /api/v1/posts[/<id>]
+│   ├── middleware/
+│   │   ├── api-cors.php
+│   │   └── api-auth.php
+│   ├── middleware.php
+│   └── models/
+│       ├── user.php
+│       └── post.php
+└── migrations/
+    └── 20240101_api_tokens.php
 ```
 
-## API Authentication
+## Tokens table
 
 ```php
 <?php
-// app/controllers/api/v1/auth.php
+// migrations/20240101_api_tokens.php
+class ApiTokens extends TinyMigration
+{
+    public function up(): void
+    {
+        tiny::db()->execute("
+            CREATE TABLE api_tokens (
+                token       VARCHAR(64) PRIMARY KEY,
+                user_id     INT NOT NULL,
+                created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen   TIMESTAMP NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        ");
+    }
+    public function down(): void
+    {
+        tiny::db()->execute("DROP TABLE IF EXISTS api_tokens");
+    }
+}
+```
+
+## Auth endpoint
+
+`app/controllers/api/v1/auth.php`:
+
+```php
+<?php
 
 class ApiV1Auth extends TinyController
 {
     public function post($request, $response)
     {
-        $credentials = $request->body(true);
+        $body  = $request->body(true);
+        $email = $body['email']    ?? '';
+        $pass  = $body['password'] ?? '';
 
-        if (!tiny::auth()->validate($credentials)) {
-            return $response->sendJSON([
-                'error' => 'Invalid credentials'
-            ], 401);
+        if (!$email || !$pass) {
+            return $response->sendJSON(['error' => 'email and password required'], 400);
         }
 
-        $token = tiny::auth()->createToken($user);
+        $user = tiny::db()->getOne('users', ['email' => $email]);
+        if (!$user || !password_verify($pass, $user->password_hash)) {
+            return $response->sendJSON(['error' => 'invalid credentials'], 401);
+        }
 
-        return $response->sendJSON([
-            'token' => $token,
-            'user' => $user
+        $token = bin2hex(random_bytes(32));
+        tiny::db()->insert('api_tokens', [
+            'token'   => $token,
+            'user_id' => $user->id,
         ]);
+
+        $response->sendJSON([
+            'token' => $token,
+            'user'  => ['id' => $user->id, 'email' => $user->email, 'name' => $user->name],
+        ], 201);
     }
 }
 ```
 
-## API Middleware
+Note: passwords are verified with PHP's stdlib `password_verify()` — no framework helper required.
+
+## Middleware
+
+`app/middleware/api-cors.php`:
 
 ```php
 <?php
-// app/middleware/api.php
 
-return [
-    'api/*' => function($request, $response) {
-        // CORS headers
+class ApiCorsMiddleware
+{
+    public function handle(): void
+    {
+        $request = tiny::request();
+        if (!str_starts_with($request->path->full, '/api/')) {
+            return;
+        }
+
         tiny::header('Access-Control-Allow-Origin: *');
-        tiny::header('Content-Type: application/json');
+        tiny::header('Access-Control-Allow-Headers: Authorization, Content-Type, X-CSRF-Token');
+        tiny::header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
 
-        // Rate limiting
-        if (!tiny::rateLimit()->allow('api', 60, 100)) {
-            return $response->sendJSON([
-                'error' => 'Too many requests'
-            ], 429);
-        }
-
-        // Token validation
-        if (!$request->bearerToken()) {
-            return $response->sendJSON([
-                'error' => 'Unauthorized'
-            ], 401);
-        }
-
-        // Validate token
-        if (!tiny::auth()->validateToken($request->bearerToken())) {
-            return $response->sendJSON([
-                'error' => 'Invalid token'
-            ], 401);
+        if ($request->method === 'OPTIONS') {
+            tiny::response()->send('', 204);
         }
     }
-];
+}
 ```
 
-## Resource Controller
+`app/middleware/api-auth.php`:
 
 ```php
 <?php
-// app/controllers/api/v1/posts.php
+
+class ApiAuthMiddleware
+{
+    public function handle(): void
+    {
+        $request  = tiny::request();
+        $response = tiny::response();
+
+        // Skip CORS pre-flight and the auth endpoint itself.
+        if (!str_starts_with($request->path->full, '/api/')) return;
+        if ($request->path->full === '/api/v1/auth')          return;
+
+        // Rate limit by client IP (100 req / 60s).
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        if (!tiny::rateLimiter('api', 100, 60)->check($ip)) {
+            return $response->sendJSON(['error' => 'rate limit exceeded'], 429);
+        }
+
+        // Bearer token.
+        $auth  = $request->headers['Authorization'] ?? '';
+        $token = str_starts_with($auth, 'Bearer ') ? substr($auth, 7) : null;
+
+        if (!$token) {
+            return $response->sendJSON(['error' => 'missing bearer token'], 401);
+        }
+
+        $row = tiny::db()->getOne('api_tokens', ['token' => $token]);
+        if (!$row) {
+            return $response->sendJSON(['error' => 'invalid token'], 401);
+        }
+
+        $user = tiny::db()->getOne('users', ['id' => $row->user_id]);
+        if (!$user) {
+            return $response->sendJSON(['error' => 'user not found'], 401);
+        }
+
+        // Attach the user so controllers can read `tiny::user()`.
+        tiny::user($user);
+
+        // Touch last_seen.
+        tiny::db()->update('api_tokens', ['last_seen' => date('Y-m-d H:i:s')], ['token' => $token]);
+    }
+}
+```
+
+Register both in `app/middleware.php`:
+
+```php
+<?php
+// order matters: CORS first (handles OPTIONS pre-flight), then auth
+tiny::middleware('api-cors');
+tiny::middleware('api-auth');
+```
+
+## Resource controller
+
+`app/controllers/api/v1/posts.php`:
+
+```php
+<?php
 
 class ApiV1Posts extends TinyController
 {
-    private $model;
-
-    public function __construct()
-    {
-        $this->model = tiny::model('post');
-    }
-
-    // GET /api/v1/posts
     public function get($request, $response)
     {
-        $page = $request->query->page ?? 1;
-        $limit = $request->query->limit ?? 10;
+        // /api/v1/posts/<id> → single
+        if ($request->path->section) {
+            $post = tiny::db()->getOne('posts', ['id' => (int)$request->path->section]);
+            if (!$post) {
+                return $response->sendJSON(['error' => 'not found'], 404);
+            }
+            return $response->sendJSON(['data' => $post]);
+        }
 
-        $posts = $this->model->paginate($page, $limit);
+        // /api/v1/posts?page=&limit=
+        $page  = max(1, (int)$request->params('page', 1));
+        $limit = min(100, max(1, (int)$request->params('limit', 20)));
+        $offset = ($page - 1) * $limit;
 
-        return $response->sendJSON([
-            'data' => $posts->items,
+        $pdo  = tiny::db()->getPdo();
+        $stmt = $pdo->prepare("SELECT * FROM posts ORDER BY created_at DESC LIMIT :l OFFSET :o");
+        $stmt->bindValue('l', $limit,  \PDO::PARAM_INT);
+        $stmt->bindValue('o', $offset, \PDO::PARAM_INT);
+        $stmt->execute();
+        $rows  = $stmt->fetchAll(\PDO::FETCH_OBJ);
+        $total = (int)$pdo->query("SELECT COUNT(*) FROM posts")->fetchColumn();
+
+        $response->sendJSON([
+            'data' => $rows,
             'meta' => [
-                'current_page' => $posts->currentPage,
-                'total_pages' => $posts->totalPages,
-                'total_items' => $posts->totalItems
-            ]
+                'page'        => $page,
+                'limit'       => $limit,
+                'total'       => $total,
+                'total_pages' => (int)ceil($total / $limit),
+            ],
         ]);
     }
 
-    // POST /api/v1/posts
     public function post($request, $response)
     {
-        $data = $request->body(true);
-
-        if (!$this->model->validate($data)) {
-            return $response->sendJSON([
-                'error' => 'Validation failed',
-                'errors' => $this->model->errors
-            ], 422);
+        $data    = $request->body(true);
+        $errors  = $this->validate($data);
+        if ($errors) {
+            return $response->sendJSON(['error' => 'validation failed', 'errors' => $errors], 422);
         }
 
-        $post = $this->model->create($data);
+        $data['user_id']    = tiny::user()->id;
+        $data['created_at'] = date('Y-m-d H:i:s');
 
-        return $response->sendJSON([
-            'data' => $post
-        ], 201);
+        $id = tiny::db()->insert('posts', $data);
+        $post = tiny::db()->getOne('posts', ['id' => $id]);
+
+        $response->sendJSON(['data' => $post], 201);
     }
 
-    // PATCH /api/v1/posts/{id}
     public function patch($request, $response)
     {
-        $id = $request->path->slug;
-        $data = $request->body(true);
-
-        if (!$this->model->update($id, $data)) {
-            return $response->sendJSON([
-                'error' => 'Update failed'
-            ], 400);
+        $id = (int)$request->path->section;
+        if (!$id) {
+            return $response->sendJSON(['error' => 'id required'], 400);
         }
 
-        return $response->sendJSON([
-            'data' => $this->model->find($id)
-        ]);
+        $existing = tiny::db()->getOne('posts', ['id' => $id]);
+        if (!$existing) {
+            return $response->sendJSON(['error' => 'not found'], 404);
+        }
+        if ($existing->user_id !== tiny::user()->id) {
+            return $response->sendJSON(['error' => 'forbidden'], 403);
+        }
+
+        $data = $request->body(true);
+        tiny::db()->update('posts', $data, ['id' => $id]);
+
+        $response->sendJSON(['data' => tiny::db()->getOne('posts', ['id' => $id])]);
     }
 
-    // DELETE /api/v1/posts/{id}
     public function delete($request, $response)
     {
-        $id = $request->path->slug;
-
-        if (!$this->model->delete($id)) {
-            return $response->sendJSON([
-                'error' => 'Delete failed'
-            ], 400);
+        $id = (int)$request->path->section;
+        $existing = tiny::db()->getOne('posts', ['id' => $id]);
+        if (!$existing) {
+            return $response->sendJSON(['error' => 'not found'], 404);
+        }
+        if ($existing->user_id !== tiny::user()->id) {
+            return $response->sendJSON(['error' => 'forbidden'], 403);
         }
 
-        return $response->sendJSON(null, 204);
+        tiny::db()->delete('posts', ['id' => $id]);
+        $response->send('', 204);
     }
-}
-```
 
-## Error Handling
-
-```php
-<?php
-// app/controllers/api/error.php
-
-class ApiError extends TinyController
-{
-    public function get($request, $response)
+    private function validate(array $data): array
     {
-        $error = [
-            'error' => $response->getError(),
-            'code' => $response->getCode()
-        ];
-
-        if (tiny::debug()->isEnabled()) {
-            $error['trace'] = $response->getTrace();
+        $errors = [];
+        if (empty($data['title'])) {
+            $errors['title'] = 'title is required';
+        } elseif (mb_strlen($data['title']) > 255) {
+            $errors['title'] = 'title is too long';
         }
-
-        return $response->sendJSON($error, $response->getCode());
+        if (empty($data['body'])) {
+            $errors['body'] = 'body is required';
+        }
+        return $errors;
     }
 }
 ```
 
-## API Documentation
+URLs:
 
-Create an OpenAPI specification:
+| Method | Path | Action |
+|---|---|---|
+| `POST` | `/api/v1/auth` | Issue a bearer token |
+| `GET`  | `/api/v1/posts` | List posts (paginated) |
+| `GET`  | `/api/v1/posts/<id>` | Fetch one |
+| `POST` | `/api/v1/posts` | Create |
+| `PATCH`| `/api/v1/posts/<id>` | Update (owner only) |
+| `DELETE`| `/api/v1/posts/<id>` | Delete (owner only) |
 
-```yaml
-openapi: 3.0.0
-info:
-  title: Tiny PHP API
-  version: 1.0.0
-paths:
-  /api/v1/posts:
-    get:
-      summary: List posts
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-        - name: limit
-          in: query
-          schema:
-            type: integer
-      responses:
-        200:
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Post'
+## Calling the API
+
+```bash
+# Get a token
+curl -X POST http://localhost/api/v1/auth \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"ada@example.com","password":"hunter2"}'
+
+# Use it
+curl http://localhost/api/v1/posts \
+  -H 'Authorization: Bearer <token>'
+
+# Create
+curl -X POST http://localhost/api/v1/posts \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Hello","body":"World"}'
 ```
 
-## Testing
+## A consistent error envelope
 
-```php
-<?php
-// tests/api/PostsTest.php
+Every error response above has the shape:
 
-class PostsTest extends TestCase
-{
-    public function testListPosts()
-    {
-        $response = $this->get('/api/v1/posts', [
-            'Authorization' => 'Bearer ' . $this->getTestToken()
-        ]);
-
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertIsArray($response->json()->data);
-    }
-
-    public function testCreatePost()
-    {
-        $response = $this->post('/api/v1/posts', [
-            'title' => 'Test Post',
-            'content' => 'Test content'
-        ], [
-            'Authorization' => 'Bearer ' . $this->getTestToken()
-        ]);
-
-        $this->assertEquals(201, $response->getStatusCode());
-        $this->assertEquals('Test Post', $response->json()->data->title);
-    }
-}
+```json
+{ "error": "<reason>" }
 ```
 
-## Features Demonstrated
+…with validation errors adding an `errors` map keyed by field. Stick to a single shape and clients will be much easier to write.
 
-- RESTful routing
-- API authentication
-- Rate limiting
-- Request validation
-- Response formatting
-- Error handling
-- API documentation
-- Testing
-- Middleware usage
-- Database operations
+## Best practices
 
-## Best Practices
-
-1. **Versioning**
-   - Version your API endpoints
-   - Maintain backward compatibility
-   - Document breaking changes
-   - Use semantic versioning
-
-2. **Security**
-   - Implement rate limiting
-   - Validate all input
-   - Use proper authentication
-   - Set CORS headers
-
-3. **Response Format**
-   - Use consistent structure
-   - Include metadata
-   - Handle errors uniformly
-   - Follow HTTP standards
-
-4. **Documentation**
-   - Keep docs up-to-date
-   - Provide examples
-   - Document all endpoints
-   - Include error responses
+1. **Version under `/api/v<n>/`** — the filesystem router makes this free.
+2. **Bearer tokens, not session cookies** — APIs should be stateless. Store tokens in a table you can revoke from.
+3. **Rate limit early** — at the start of the auth middleware, before any DB work.
+4. **Never return `password_hash` or similar columns** — select explicitly, or strip in the controller.
+5. **`Content-Type: application/json` everywhere** — set by `sendJSON()`, but verify it isn't overridden by other middleware.
+6. **Validate input, don't sanitize.** Reject bad shapes with `422`; don't silently coerce.
+7. **CORS pre-flight** — return `204` immediately on `OPTIONS`, before auth checks.

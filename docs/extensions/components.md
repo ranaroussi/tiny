@@ -1,187 +1,135 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Working with Components
+# Components
 
-Components in Tiny PHP allow you to create reusable UI elements that can be shared across your views.
+The Component extension provides reusable view fragments. The pattern is simple: each component file registers a PHP callable under a name, and any view can render it.
 
-## Creating Components
+The framework exposes `Component` as a global constant pointing to a `TinyComponent` instance, initialised with the path `app/views/components/`.
 
-Components are stored in `app/views/components/`:
-
-```php
-<!-- app/views/components/alert.php -->
-<div class="alert alert-<?= $props->type ?? 'info' ?>">
-    <?= $props->message ?>
-    <?php if ($props->dismissible): ?>
-        <button class="close">&times;</button>
-    <?php endif ?>
-</div>
-```
-
-## Using Components
-
-### Basic Usage
+## The API
 
 ```php
-<!-- In your view -->
-<?php tiny::component()->alert([
-    'type' => 'success',
-    'message' => 'Operation successful!',
-    'dismissible' => true
-]) ?>
+Component::register(string $name, callable $func): void
+Component::render(string $name, ...$props): void   // echoes
+Component::return(string $name, ...$props): mixed   // returns
+Component::__call(string $name, array $args): void  // magic-method render: Component::myComp($x)
+Component::require(string|array $files): void       // loads component file(s) without rendering
 ```
 
-### With Slots
+## Defining a component
 
-```php
-<!-- app/views/components/card.php -->
-<div class="card">
-    <div class="card-header">
-        <?= $props->title ?>
-    </div>
-    <div class="card-body">
-        <?= $slot ?>
-    </div>
-</div>
-
-<!-- In your view -->
-<?php tiny::component()->card(['title' => 'My Card'], function() { ?>
-    <p>This is the card content</p>
-    <button>Click me</button>
-<?php }) ?>
-```
-
-## Component Properties
-
-Access component properties using the `$props` object:
+Each component lives in its own file under `app/views/components/`. The file **registers** the callable; it does not render anything by itself.
 
 ```php
 <!-- app/views/components/user-card.php -->
-<div class="user-card">
-    <img src="<?= $props->avatar ?>" alt="<?= $props->name ?>">
-    <h3><?= $props->name ?></h3>
-    <?php if ($props->isOnline): ?>
-        <span class="status-badge">Online</span>
-    <?php endif ?>
-</div>
+<?php
+Component::register('userCard', function (array $user): void { ?>
+    <article class="user-card">
+        <img src="<?= htmlspecialchars($user['avatar']) ?>" alt="">
+        <h3><?= htmlspecialchars($user['name']) ?></h3>
+        <p><?= htmlspecialchars($user['bio'] ?? '') ?></p>
+    </article>
+<?php });
 ```
 
-## Nested Components
+## Rendering a component
 
-Components can use other components:
+From any view (or layout):
 
 ```php
-<!-- app/views/components/post-card.php -->
-<article class="post">
-    <?php tiny::component()->userAvatar(['user' => $props->author]) ?>
-
-    <div class="content">
-        <h2><?= $props->title ?></h2>
-        <?= $props->content ?>
-    </div>
-
-    <?php tiny::component()->commentList(['comments' => $props->comments]) ?>
-</article>
+<?php foreach (tiny::get('users') as $user): ?>
+    <?php Component::render('userCard', $user); ?>
+<?php endforeach; ?>
 ```
 
-## Dynamic Components
+Three equivalent forms:
 
-Load components dynamically:
+```php
+Component::render('userCard', $user);   // echoes
+echo Component::return('userCard', $user); // returns the string
+Component::userCard($user);             // magic-method shortcut for render()
+```
+
+> **Note:** components are registered on first include. The framework auto-includes every PHP file in `app/views/components/` when `Component` is first used, so you don't need to require them manually.
+
+## Multiple props
+
+`...$props` is spread into the callable's arguments. You can take any positional or named arguments:
+
+```php
+<!-- app/views/components/button.php -->
+<?php
+Component::register('button', function (string $label, string $href = '#', string $variant = 'primary'): void { ?>
+    <a href="<?= htmlspecialchars($href) ?>" class="btn btn--<?= $variant ?>">
+        <?= htmlspecialchars($label) ?>
+    </a>
+<?php });
+```
+
+```php
+<?php Component::render('button', 'Save', '/users/save', 'primary'); ?>
+<?php Component::button('Cancel', '/users', 'secondary'); ?>
+```
+
+## Returning a string
+
+Use `Component::return()` when you need the rendered output as a string (for embedding in another component, for emails, etc.):
 
 ```php
 <?php
-// Determine component type at runtime
-$type = $user->hasPermission('admin') ? 'adminMenu' : 'userMenu';
-tiny::component()->$type(['user' => $user]);
+Component::register('emailBody', function (array $user): string {
+    return '<p>Hello ' . htmlspecialchars($user['name']) . '</p>';
+});
+
+$html = Component::return('emailBody', $user);
+tiny::mailgun()->send($user['email'], 'Welcome', $html);
 ```
 
-## Component Logic
+## Composition
 
-Add logic to your components using PHP:
+Components can render other components:
 
 ```php
-<!-- app/views/components/pagination.php -->
 <?php
-$currentPage = $props->currentPage;
-$totalPages = $props->totalPages;
-$range = range(
-    max(1, $currentPage - 2),
-    min($totalPages, $currentPage + 2)
-);
-?>
-
-<nav class="pagination">
-    <?php foreach ($range as $page): ?>
-        <a href="?page=<?= $page ?>"
-           class="<?= $page === $currentPage ? 'active' : '' ?>">
-            <?= $page ?>
-        </a>
-    <?php endforeach ?>
-</nav>
+Component::register('postCard', function (array $post): void {
+    Component::render('userAvatar', $post['author']);
+    ?>
+    <h2><?= htmlspecialchars($post['title']) ?></h2>
+    <p><?= htmlspecialchars($post['excerpt']) ?></p>
+    <?php
+    Component::render('tagList', $post['tags']);
+});
 ```
 
-## Component Collections
+## Manually loading a component
 
-Group related components:
+If you have a component file outside the standard directory (for example a shared component library), include it with `Component::require()`:
 
 ```php
-<!-- app/views/components/form/input.php -->
-<div class="form-group">
-    <label><?= $props->label ?></label>
-    <input type="<?= $props->type ?? 'text' ?>"
-           name="<?= $props->name ?>"
-           value="<?= $props->value ?? '' ?>"
-           class="form-control">
-</div>
+<?php Component::require('admin/data-table'); ?>
+```
 
-<!-- Usage -->
+`require()` accepts either a string or an array of paths. The file is loaded once; subsequent calls are no-ops.
+
+## Conditional rendering at registration time
+
+The callable can return early or branch:
+
+```php
 <?php
-tiny::component()->form->input([
-    'label' => 'Email',
-    'type' => 'email',
-    'name' => 'email'
-]);
-?>
+Component::register('badge', function (string $label, ?string $color = null): void {
+    if (!$label) return;
+    ?>
+    <span class="badge"<?= $color ? ' style="background:' . htmlspecialchars($color) . '"' : '' ?>>
+        <?= htmlspecialchars($label) ?>
+    </span>
+<?php });
 ```
 
-## Best Practices
+## Best practices
 
-1. **Keep Components Focused**
-   - Single responsibility
-   - Reusable across views
-   - Clear and descriptive names
-
-2. **Use Props Validation**
-   ```php
-   <?php
-   if (!isset($props->required_prop)) {
-       throw new Exception('Required prop missing');
-   }
-   ?>
-   ```
-
-3. **Default Values**
-   ```php
-   $type = $props->type ?? 'default';
-   $classes = $props->classes ?? [];
-   ```
-
-4. **Document Components**
-   ```php
-   <!-- app/views/components/data-table.php -->
-   <?php
-   /**
-    * Data Table Component
-    *
-    * @param array  $columns Column definitions
-    * @param array  $data    Table data
-    * @param string $class   Additional CSS classes
-    */
-   ?>
-   ```
-
-5. **Consistent Naming**
-   - Use kebab-case for files
-   - Use descriptive, action-based names
-   - Group related components
-```
+1. **One component per file.** It makes registration discovery obvious.
+2. **Type your callable arguments.** PHP 8.3 gives you free runtime validation.
+3. **Always escape user-supplied props** with `htmlspecialchars()`.
+4. **Components should be presentational.** No DB calls, no HTTP requests — just rendering.
+5. **Prefer `Component::render()` over the magic-method shortcut in shared code** — it's more grep-friendly.

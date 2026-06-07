@@ -2,38 +2,27 @@
 
 # Examples
 
-This section contains practical examples of building applications with the Tiny PHP Framework.
+End-to-end walkthroughs that exercise the framework's primitives in real-world shapes. Each example is self-contained — clone the project, run the migration, copy the files, and it works.
 
-## Available Examples
+| Walkthrough | What it covers |
+|---|---|
+| [TODO application](todo-app.md) | CRUD, components, layouts, CSRF, flash messages, raw SQL |
+| [JSON API](api.md) | Versioned routes, bearer-token auth, rate limiting, CORS, pagination |
+| [File uploads](file-upload.md) | `$_FILES`, MIME verification, optional S3-compatible mirroring |
+| [Real-time chat (SSE)](chat.md) | `tiny::sse()->streamKey/sendKey`, room-keyed delivery, EventSource client |
+| [User management](user-management.md) | Sessions, password hashing, password reset, profile updates, role checks |
 
-1. [TODO Application](todo-app.md)
-   - Complete CRUD operations
-   - User authentication
-   - Form handling
-   - Database operations
-   - Validation
-   - Flash messages
+## What you'll see across all examples
 
-2. [API Development](api.md)
-   - RESTful endpoints
-   - JSON responses
-   - Authentication
-   - Rate limiting
+- Filesystem-routed controllers (`app/controllers/*.php`) extending `TinyController`
+- `TinyModel` subclasses that use the raw-SQL helpers on `tiny::db()`
+- `Layout::main(...)` open/close pattern for page chrome
+- `tiny::csrf()->input()` + `$request->isValidCSRF()` for state-changing forms
+- `tiny::flash('name')->set/get` for one-shot user feedback
+- HTMX-aware responses where it makes the example shorter
 
-3. [File Upload](file-upload.md)
-   - File handling
-   - Image processing
-   - Progress tracking
-   - Security measures
+Every example sticks to APIs documented in [Core concepts](../core-concepts/readme.md) and [Extensions](../extensions/readme.md) — no invented helpers, no ORM relations, no magic auth layer.
 
-4. [Real-time Chat](chat.md)
-   - SSE implementation
-   - User presence
-   - Message broadcasting
-   - Online status
+## Prerequisites
 
-5. [User Management](user-management.md)
-   - Registration
-   - Authentication
-   - Profile management
-   - Role-based access
+A fresh Tiny project (`php tiny/cli create`), Composer dependencies installed, and a database configured via `TINY_DB_*` env vars. Some examples reference `users` and `tiny::user()` — see the [User management](user-management.md) walkthrough for how that table and middleware are wired up.

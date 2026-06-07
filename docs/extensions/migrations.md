@@ -1,179 +1,129 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Migrations Extension
+# Migrations
 
-The Migrations extension provides a way to manage database schema changes over time. It supports creating, running, and rolling back migrations for MySQL, PostgreSQL, and SQLite databases.
+The Migrations extension manages versioned database schema changes. It works with MySQL, PostgreSQL, and SQLite, and tracks applied migrations in a local SQLite ledger so applying twice is a no-op.
 
-## Basic Usage
+## The CLI
 
-### Creating a Migration
+All migration operations go through `php tiny/cli migrations <command>`:
 
-```php
-// Create a new migration
-$app->migration->create('create_users_table');
+```bash
+# Create a new migration file in migrations/
+php tiny/cli migrations create create_users_table
+
+# Apply all pending migrations
+php tiny/cli migrations up
+
+# Roll back the most recently applied batch
+php tiny/cli migrations down
+
+# Delete a migration file that hasn't been applied yet
+php tiny/cli migrations remove create_users_table
 ```
 
-This will create a new migration file in the `migrations` directory with a timestamp prefix:
+A migration file is named with a timestamp prefix, e.g. `migrations/20240315120000_create_users_table.php`. Migrations are applied in filename order.
+
+## The class shape
+
+Every migration is a class with `up(): void` and `down(): void` methods. Inside, use `tiny::db()->execute()` for DDL and DML:
+
 ```php
 <?php
-
 class CreateUsersTable
 {
-    public function up()
+    public function up(): void
     {
-        $sql = "CREATE TABLE users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )";
-
-        tiny::db()->execute($sql);
+        tiny::db()->execute("
+            CREATE TABLE users (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
     }
 
-    public function down()
+    public function down(): void
     {
         tiny::db()->execute("DROP TABLE IF EXISTS users");
     }
 }
 ```
 
-### Running Migrations
+The class name should be the PascalCase form of the migration's slug (without the timestamp prefix). `create_users_table` → `CreateUsersTable`.
+
+## Tracking
+
+Applied migrations are tracked in `migrations/migrations.sqlite`. The ledger records:
+
+- Which migrations have run
+- Which **batch** they belong to (each `migrations up` invocation that applies new migrations is one batch)
+
+`migrations down` rolls back the entire most-recent batch — so if a single `up` applied three migrations, the matching `down` reverts all three.
+
+## Common operations
+
+### Add a column
 
 ```php
-// Run all pending migrations
-$app->migration->up();
-
-// Rollback the last batch of migrations
-$app->migration->down();
-
-// Remove a pending migration
-$app->migration->remove('create_users_table');
-```
-
-## Migration Files
-
-### File Structure
-- Migrations are stored in the `migrations` directory
-- Files are prefixed with a timestamp (e.g., `20240101123456_create_users_table.php`)
-- Each migration class must implement `up()` and `down()` methods
-
-### Example Migrations
-
-#### Creating a Table
-```php
-class CreateProductsTable
+class AddPhoneToUsers
 {
-    public function up()
+    public function up(): void
     {
-        $sql = "CREATE TABLE products (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            price DECIMAL(10,2) NOT NULL,
-            description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )";
-
-        tiny::db()->execute($sql);
+        tiny::db()->execute("ALTER TABLE users ADD COLUMN phone TEXT");
     }
 
-    public function down()
+    public function down(): void
     {
-        tiny::db()->execute("DROP TABLE IF EXISTS products");
+        tiny::db()->execute("ALTER TABLE users DROP COLUMN phone");
     }
 }
 ```
 
-#### Modifying a Table
-```php
-class AddCategoryToProducts
-{
-    public function up()
-    {
-        $sql = "ALTER TABLE products
-                ADD COLUMN category_id INT,
-                ADD FOREIGN KEY (category_id)
-                REFERENCES categories(id)";
+### Add an index
 
-        tiny::db()->execute($sql);
+```php
+class IndexUsersEmail
+{
+    public function up(): void
+    {
+        tiny::db()->execute("CREATE INDEX idx_users_email ON users(email)");
     }
 
-    public function down()
+    public function down(): void
     {
-        $sql = "ALTER TABLE products
-                DROP FOREIGN KEY products_category_id_foreign,
-                DROP COLUMN category_id";
-
-        tiny::db()->execute($sql);
+        tiny::db()->execute("DROP INDEX idx_users_email");
     }
 }
 ```
 
-## Migration Tracking
+### Data migration
 
-- Migrations are tracked in an SQLite database (`migrations/migrations.sqlite`)
-- Each migration is assigned a batch number
-- Rollbacks are performed by batch
-- Migration status is stored to prevent duplicate runs
-
-## Best Practices
-
-1. **Naming Conventions**
-   - Use descriptive names for migrations
-   - Prefix table operations (create_, add_, modify_, remove_)
-   - Keep names concise but clear
-
-2. **Migration Content**
-   - One migration per logical change
-   - Include both up and down methods
-   - Test rollback functionality
-   - Use appropriate SQL for your database type
-
-3. **Database Operations**
-   - Use transactions where appropriate
-   - Consider data preservation in rollbacks
-   - Add appropriate indexes
-   - Set proper column types and constraints
-
-4. **Version Control**
-   - Commit migration files to version control
-   - Never modify existing migrations
-   - Create new migrations for changes
-   - Document breaking changes
-
-## Common Operations
-
-### Indexes and Keys
 ```php
-// Adding indexes
-$sql = "CREATE INDEX idx_user_email ON users(email)";
+class BackfillUserSlugs
+{
+    public function up(): void
+    {
+        $users = tiny::db()->get('users', null, 'id, name');
+        foreach ($users as $u) {
+            $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $u['name']));
+            tiny::db()->update('users', ['slug' => $slug], ['id' => $u['id']]);
+        }
+    }
 
-// Adding foreign keys
-$sql = "ALTER TABLE posts
-        ADD CONSTRAINT fk_user_id
-        FOREIGN KEY (user_id)
-        REFERENCES users(id)";
+    public function down(): void
+    {
+        tiny::db()->execute("UPDATE users SET slug = NULL");
+    }
+}
 ```
 
-### Column Modifications
-```php
-// Adding columns
-$sql = "ALTER TABLE users
-        ADD COLUMN last_login TIMESTAMP NULL";
+## Best practices
 
-// Modifying columns
-$sql = "ALTER TABLE users
-        MODIFY email VARCHAR(320) NOT NULL";
-
-// Dropping columns
-$sql = "ALTER TABLE users
-        DROP COLUMN temporary_field";
-```
-
-### Data Migration
-```php
-// Moving data between tables
-$sql = "INSERT INTO new_table
-        SELECT * FROM old_table
-        WHERE condition = true";
-```
+1. **One logical change per migration.** Easier to roll back, easier to review.
+2. **Always implement `down()`.** Even if it's just `DROP`. Future-you will thank you.
+3. **Test the round-trip locally** (`up`, then `down`, then `up` again) before deploying.
+4. **Never edit a migration after it's been applied to a shared environment.** Create a new one.
+5. **Keep DDL portable.** If you target both PostgreSQL and MySQL, watch for `SERIAL` vs `AUTO_INCREMENT`, `NOW()` vs `CURRENT_TIMESTAMP`, etc.
+6. **Commit migrations to version control.** They're part of the application, not artefacts.

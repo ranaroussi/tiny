@@ -1,129 +1,144 @@
 [Home](../readme.md) | [Getting Started](../getting-started) | [Core Concepts](../core-concepts) | [Helpers](../helpers) | [Extensions](../extensions) | [Repo](https://github.com/ranaroussi/tiny)
 
-# Database Extension
+# Database
 
-The Database extension provides a simple and efficient interface for database operations, supporting MySQL, PostgreSQL, and SQLite.
+The DB extension wraps PDO with a small, opinionated query builder. It supports **MySQL**, **PostgreSQL**, and **SQLite**.
+
+For the conceptual overview see [Core Concepts → Database](../core-concepts/database.md). This page is the API reference.
 
 ## Configuration
 
-Configure your database connection in your `.env` file:
+Set in your `.env.<env>` file (the `TINY_*` prefix is the convention):
 
 ```env
-DB_TYPE=mysql     # mysql, pgsql, postgresql, or sqlite
-DB_HOST=localhost # not needed for sqlite
-DB_NAME=myapp
-DB_USER=root      # not needed for sqlite
-DB_PASS=          # not needed for sqlite
-DB_PORT=3306      # 3306 for MySQL, 5432 for PostgreSQL
+TINY_DB_TYPE=postgres        # mysql | postgres | postgresql | sqlite
+TINY_DB_HOST=localhost
+TINY_DB_PORT=5432
+TINY_DB_NAME=myapp
+TINY_DB_USER=myuser
+TINY_DB_PASS=secret
+TINY_DB_PERSISTENT=true
+TINY_DB_AUTOCONNECT=true
+
+# SQLite-only
+# TINY_DB_SQLITE_FILE=/path/to/db.sqlite
+# TINY_DB_SQLITE_SCHEMA=/path/to/schema.sql
 ```
 
-## Basic Usage
+Set `TINY_DB_AUTOCONNECT=false` to skip the automatic connection on boot (useful for CLI scripts that don't need DB access).
+
+## The accessor
 
 ```php
-// Basic CRUD Operations
-// Create
-$app->db->insert('users', [
-    'name' => 'John Doe',
-    'email' => 'john@example.com'
+$db = tiny::db();   // returns TinyDB | null
+```
+
+`tiny::db()` is null if `TINY_DB_TYPE` is unset.
+
+## Reads
+
+```php
+// All matching rows
+$users = tiny::db()->get('users');                                // SELECT *
+$users = tiny::db()->get('users', ['status' => 'active']);
+$users = tiny::db()->get('users', ['status' => 'active'], 'id, name', 'created_at DESC', 10);
+
+// Single row
+$user = tiny::db()->getOne('users', ['id' => $id]);
+
+// Everything in the table (no WHERE)
+$all = tiny::db()->getAll('users', 'id, name', 'name ASC');
+
+// Raw SELECT
+$rows = tiny::db()->getQuery(
+    "SELECT u.*, COUNT(o.id) AS orders FROM users u LEFT JOIN orders o ON o.user_id = u.id GROUP BY u.id"
+);
+$rows = tiny::db()->getQuery("SELECT * FROM users WHERE id = ?", [$id]);
+```
+
+## Writes
+
+```php
+// Insert — returns the new ID
+$id = tiny::db()->insert('users', [
+    'name'  => 'Ada',
+    'email' => 'ada@example.com',
 ]);
 
-// Read
-$user = $app->db->getOne('users', 'email = "john@example.com"');
-$users = $app->db->get('users', 'active = 1', '*', 'name ASC', 10);
-$allUsers = $app->db->getAll('users');
-
 // Update
-$app->db->update('users',
-    ['active' => 1],
-    'email = "john@example.com"'
+tiny::db()->update('users',
+    ['status' => 'inactive'],
+    ['role' => 'guest']
+);
+
+// Upsert (insert OR update on conflict)
+tiny::db()->upsert('users',
+    ['email' => 'ada@example.com', 'name' => 'Ada L.'],
+    'email'
 );
 
 // Delete
-$app->db->delete('users', 'email = "john@example.com"');
+tiny::db()->delete('users', ['status' => 'inactive']);
 
-// Upsert (Insert or Update)
-$app->db->upsert('users', [
-    'email' => 'john@example.com',
-    'name' => 'John Doe'
-], 'email');
+// Raw write
+tiny::db()->execute("UPDATE users SET last_login = NOW() WHERE id = ?", [$id]);
 ```
 
-## Raw Queries
+## Preparing SQL strings
 
 ```php
-// Execute a raw query
-$app->db->execute('UPDATE users SET active = 1 WHERE id = ?', [123]);
-
-// Get results from a raw query
-$results = $app->db->getQuery('SELECT * FROM users WHERE active = 1');
-
-// Prepare a query with named parameters
-$query = $app->db->prepare(
-    'SELECT * FROM users WHERE name = :name',
-    ['name' => 'John']
+$sql = tiny::db()->prepare(
+    "SELECT * FROM users WHERE id = ? AND is_deleted = ?",
+    [$id, false]
 );
+$rows = tiny::db()->getQuery($sql);
 ```
 
-## Advanced Features
+## Transactions
 
-### PDO Access
+Use the underlying PDO instance:
+
 ```php
-// Get direct PDO instance for advanced operations
-$pdo = $app->db->getPdo();
+$pdo = tiny::db()->getPdo();
+$pdo->beginTransaction();
+try {
+    tiny::db()->execute("UPDATE accounts SET balance = balance - ? WHERE id = ?", [$amount, $from]);
+    tiny::db()->execute("UPDATE accounts SET balance = balance + ? WHERE id = ?", [$amount, $to]);
+    $pdo->commit();
+} catch (\Throwable $e) {
+    $pdo->rollBack();
+    throw $e;
+}
 ```
 
-### String Escaping
+## ID of the last insert
+
 ```php
-// Safely escape strings for queries
-$safe = $app->db->escapeString($unsafeString);
+$id = tiny::db()->lastInsertId(null);
 ```
 
-## Database Types
+`insert()` already returns the new ID for most use cases; this is a separate accessor when you need it after a raw `execute()`.
 
-### MySQL
-```env
-DB_TYPE=mysql
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=myapp
-DB_USER=root
-DB_PASS=
+## Escaping
+
+```php
+$safe = tiny::db()->escapeString($userInput);
 ```
 
-### PostgreSQL
-```env
-DB_TYPE=pgsql
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=myapp
-DB_USER=postgres
-DB_PASS=
+> **Prefer parameter binding** (`['?'] + [$value]`) to manual escaping. Use this only when the placeholder API truly doesn't apply.
+
+## Direct PDO access
+
+```php
+$pdo = tiny::db()->getPdo();
 ```
 
-### SQLite
-```env
-DB_TYPE=sqlite
-DB_NAME=/path/to/database.sqlite
-```
+Useful for transactions, server-specific PDO attributes, or features the wrapper doesn't expose.
 
-## Best Practices
+## Best practices
 
-1. **Use Prepared Statements**
-   - Always use prepared statements or parameter binding
-   - Never concatenate values directly into queries
-   - Use the built-in methods that handle this automatically
-
-2. **Error Handling**
-   - Database operations can throw exceptions
-   - Wrap database operations in try-catch blocks
-   - Log database errors appropriately
-
-3. **Connection Management**
-   - The framework handles connection pooling
-   - Connections are automatically closed when needed
-   - Use transactions for multiple related operations
-
-4. **Query Optimization**
-   - Select only needed columns
-   - Use appropriate indexes
-   - Keep queries simple and efficient
+1. **Always bind parameters** — never concatenate user input into SQL.
+2. **`get`/`getOne`/`insert`/`update` for trivial queries; drop to raw SQL for joins.**
+3. **Wrap multi-statement writes in a transaction.** TinyDB doesn't do this for you.
+4. **Use `TINY_DB_AUTOCONNECT=false`** in CLI scripts that don't need DB access.
+5. **Cache hot reads** with `tiny::cache()->remember()`.
