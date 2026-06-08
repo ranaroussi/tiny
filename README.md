@@ -6,9 +6,22 @@
 
 Tiny is a zero-config, batteries-included PHP framework. Your filesystem **is** the router. Your SQL is just SQL. You stay in PHP. It runs unchanged on PHP-FPM, Swoole, or FrankenPHP, and ships with HTMX awareness baked into the request/response pipeline.
 
-It was created by [Ran Aroussi](https://x.com/aroussi) to power production sites and internal tools, and is released as a self-contained framework you can drop into any project.
+It was created by [Ran Aroussi](https://x.com/aroussi) to power production sites and internal tools.
 
-> **Status:** v2.8.x — feature-complete, in active production use. Public API is considered stable; semver applies after 3.0.
+> **Status:** v2.8.x — feature-complete, in active production use. Public API is stable; semver applies after 3.0.
+
+---
+
+## Repository branches
+
+Tiny is organized into focused branches. Pick the entry point that matches what you need:
+
+| Branch | What it is | Use it when… |
+|---|---|---|
+| [`main`](https://github.com/ranaroussi/tiny/tree/main) | Meta & overview | You're reading this — the landing page |
+| [`tiny`](https://github.com/ranaroussi/tiny/tree/tiny) | Framework code only | You want the framework as a [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) in your project |
+| [`boilerplate`](https://github.com/ranaroussi/tiny/tree/boilerplate) | Full app shell | You want Docker, Tailwind, build pipeline, and a working scaffold |
+| [`docs`](https://github.com/ranaroussi/tiny/tree/docs) | Documentation | You're browsing docs or building a docs site |
 
 ---
 
@@ -92,47 +105,45 @@ It was created by [Ran Aroussi](https://x.com/aroussi) to power production sites
 
 ## Quickstart
 
-```bash
-# 1. Create a project directory
-mkdir my-app && cd my-app
+### New project (recommended)
 
-# 2. Pull the framework
+```bash
+# 1. Fetch the framework
+mkdir my-app && cd my-app
 git clone https://github.com/ranaroussi/tiny.git
 
-# 3. Scaffold the application (unpacks sample-project.zip into the parent dir)
+# 2. Scaffold from the boilerplate branch
 php tiny/cli create
 
-# 4. Install Composer dependencies
+# 3. Install dependencies
 composer install
+cd buildtools && npm install
 
-# 5. Configure your environment
-cp .env.example .env.local       # edit DB, cache, integrations…
+# 4. Configure your environment
+cp env.example .env.local
 
-# 6. Point your web server at ./html and visit it
+# 5. Start the dev stack
+docker-compose up
 ```
 
-After `cli create` your tree looks like:
+Visit http://localhost:8080.
 
+The boilerplate branch includes Docker, Tailwind + Webpack, app scaffold, tests, and migrations. See the [boilerplate README](https://github.com/ranaroussi/tiny/blob/boilerplate/README.md) for details.
+
+### Existing project (submodule)
+
+```bash
+cd your-project
+git submodule add -b tiny https://github.com/ranaroussi/tiny.git tiny
+git submodule update --init
 ```
-my-app/
-├── app/
-│   ├── controllers/       # one PHP file per route
-│   ├── models/            # TinyModel subclasses
-│   ├── views/
-│   │   ├── components/    # reusable UI snippets
-│   │   └── layouts/       # page chrome
-│   ├── middleware/
-│   ├── middleware.php     # registers active middleware
-│   ├── common.php         # optional autoloaded helpers
-│   └── (jobs/, cms/)      # if you use the scheduler or CMS
-├── html/                  # ← document root
-│   └── index.php
-├── migrations/
-├── tiny/                  # the framework (this repo)
-├── vendor/
-├── .env.local             # per-env config
-├── composer.json
-└── env.php                # defines the ENV constant (local|dev|stage|prod)
+
+Point your web server at `html/`.
+
+### Drop-in (quick experiments)
+
+```bash
+git clone -b tiny https://github.com/ranaroussi/tiny.git
 ```
 
 ---
@@ -162,7 +173,7 @@ TINY_CACHE_DISABLED=false
 TINY_CACHE_PREFIX=myapp
 ```
 
-See [`docs/getting-started/configuration.md`](docs/getting-started/configuration.md) for the full reference (DB, ClickHouse, Spaces/S3, Stripe, Mailgun, Twilio, Sentry, Cypher, Geo, etc.).
+See [`docs/getting-started/configuration.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/getting-started/configuration.md) for the full reference (DB, ClickHouse, Spaces/S3, Stripe, Mailgun, Twilio, Sentry, Cypher, Geo, etc.).
 
 ---
 
@@ -267,7 +278,7 @@ Component::register('userCard', function (array $user): void { ?>
 </html>
 ```
 
-See [`docs/extensions/components.md`](docs/extensions/components.md) and [`docs/extensions/layout.md`](docs/extensions/layout.md).
+See [`docs/extensions/components.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/components.md) and [`docs/extensions/layout.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/layout.md).
 
 ### 3. HTMX-native rendering
 
@@ -293,7 +304,7 @@ class Dashboard extends TinyController
 - On a normal request: returns the full HTML shell with props embedded — instant first paint.
 - On an `X-SPA-Request: true` or `XMLHttpRequest` request: returns JSON `{component, props}` — your client-side router swaps the page without a reload.
 
-See [`docs/core-concepts/htmx.md`](docs/core-concepts/htmx.md) and [`docs/core-concepts/request-response.md`](docs/core-concepts/request-response.md) for the full details.
+See [`docs/core-concepts/htmx.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/htmx.md) and [`docs/core-concepts/request-response.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/request-response.md) for the full details.
 
 ---
 
@@ -361,7 +372,7 @@ Tiny is **the same code**, four ways to run it:
 | **FrankenPHP worker** | `worker.php` (via FrankenPHP `--worker`) | Modern app servers, app stays warm in memory |
 | **OPcache preload** | `preload.php` (via `opcache.preload`) | Squeeze cold-start cost in FPM/CLI workers |
 
-See [`docs/getting-started/runtime-modes.md`](docs/getting-started/runtime-modes.md) for details.
+See [`docs/getting-started/runtime-modes.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/getting-started/runtime-modes.md) for details.
 
 ---
 
@@ -408,7 +419,7 @@ tiny::initTestScheduler();
 (new Reports())->daily();
 ```
 
-See [`docs/extensions/scheduler.md`](docs/extensions/scheduler.md) for the full method list (per-day, per-month, cron expressions, fixed dates).
+See [`docs/extensions/scheduler.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/scheduler.md) for the full method list (per-day, per-month, cron expressions, fixed dates).
 
 ---
 
@@ -481,7 +492,7 @@ class FakeDB extends DB
 tiny::swap('db', new FakeDB());
 ```
 
-See [`docs/core-concepts/testing.md`](docs/core-concepts/testing.md) for the full reference.
+See [`docs/core-concepts/testing.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/testing.md) for the full reference.
 
 ---
 
@@ -497,7 +508,7 @@ For production, only the `html/` directory should be web-exposed. Everything els
 /srv/my-app/.env.prod
 ```
 
-For a complete `git push`-based deploy workflow (bare repo + `post-receive` hook), see [`docs/getting-started/git-deploy.md`](docs/getting-started/git-deploy.md).
+For a complete `git push`-based deploy workflow (bare repo + `post-receive` hook), see [`docs/getting-started/git-deploy.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/getting-started/git-deploy.md).
 
 ---
 
@@ -540,14 +551,14 @@ class CreateUsersTable
 
 ## Documentation
 
-Full documentation lives in [`docs/`](docs/):
+Full documentation lives in [`docs/`](https://github.com/ranaroussi/tiny/blob/docs/docs/):
 
-- **Getting started:** [overview](docs/getting-started/readme.md), [configuration](docs/getting-started/configuration.md), [runtime modes](docs/getting-started/runtime-modes.md), [git deploy](docs/getting-started/git-deploy.md)
-- **Core concepts:** [MVC](docs/core-concepts/mvc.md), [routing](docs/core-concepts/routing.md), [controllers](docs/core-concepts/controllers.md), [request & response](docs/core-concepts/request-response.md), [views](docs/core-concepts/views.md), [models](docs/core-concepts/models.md), [database](docs/core-concepts/database.md), [middleware](docs/core-concepts/middleware.md), [HTMX](docs/core-concepts/htmx.md), [testing](docs/core-concepts/testing.md)
-- **Extensions:** [cache](docs/extensions/cache.md), [components](docs/extensions/components.md), [cookie](docs/extensions/cookie.md), [CMS](docs/extensions/cms.md), [CSRF](docs/extensions/csrf.md), [database](docs/extensions/database.md), [debugger](docs/extensions/debugger.md), [flash](docs/extensions/flash.md), [HTTP](docs/extensions/http.md), [layout](docs/extensions/layout.md), [migrations](docs/extensions/migrations.md), [scheduler](docs/extensions/scheduler.md), [SSE](docs/extensions/sse.md), [ClickHouse](docs/extensions/clickhouse.md), [Swoole](docs/extensions/swoole.md)
-- **Helpers:** [catalog & custom helpers](docs/helpers/readme.md)
-- **Examples:** [TODO app](docs/examples/todo-app.md), [API](docs/examples/api.md), [chat (SSE)](docs/examples/chat.md), [file upload](docs/examples/file-upload.md), [user management](docs/examples/user-management.md)
-- **Architecture & vision:** [`docs/architecture.md`](docs/architecture.md)
+- **Getting started:** [overview](https://github.com/ranaroussi/tiny/blob/docs/docs/getting-started/readme.md), [configuration](https://github.com/ranaroussi/tiny/blob/docs/docs/getting-started/configuration.md), [runtime modes](https://github.com/ranaroussi/tiny/blob/docs/docs/getting-started/runtime-modes.md), [git deploy](https://github.com/ranaroussi/tiny/blob/docs/docs/getting-started/git-deploy.md)
+- **Core concepts:** [MVC](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/mvc.md), [routing](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/routing.md), [controllers](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/controllers.md), [request & response](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/request-response.md), [views](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/views.md), [models](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/models.md), [database](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/database.md), [middleware](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/middleware.md), [HTMX](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/htmx.md), [testing](https://github.com/ranaroussi/tiny/blob/docs/docs/core-concepts/testing.md)
+- **Extensions:** [cache](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/cache.md), [components](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/components.md), [cookie](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/cookie.md), [CMS](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/cms.md), [CSRF](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/csrf.md), [database](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/database.md), [debugger](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/debugger.md), [flash](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/flash.md), [HTTP](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/http.md), [layout](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/layout.md), [migrations](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/migrations.md), [scheduler](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/scheduler.md), [SSE](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/sse.md), [ClickHouse](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/clickhouse.md), [Swoole](https://github.com/ranaroussi/tiny/blob/docs/docs/extensions/swoole.md)
+- **Helpers:** [catalog & custom helpers](https://github.com/ranaroussi/tiny/blob/docs/docs/helpers/readme.md)
+- **Examples:** [TODO app](https://github.com/ranaroussi/tiny/blob/docs/docs/examples/todo-app.md), [API](https://github.com/ranaroussi/tiny/blob/docs/docs/examples/api.md), [chat (SSE)](https://github.com/ranaroussi/tiny/blob/docs/docs/examples/chat.md), [file upload](https://github.com/ranaroussi/tiny/blob/docs/docs/examples/file-upload.md), [user management](https://github.com/ranaroussi/tiny/blob/docs/docs/examples/user-management.md)
+- **Architecture & vision:** [`docs/architecture.md`](https://github.com/ranaroussi/tiny/blob/docs/docs/architecture.md)
 
 ---
 
