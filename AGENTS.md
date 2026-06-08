@@ -60,6 +60,39 @@ migrations/         # SQLite-tracked migration files
 - `tiny::set()` / `tiny::get()` / `tiny::data()` — global data bag
 - `tiny::helpers()` / `tiny::registerHelper()` — load or register helpers
 
+## Testing
+
+Tiny has a built-in, zero-ceremony testing harness — no PHPUnit, no bootstrap scripts, no mock libraries. Test files are plain PHP scripts run from the command line.
+
+**Setup:** Create `.env.test` with `ENV=test`, `DB_TYPE=sqlite`, and `TINY_CACHE_DISABLED=true`. Tiny auto-connects to `:memory:` SQLite and disables caching automatically.
+
+**Test pattern:**
+
+```php
+$_SERVER['ENV'] = 'test';
+require __DIR__ . '/../../tiny/tiny.php';
+
+// Seed fresh :memory: database
+tiny::db()->execute("CREATE TABLE users (...)");
+
+// Simulate request
+$_POST = ['name' => 'Ran'];
+$_SERVER['REQUEST_METHOD'] = 'POST';
+
+// Load controller and call method
+$ctrl = tiny::test('users');
+$response = tiny::response();
+
+try {
+    $ctrl->post(tiny::request(), $response);
+} catch (TinyTestExit) {}
+
+assert($response->redirectUrl === '/users');
+echo "PASS\n";
+```
+
+**Mocking with `tiny::swap()`** — for unit-style isolation, replace singletons (`db`, `cache`, `clickhouse`) with fakes. Only works in test env.
+
 ## When Modifying Code
 
 1. Match existing code style (PHP 8.3 features, `declare(strict_types=1)`).
