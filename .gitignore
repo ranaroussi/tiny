@@ -38,3 +38,7 @@ vendor/
 # Secrets & Config
 config/secrets.php
 credentials.json
+
+# CMS content (user-generated)
+app/cms/pages/*.md
+app/cms/posts/*.md
