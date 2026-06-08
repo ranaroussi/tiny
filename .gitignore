@@ -4,13 +4,15 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-dev-debug.log
 
 # Dependency directories
 node_modules/
 
 # Environment variables
 .env
+.env.local
+.env.test
+.env.prod
 
 # Editor directories and files
 .idea
@@ -24,16 +26,6 @@ node_modules/
 # OS specific
 .DS_Store
 
-# Task files
-tasks.json
-tasks/
-
-# GitHub App credentials (NEVER COMMIT THESE!)
-*.pem
-*.private-key.pem
-config/github-app-private-key.pem
-muxi-registry.*.private-key.pem
-
 # Database
 *.db
 *.db-journal
@@ -45,37 +37,4 @@ vendor/
 
 # Secrets & Config
 config/secrets.php
-config/github-app.php
 credentials.json
-.env.local
-formation.zip
-formation-update.zip
-html/static/og/*.webp
-app/cms/pages/about.md
-app/cms/posts/2025-01-16-how-to-optimize-for-luck.md
-app/cms/posts/2025-01-30-breaking-the-silence.md
-app/cms/posts/2025-02-04-ai-agents-are-changing-everything.md
-app/cms/posts/2025-02-11-my-productivity-framework.md
-app/cms/posts/2025-02-18-the-worlds-laziest-trading-strategy-six-years-later.md
-app/cms/posts/2025-02-25-what-would-you-do-if-you-had-10x-more-agency.md
-app/cms/posts/2025-03-04-5-niche-business-ideas-you-can-start-with-zero-money.md
-app/cms/posts/2025-03-09-vibe-white-paper.md
-app/cms/posts/2025-03-11-get-rich-slow.md
-app/cms/posts/2025-03-18-its-your-fault.md
-app/cms/posts/2025-03-26-the-rise-of-ax.md
-app/cms/posts/2025-04-06-building-a-lean-ai-powered-company.md
-app/cms/posts/2025-04-08-old-school-new-tech.md
-app/cms/posts/2025-05-06-agents-deserve-better-than-retrofitted-frameworks.md
-app/cms/posts/2025-06-03-vibe-brainstorming.md
-app/cms/posts/2025-06-11-apple-research-smokescreen.md
-app/cms/posts/2025-07-04-the-funding-gap.md
-app/cms/posts/2025-08-20-ccpm-claude-code-project-management.md
-app/cms/posts/2025-08-22-spec-driven-ai-development.md
-app/cms/posts/2025-09-12-the-illusion-of-progress.md
-app/cms/posts/2025-09-23-why-agent-workflow-is-an-oxymoron.md
-app/cms/posts/2025-10-09-production-grade-agentic-ai.md
-telemetry/action-items.md
-telemetry/muxi-how-we-think-about-signals.md
-telemetry/muxi-operational-runbook.md
-telemetry/muxi-schema-appendix.md
-telemetry/prd.md

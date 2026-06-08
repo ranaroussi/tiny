@@ -1,2 +1,0 @@
-#!/bin/bash
-php -f tiny/ext/migration.php $*
