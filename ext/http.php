@@ -49,7 +49,7 @@ class TinyHTTP
         ]);
         curl_exec($ch);
         $target = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        curl_close($ch);
+        $ch = null;
 
         return $target ?: false;
     }
@@ -71,7 +71,7 @@ class TinyHTTP
         $response = curl_exec($ch);
         $error = curl_error($ch);
         $info = $options['finalUrl'] ?? true ? curl_getinfo($ch) : curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        curl_close($ch);
+        $ch = null;
 
         return self::formatResponse($response, $error, $info, $options['finalUrl'] ?? true);
     }
@@ -215,7 +215,7 @@ class TinyHTTP
         $curlOptions = self::DEFAULT_CURL_OPTIONS + [
             CURLOPT_URL => $url,
             CURLOPT_CUSTOMREQUEST => mb_strtoupper($method),
-            CURLOPT_TIMEOUT => $options['timeout'] ?? $_SERVER['CURL_TIMEOUT'] ?? 30,
+            CURLOPT_TIMEOUT => $options['timeout'] ?? $_SERVER['TINY_CURL_TIMEOUT'] ?? 30,
         ];
 
         $headers = array_merge(self::$defaultHeaders, $options['headers'] ?? []);
@@ -300,14 +300,24 @@ class TinyHTTP
         }
 
         $headers = self::parseHeaders(substr($response, 0, $info['header_size'] ?? 0));
-        $body = substr($response, $info['header_size'] ?? 0);
+        // $body = substr($response, $info['header_size'] ?? 0) ?: $response;
+        $body = $response;
+
+        $json = json_decode($body);
+        if ($json == $body || $json === null) {
+            try {
+                parse_str($body, $json);
+            } catch (Exception $e) {
+                $json = null;
+            }
+        }
 
         return (object) [
             'success' => true,
             'status_code' => $info['http_code'] ?? 0,
             'headers' => $headers,
             'body' => $body,
-            'json' => json_decode($body),
+            'json' => $json,
             'url' => $finalUrl ? ($info['url'] ?? null) : null,
         ];
     }

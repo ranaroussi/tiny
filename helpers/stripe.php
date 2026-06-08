@@ -107,6 +107,10 @@ class StripeHelper
         ]);
 
         if (count($customers->data) == 1) {
+            try {
+                $this->client->customers->update($customers->data[0]->id, $cust);
+            } catch (\Exception $e) {
+            }
             return $customers->data[0];
         }
 
@@ -255,7 +259,7 @@ class StripeHelper
         string $subscriptionId,
         string $priceId,
         ?string $coupon = null,
-        string $prorate = 'create_prorations',
+        string $prorate = 'none',
         ?int $trialEnd = null
     ): Subscription {
         $subscription = $this->client->subscriptions->retrieve($subscriptionId);
@@ -267,7 +271,7 @@ class StripeHelper
                     'price' => $priceId,
                 ],
             ],
-            'proration_behavior' => $prorate,
+            'proration_behavior' => $prorate == 'create_prorations' ? 'always_invoice' : $prorate,
         ];
 
         if ($trialEnd !== null) {
@@ -389,5 +393,5 @@ class StripeHelper
 }
 
 tiny::registerHelper('stripe', function () {
-    return new StripeHelper($_SERVER['STRIPE_SK'], $_SERVER['STRIPE_VERSION']);
+    return new StripeHelper($_SERVER['TINY_STRIPE_SK'], $_SERVER['TINY_STRIPE_VERSION']);
 });

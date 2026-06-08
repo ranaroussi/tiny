@@ -1901,8 +1901,14 @@ class Geos {
     private static array $unsupportedCountries;
 
     public function __construct() {
-        self::$supportedCurrencies = $_SERVER['SUPPORTED_CURRENCIES'] ? explode(',', $_SERVER['SUPPORTED_CURRENCIES']) : ['USD'];
-        self::$unsupportedCountries = $_SERVER['UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['UNSUPPORTED_COUNTRIES']) : [];
+        self::$supportedCurrencies = @$_SERVER['TINY_GEO_SUPPORTED_CURRENCIES'] ? explode(',', $_SERVER['TINY_GEO_SUPPORTED_CURRENCIES']) : ['USD'];
+        self::$unsupportedCountries = @$_SERVER['TINY_GEO_UNSUPPORTED_COUNTRIES'] ? explode(',', $_SERVER['TINY_GEO_UNSUPPORTED_COUNTRIES']) : [];
+    }
+
+
+    public function getCounttyNameFromCode(string $code): string
+    {
+        return self::GEOS[$code]['name'] ?? $code;
     }
 
     public function countriesJson(): string
@@ -2007,25 +2013,6 @@ class Geos {
         return $val;
     }
 
-    public function getUserCountry(?string $country = null): string
-    {
-        if (@self::GEOS[$country]) {
-            return $country;
-        }
-        if (@$_SERVER['GEOIP2_COUNTRY_ISO_CODE']) {
-            return @$_SERVER['GEOIP2_COUNTRY_ISO_CODE'];
-        }
-
-        $ip = tiny::getClientRealIP();
-        if ($ip != '127.0.0.1') {
-            $geo = tiny::http()->get('https://api.ip2country.info/ip?' . $ip)->json;
-            if ($geo) {
-                return $geo->countryCode;
-            }
-        }
-        return 'A1';
-    }
-
     public function formatPhoneNumber(string $number, string $country): string
     {
         if (!isset(self::GEOS[$country])) {
@@ -2058,11 +2045,7 @@ class Geos {
             return $number;
         }
 
-        if (substr($number, 0, 1) == '+') {
-            return substr($number, 1);
-        }
-
-        if (substr($number, 0, 1) == '0') {
+        if (substr($number, 0, 1) == '+' || substr($number, 0, 1) == '0') {
             $number = substr($number, 1);
         }
 
@@ -2106,7 +2089,7 @@ class Geos {
             <option value="GBP">GBP - Pound Sterling 🇬🇧</option>
             <option value="" disabled>-----</option>
             ';
-            $noFeeCurrencies = $_SERVER['NOFEE_CURRENCIES'] ? explode(',', $_SERVER['NOFEE_CURRENCIES']) : [];
+            $noFeeCurrencies = $_SERVER['TINY_NOFEE_CURRENCIES'] ? explode(',', $_SERVER['TINY_NOFEE_CURRENCIES']) : [];
             foreach (self::CURRENCIES as $code => $item) {
                 if (in_array($code, self::$supportedCurrencies) && !in_array($code, ['USD', 'EUR', 'GBP'])) {
                     $flag = $code == 'EUR' ? '🇪🇺' : self::GEOS[$item['countries'][0]]['flag'];
@@ -2161,8 +2144,8 @@ class Geos {
 
     public static function getUserTimezone($country_code)
     {
-        if (@$_SERVER['GEOIP2_LOCATION_TIMEZONE'] != null) {
-            return @$_SERVER['GEOIP2_LOCATION_TIMEZONE'];
+        if (@$_SERVER['TINY_GEOIP2_LOCATION_TIMEZONE'] != null) {
+            return @$_SERVER['TINY_GEOIP2_LOCATION_TIMEZONE'];
         }
         $timezone = DateTimeZone::listIdentifiers(DateTimeZone::PER_COUNTRY, $country_code);
         if (!empty($timezone)) {
@@ -2171,24 +2154,28 @@ class Geos {
         return 'UTC';
     }
 
-    public static function getGeoIPInfo()
+    public static function getGeoIPInfo(?string $ip = null)
     {
-        $reader = new GeoIp2\Database\Reader(@$_SERVER['GEOIP2_CITY_PATH']);
+        $reader = new GeoIp2\Database\Reader(@$_SERVER['TINY_GEO_GEOIP2_CITY_PATH']);
         try {
-            $ip = tiny::getClientRealIP();
-            $record = $reader->city($ip);
-            $record->ip = $ip;
+            $ip = $ip ?? tiny::getClientRealIP();
+            $record = (array)$reader->city($ip);
+            $record['ip'] = $ip;
+            $record = (object)$record;
         } catch (Throwable $th) {
-            $record = (object)[
-                'ip' => '0.0.0.0',
-                'country' => (object)[
-                    'names' => [
-                        'en' => 'Unknown',
-                    ],
-                ]
-            ];
+            // keep same format
+            $record = json_decode('{"continent":{"names":{"de":"","en":"","es":"","fr":"","ja":"","pt-BR":"","ru":"","zh-CN":""},"code":"","geonameId":null},"country":{"names":{"de":"","en":"","es":"","fr":"","ja":"","pt-BR":"","ru":"","zh-CN":""},"geonameId":null,"isoCode":"A1"},"maxmind":[],"registeredCountry":{"names":{"de":"","en":"","es":"","fr":"","ja":"","pt-BR":"","ru":"","zh-CN":""},"geonameId":null,"isoCode":""},"representedCountry":[],"traits":{"ipAddress":""},"city":{"names":{"en":""},"geonameId":null},"location":{"accuracyRadius":null,"latitude":51.6001,"longitude":-0.2617,"timeZone":""},"mostSpecificSubdivision":{"names":{"de":"","en":"","fr":""},"geonameId":null,"isoCode":""},"postal":{"code":""},"subdivisions":[{"names":{"de":"","en":"","es":"","fr":"","ja":"","pt-BR":"","ru":"","zh-CN":""},"geonameId":null,"isoCode":""},{"names":{"de":"","en":"","fr":""},"geonameId":null,"isoCode":""}],"ip":"0.0.0.0"}');
         }
         return $record;
+    }
+
+    public function getUserCountry(?string $country = null): string
+    {
+        if (@self::GEOS[$country]) {
+            return $country;
+        }
+        $geo = $this->getGeoIPInfo();
+        return $geo->country->isoCode ?? 'A1';
     }
 
     public static function extractLocationFromTimezone($tz)

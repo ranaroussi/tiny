@@ -57,7 +57,7 @@ interface DB
      * @param mixed $res Unused parameter (kept for compatibility)
      * @return string The last insert ID
      */
-    public function lastInsertId($res): bool|int|string;
+    public function lastInsertId($res = null): bool|int|string|null;
 
     /**
      * Executes a SQL query and returns the result set.
@@ -67,6 +67,15 @@ interface DB
      * @return array The result set as an array of associative arrays
      */
     public function getQuery(string $query, ?array $params = []): bool|array;
+
+    /**
+     * Executes a SQL query and returns the result set.
+     *
+     * @param string $query The SQL query to execute
+     * @param array|null $params Optional parameters for the query
+     * @return array The result set as an array of associative arrays
+     */
+    public function getOneQuery(string $query, ?array $params = []): bool|array;
 
     /**
      * Retrieves rows from a table based on specified conditions.
@@ -105,9 +114,19 @@ interface DB
      *
      * @param string $table The name of the table
      * @param array $data An associative array of column-value pairs to insert
+     * @param bool $ignore Whether to use IGNORE keyword for MySQL
      * @return mixed The result of the insert operation or an error message
      */
-    public function insert(string $table, array $data): mixed;
+    public function insert(string $table, array $data, bool $ignore = false): mixed;
+
+    /**
+     * Inserts a new row into a table using the IGNORE keyword.
+     *
+     * @param string $table The name of the table
+     * @param array $data An associative array of column-value pairs to insert
+     * @return mixed The result of the insert operation or an error message
+     */
+    public function insertIgnore(string $table, array $data): mixed;
 
     /**
      * Updates rows in a table based on specified conditions.
@@ -266,10 +285,16 @@ class TinyDB implements DB
         }
 
         $existing_db = file_exists($db_path);
+
+        // PHP 8.5+ uses Pdo\Sqlite::ATTR_OPEN_FLAGS, older versions use PDO::SQLITE_ATTR_OPEN_FLAGS
+        $openFlagsAttr = defined('Pdo\Sqlite::ATTR_OPEN_FLAGS')
+            ? \Pdo\Sqlite::ATTR_OPEN_FLAGS
+            : \PDO::SQLITE_ATTR_OPEN_FLAGS;
+
         $options = [
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-            \PDO::SQLITE_ATTR_OPEN_FLAGS => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
+            $openFlagsAttr => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
         ];
 
         try {
@@ -282,7 +307,7 @@ class TinyDB implements DB
             $this->createSwooleConnection('sqlite:' . $db_path, null, null, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-                \PDO::SQLITE_ATTR_OPEN_FLAGS => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
+                $openFlagsAttr => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE | SQLITE3_OPEN_SHAREDCACHE
             ]);
 
             if (!$existing_db && $db_scheme != null) {
@@ -373,7 +398,7 @@ class TinyDB implements DB
                 }
             }
 
-            $value = is_array($value) ? $value : (string)$value;
+            $value = is_array($value) ? $value : str_replace("?", "\?", (string)$value);
             $query = preg_replace('/(?<!\\\)\?/', $value, $query, 1);
         }
         return str_starts_with($query, '--sql') ? substr($query, 6) : $query;
@@ -390,7 +415,7 @@ class TinyDB implements DB
     {
         // used for debugging
         // if (str_contains($query, 'ON CONFLICT')) {
-        //     tiny::die(str_replace('\\?', '?', $this->prepare($query, $params)));
+            // tiny::die(str_replace('\\?', '?', $this->prepare($query, $params)));
         // }
         return $this->pdo->exec(str_replace('\\?', '?', $this->prepare($query, $params)));
     }
@@ -426,6 +451,20 @@ class TinyDB implements DB
     }
 
     /**
+     * Executes a SQL query and returns the first row of the result set.
+     *
+     * @param string $query The SQL query to execute
+     * @param array|null $params Optional parameters for the query
+     * @return bool|array The first row of the result set or false if no rows found
+     */
+    public function getOneQuery(string $query, ?array $params = []): bool|array
+    {
+        $query = explode(' LIMIT', $query)[0] . ' LIMIT 1';
+        $result = $this->getQuery($query, $params);
+        return $result ? $result[0] : [];
+    }
+
+    /**
      * Retrieves rows from a table based on specified conditions.
      *
      * @param string $table The name of the table
@@ -435,7 +474,7 @@ class TinyDB implements DB
      * @param int|null $limit The LIMIT clause (optional)
      * @return array The result set as an array of associative arrays
      */
-    public function get(string $table, string|array|null $where = null, ?string $fields = '*', ?string $orderby = null, ?int $limit = null): array
+    public function get(string $table, string|array|null $where = null, null|string|array $fields = '*', ?string $orderby = null, ?int $limit = null): array
     {
 
         if (is_array($where)) {
@@ -488,9 +527,10 @@ class TinyDB implements DB
      *
      * @param string $table The name of the table
      * @param array $data An associative array of column-value pairs to insert
+     * @param bool $ignore Whether to use IGNORE keyword for MySQL
      * @return mixed The result of the insert operation or an error message
      */
-    public function insert(string $table, array $data): mixed
+    public function insert(string $table, array $data, bool $ignore = false): mixed
     {
         if (isset($data['csrf_token'])) {
             unset($data['csrf_token']);
@@ -499,12 +539,32 @@ class TinyDB implements DB
         $columns = implode(', ', array_keys($data));
         $placeholders = implode(', ', array_fill(0, count($data), '?'));
         $query = "INSERT INTO $table ($columns) VALUES ($placeholders)";
+        if ($ignore) {
+            $query = "INSERT IGNORE INTO $table ($columns) VALUES ($placeholders)";
+        }
 
         try {
             return $this->execute($query, $data);
         } catch (\PDOException $e) {
             return $e->getMessage();
         }
+    }
+
+    /**
+     * Inserts a new row into a table using the IGNORE keyword.
+     * This method is a convenience wrapper around the insert() method with the ignore flag set to true.
+     * When using IGNORE, if the insertion would result in a duplicate key error, the statement is ignored
+     * and no error is returned.
+     *
+     * @param string $table The name of the table to insert into
+     * @param array $data An associative array of column-value pairs to insert
+     * @return mixed The result of the insert operation or an error message
+     */
+    public function insertIgnore(string $table, array $data): mixed
+    {
+        // Call the insert method with the ignore parameter set to true
+        // This will modify the SQL query to use INSERT IGNORE syntax
+        return $this->insert($table, $data, true);
     }
 
     /**

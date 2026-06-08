@@ -1,0 +1,593 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * GitHub API Client
+ *
+ * Handles interactions with GitHub REST API for repository, release, and README operations.
+ */
+class GitHub
+{
+    private $token;
+    private $userAgent;
+    private $baseUrl = 'https://api.github.com';
+
+    /**
+     * Initialize GitHub API client
+     *
+     * @param string|null $token Personal access token or OAuth token (optional)
+     * @param string|null $userAgent User agent string (optional)
+     */
+    public function __construct(?string $token = null, ?string $userAgent = 'TinyPHP-GitHub')
+    {
+        $this->token = $token;
+        $this->userAgent = $userAgent;
+    }
+
+    /**
+     * Set the personal access token
+     *
+     * @param string $token Personal access token or OAuth token
+     * @return void
+     */
+    public function setToken(string $token): void
+    {
+        $this->token = $token;
+    }
+
+    /**
+     * Clear the personal access token
+     *
+     * @return void
+     */
+    public function clearToken(): void
+    {
+        $this->token = null;
+    }
+
+    /**
+     * Set the user agent string
+     *
+     * @param string $userAgent User agent string
+     * @return void
+     */
+    public function setUserAgent(string $userAgent): void
+    {
+        $this->userAgent = $userAgent;
+    }
+
+    /**
+     * Make HTTP request to GitHub API
+     *
+     * @param string $endpoint API endpoint (e.g., /repos/user/repo)
+     * @param string $method HTTP method (GET, POST, etc.)
+     * @param array|null $data Request body data
+     * @return array Response data as associative array
+     * @throws Exception on HTTP errors
+     */
+    private function request($endpoint, $method = 'GET', $data = null)
+    {
+        $url = $this->baseUrl . $endpoint;
+
+        $headers = [
+            'Accept: application/vnd.github+json',
+            'Content-Type: application/json',
+            'User-Agent: '. $this->userAgent,
+        ];
+
+        if ($this->token) {
+            $headers[] = "Authorization: Bearer {$this->token}";
+        }
+
+        // Use direct curl for reliability
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_TIMEOUT => 30
+        ]);
+
+        if ($data && in_array($method, ['POST', 'PUT', 'PATCH'])) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        }
+
+        $body = curl_exec($ch);
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        $ch = null;
+
+        if ($curlError) {
+            throw new Exception("GitHub API curl error: {$curlError}");
+        }
+
+        if ($statusCode >= 400) {
+            error_log("GitHub API error: {$method} {$endpoint} -> HTTP {$statusCode}");
+            error_log("Response body: " . substr($body, 0, 500));
+            error_log("Token being used: " . (isset($this->token) ? substr($this->token, 0, 10) . '...' . substr($this->token, -4) : 'NO TOKEN'));
+            throw new Exception("GitHub API error: HTTP `$statusCode`: $body");
+        }
+
+        return json_decode($body, true); // Return as array for consistency
+    }
+
+    /**
+     * Get repository information
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @return array Repository data
+     * @throws Exception if repository not found
+     */
+    public function getRepo($repo)
+    {
+        return $this->request("/repos/$repo");
+    }
+
+    /**
+     * Get repository README content
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @return string README content (decoded from base64)
+     * @throws Exception if README not found
+     */
+    public function getReadme($repo)
+    {
+        $data = $this->request("/repos/$repo/readme");
+        return base64_decode($data['content']);
+    }
+
+    /**
+     * Get latest release
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @return array Release data
+     * @throws Exception if no releases found
+     */
+    public function getLatestRelease($repo)
+    {
+        return $this->request("/repos/$repo/releases/latest");
+    }
+
+    /**
+     * Get specific release by tag
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param string $version Version tag (with or without 'v' prefix)
+     * @return array Release data
+     * @throws Exception if release not found
+     */
+    public function getRelease($repo, $version)
+    {
+        $tag = strpos($version, 'v') === 0 ? $version : "v{$version}";
+        return $this->request("/repos/$repo/releases/tags/{$tag}");
+    }
+
+    /**
+     * Get release by ID
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param int $releaseId Release ID
+     * @return array Release data
+     * @throws Exception if release not found
+     */
+    public function getReleaseById($repo, $releaseId)
+    {
+        return $this->request("/repos/$repo/releases/{$releaseId}");
+    }
+
+    /**
+     * Delete release asset
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param int $assetId Asset ID
+     * @return void
+     * @throws Exception if deletion fails
+     */
+    public function deleteReleaseAsset($repo, $assetId)
+    {
+        $this->request("/repos/$repo/releases/assets/{$assetId}", 'DELETE');
+    }
+
+    /**
+     * Check if user has push permission to repository
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param string $username GitHub username to check
+     * @return bool True if user has push access
+     */
+    public function checkRepoPermission($repo, $username)
+    {
+        try {
+            // Check if user is a collaborator with push access
+            $collab = $this->request("/repos/$repo/collaborators/{$username}/permission");
+            $permission = $collab['permission'] ?? '';
+
+            return in_array($permission, ['admin', 'write', 'maintain']);
+        } catch (Exception) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if repository exists
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @return bool True if repository exists
+     */
+    public function repoExists($repo)
+    {
+        try {
+            $this->getRepo($repo);
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get all releases for a repository
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param int $limit Maximum number of releases to return
+     * @return array Array of release data
+     */
+    public function getReleases($repo, $limit = 10)
+    {
+        return $this->request("/repos/$repo/releases?per_page={$limit}");
+    }
+
+    /**
+     * Check if user is member of organization
+     *
+     * @param string $org Organization name
+     * @param string $username GitHub username to check
+     * @return bool True if user is member of organization
+     */
+    public function isOrgMember($org, $username)
+    {
+        try {
+            $this->request("/orgs/{$org}/members/{$username}");
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get user's membership role in an organization
+     *
+     * Tries multiple approaches in order of scope requirements:
+     * 1. /user/memberships/orgs/{org} (needs read:org)
+     * 2. /orgs/{org}/memberships/{username} (needs admin:org)
+     * 3. /orgs/{org}/members?role=admin (works for org members with public_repo)
+     *
+     * @param string $org Organization name
+     * @param string $username GitHub username to check (if null, checks authenticated user)
+     * @return string|null Role ('admin' or 'member') or null if not a member
+     */
+    public function getOrgMembership($org, $username = null)
+    {
+        // Try authenticated user's own membership endpoint (needs read:org)
+        try {
+            $result = $this->request("/user/memberships/orgs/{$org}");
+            return $result['role'] ?? null;
+        } catch (Exception $e) {}
+
+        // Fall back to org memberships endpoint (needs admin:org)
+        if ($username) {
+            try {
+                $result = $this->request("/orgs/{$org}/memberships/{$username}");
+                return $result['role'] ?? null;
+            } catch (Exception $e) {}
+        }
+
+        // Last resort: check admin members list (works for org members with basic scopes)
+        if ($username) {
+            try {
+                $admins = $this->request("/orgs/{$org}/members?role=admin&per_page=100");
+                if (is_array($admins)) {
+                    foreach ($admins as $admin) {
+                        if (strcasecmp($admin['login'], $username) === 0) {
+                            return 'admin';
+                        }
+                    }
+                    return 'member';
+                }
+            } catch (Exception $e) {}
+        }
+
+        return null;
+    }
+
+    /**
+     * Get organizations for the authenticated user
+     *
+     * @return array List of organizations
+     */
+    public function getUserOrgs()
+    {
+        try {
+            return $this->request("/user/orgs?per_page=100");
+        } catch (Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Get organization info
+     *
+     * @param string $org Organization name
+     * @return array|null Organization data or null if not found
+     */
+    public function getOrg($org)
+    {
+        try {
+            return $this->request("/orgs/{$org}");
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Create a new GitHub repository
+     *
+     * @param string $owner Username or organization name
+     * @param string $name Repository name
+     * @param array $options Additional options (description, private, etc.)
+     * @return array Repository data
+     * @throws Exception if creation fails
+     */
+    public function createRepo($owner, $name, $options = [])
+    {
+        // Determine if this is a user or org repo
+        // If owner matches authenticated user, create under user
+        // Otherwise, assume it's an org
+        try {
+            $user = $this->request('/user');
+            $userLogin = is_array($user) ? $user['login'] : $user->login;
+            $endpoint = ($owner === $userLogin)
+                ? '/user/repos'
+                : "/orgs/$owner/repos";
+        } catch (Exception $e) {
+            // Default to user repos if we can't determine
+            $endpoint = '/user/repos';
+        }
+
+        return $this->request($endpoint, 'POST', array_merge([
+            'name' => $name,
+            'private' => false,
+            'auto_init' => false
+        ], $options));
+    }
+
+    /**
+     * Create or update a file in repository using GitHub Contents API
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param string $path File path in repository
+     * @param string $content File content
+     * @param string $message Commit message
+     * @param string|null $sha Existing file SHA (for updates)
+     * @return array Response data
+     * @throws Exception if operation fails
+     */
+    public function createOrUpdateFile($repo, $path, $content, $message, $sha = null)
+    {
+        $data = [
+            'message' => $message,
+            'content' => base64_encode($content)
+        ];
+
+        // If SHA provided, this is an update
+        if ($sha) {
+            $data['sha'] = $sha;
+        }
+
+        return $this->request("/repos/$repo/contents/$path", 'PUT', $data);
+    }
+
+    /**
+     * Get file SHA from repository (needed for updates)
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param string $path File path in repository
+     * @return string|null File SHA or null if not found
+     */
+    public function getFileSha($repo, $path)
+    {
+        try {
+            $file = $this->request("/repos/$repo/contents/$path");
+            return $file['sha'] ?? null;
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Create a GitHub release
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param array $data Release data (tag_name, name, body, etc.)
+     * @return array Release data
+     * @throws Exception if creation fails
+     */
+    public function createRelease($repo, $data)
+    {
+        return $this->request("/repos/$repo/releases", 'POST', $data);
+    }
+
+    /**
+     * Delete a GitHub repository
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @return bool True if deletion was successful
+     * @throws Exception if deletion fails
+     */
+    public function deleteRepo($repo)
+    {
+        $this->request("/repos/$repo", 'DELETE');
+        return true;
+    }
+
+    /**
+     * Set repository topics (tags)
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param array $topics Array of topic strings (lowercase, hyphenated)
+     * @return array Response data
+     * @throws Exception if operation fails
+     */
+    public function setTopics($repo, $topics)
+    {
+        // Topics must be lowercase and use hyphens
+        $topics = array_map(function($topic) {
+            return strtolower(str_replace(' ', '-', trim($topic)));
+        }, $topics);
+
+        return $this->request("/repos/$repo/topics", 'PUT', [
+            'names' => $topics
+        ]);
+    }
+
+    /**
+     * Upload asset to GitHub release
+     *
+     * @param string $repo Repository in format "owner/repo"
+     * @param int $releaseId Release ID
+     * @param string $filePath Local file path to upload
+     * @param string $fileName Name for the uploaded asset
+     * @return array Asset data
+     * @throws Exception if upload fails
+     */
+    public function uploadReleaseAsset($repo, $releaseId, $filePath, $fileName)
+    {
+        if (!file_exists($filePath)) {
+            throw new Exception("File not found: $filePath");
+        }
+
+        $uploadUrl = "https://uploads.github.com/repos/$repo/releases/$releaseId/assets?name=" . urlencode($fileName);
+
+        $headers = [
+            'Accept: application/vnd.github+json',
+            'User-Agent: ' . $this->userAgent,
+            'Content-Type: application/zip',
+        ];
+
+        if ($this->token) {
+            $headers[] = "Authorization: Bearer {$this->token}";
+        }
+
+        $fileSize = filesize($filePath);
+        $headers[] = "Content-Length: {$fileSize}";
+
+        $fp = fopen($filePath, 'rb');
+
+        $ch = curl_init($uploadUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_INFILE => $fp,
+            CURLOPT_INFILESIZE => $fileSize,
+            CURLOPT_TIMEOUT => 120,
+        ]);
+
+        $body = curl_exec($ch);
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        fclose($fp);
+
+        if ($curlError) {
+            throw new Exception("GitHub asset upload curl error: {$curlError}");
+        }
+
+        if ($statusCode >= 400) {
+            throw new Exception("GitHub asset upload error: HTTP `$statusCode`: $body");
+        }
+
+        return json_decode($body, true);
+    }
+
+    /**
+     * Generate JWT for GitHub App authentication
+     *
+     * @param string $appId GitHub App ID
+     * @param string $privateKeyPath Path to GitHub App private key file
+     * @return string JWT token
+     * @throws Exception if key file not found or invalid
+     */
+    private function generateJWT($appId, $privateKeyPath)
+    {
+        if (!file_exists($privateKeyPath)) {
+            throw new Exception("GitHub App private key not found: $privateKeyPath");
+        }
+
+        $privateKey = file_get_contents($privateKeyPath);
+
+        // JWT header
+        $header = json_encode(['typ' => 'JWT', 'alg' => 'RS256']);
+        $base64UrlHeader = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($header));
+
+        // JWT payload
+        $now = time();
+        $payload = json_encode([
+            'iat' => $now,              // Issued at time
+            'exp' => $now + 600,        // Expires in 10 minutes
+            'iss' => $appId             // GitHub App ID
+        ]);
+        $base64UrlPayload = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($payload));
+
+        // Create signature
+        $signature = '';
+        openssl_sign(
+            $base64UrlHeader . '.' . $base64UrlPayload,
+            $signature,
+            $privateKey,
+            OPENSSL_ALGO_SHA256
+        );
+        $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
+
+        return $base64UrlHeader . '.' . $base64UrlPayload . '.' . $base64UrlSignature;
+    }
+
+    /**
+     * Get installation access token for GitHub App
+     *
+     * @param int $installationId GitHub App installation ID
+     * @param string $appId GitHub App ID
+     * @param string $privateKeyPath Path to GitHub App private key file
+     * @return string Installation access token
+     * @throws Exception if token generation fails
+     */
+    public function getInstallationToken($installationId, $appId, $privateKeyPath)
+    {
+        $jwt = $this->generateJWT($appId, $privateKeyPath);
+        error_log("Generated JWT for app $appId, installation $installationId");
+
+        $url = "https://api.github.com/app/installations/{$installationId}/access_tokens";
+
+        $headers = [
+            'Accept: application/vnd.github+json',
+            'User-Agent: ' . $this->userAgent,
+            'Authorization: Bearer ' . $jwt
+        ];
+
+        $response = tiny::http()->postJSON($url, ['headers' => $headers, 'data' => []]);
+
+        error_log("Installation token response: HTTP {$response->status_code}");
+        if ($response->status_code >= 400) {
+            error_log("Installation token error body: " . substr($response->body, 0, 500));
+            throw new Exception("GitHub App token error: HTTP `$response->status_code`: $response->body");
+        }
+
+        $token = is_array($response->json) ? $response->json['token'] : $response->json->token;
+        error_log("Successfully obtained installation token");
+        return $token;
+    }
+}
+
+
+tiny::registerHelper('github', function () {
+    return new GitHub();
+});

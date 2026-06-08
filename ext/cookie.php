@@ -43,9 +43,9 @@ class TinyCookie
     {
         // default cookie values
         $this->name = ($name) ? $name : 'default';
-        $this->expiry = @$_SERVER['COOKIE_TTL'] ? time() + (int)$_SERVER['COOKIE_TTL'] : 0;
-        $this->domain = @$_SERVER['COOKIE_DOMAIN'] ? $_SERVER['COOKIE_DOMAIN'] : $_SERVER['HTTP_HOST'];
-        $this->path = @$_SERVER['COOKIE_PATH'] ? $_SERVER['COOKIE_PATH'] : tiny::config()->url_path;
+        $this->expiry = @$_SERVER['TINY_COOKIE_TTL'] ? time() + (int)$_SERVER['TINY_COOKIE_TTL'] : 0;
+        $this->domain = tiny::config()->cookie_domain;
+        $this->path = tiny::config()->cookie_path;
         $this->exists = false;
 
         // set default values
@@ -76,8 +76,8 @@ class TinyCookie
      */
     public function read(?string $item = null): mixed
     {
-        if ($item != null && array_key_exists($item, $this->data)) {
-            return $this->data[$item];
+        if ($item != null) {
+            return array_key_exists($item, $this->data) ? $this->data[$item] : null;
         }
         return $this->data;
     }

@@ -37,6 +37,7 @@ class tiny
 
     private static object $config;
     private static ?TinyCache $cache = null;
+    private static ?TinyCMS $cms = null;
     private static ?TinyClickhouse $clickhouse = null;
     private static ?DB $db = null;
     private static object $router;
@@ -44,7 +45,9 @@ class tiny
     private static array $instances = [];
     private static array $extensions = [];
     private static array $customHelpers = [];
-    private static bool $testMode = false;
+
+    public static ?TinyComponent $components = null;
+    public static ?TinyLayout $layouts = null;
 
     /**
      * Initializes the Tiny framework.
@@ -66,7 +69,7 @@ class tiny
         self::loadConfig();
 
         // Initialize database
-        if (!isset($_SERVER['DB_AUTOCONNECT']) || $_SERVER['DB_AUTOCONNECT'] !== false) {
+        if (!isset($_SERVER['TINY_DB_AUTOCONNECT']) || $_SERVER['TINY_DB_AUTOCONNECT'] !== false) {
             self::initDB();
         }
 
@@ -93,22 +96,24 @@ class tiny
      */
     private static function loadConfig(): void
     {
-        $cacheKey = 'tiny_init_config';
+        $cacheKey = 'init';
         $cachedConfig = self::cache()->get($cacheKey);
 
         if ($cachedConfig === null) {
-            self::$config->app_dir = $_SERVER['APP_DIR'] ?? 'app';
+            self::$config->app_dir = $_SERVER['TINY_APP_DIR'] ?? 'app';
             self::$config->tiny_dir = $_SERVER['TINY_DIR'] ?? 'tiny';
-            self::$config->homepage = $_SERVER['HOMEPAGE'] ?? 'home';
-            self::$config->static_dir = $_SERVER['STATIC_DIR'] ?? 'static';
+            self::$config->homepage = $_SERVER['TINY_HOMEPAGE'] ?? 'home';
+            self::$config->static_dir = $_SERVER['TINY_STATIC_DIR'] ?? 'static';
 
             $basePath = '/' . trim(dirname(__FILE__, 2), '/') . '/';
-            self::$config->app_path = $_SERVER['APP_PATH'] ?? $basePath . self::$config->app_dir;
+            self::$config->app_path = $_SERVER['TINY_APP_PATH'] ?? $basePath . self::$config->app_dir;
+            self::$config->cms_path = $_SERVER['TINY_CMS_PATH'] ?? self::$config->app_path . '/cms';
             self::$config->tiny_path = $_SERVER['TINY_PATH'] ?? $basePath . self::$config->tiny_dir;
-            self::$config->public_path = $_SERVER['PUBLIC_PATH'] ?? $basePath . 'html';
+            self::$config->public_path = $_SERVER['TINY_PUBLIC_PATH'] ?? $basePath . 'html';
             self::$config->static_path = self::$config->public_path . '/' . self::$config->static_dir;
-            self::$config->url_path = $_SERVER['URL_PATH'] ?? str_replace('index.php', '', $_SERVER['SCRIPT_NAME']);
-            self::$config->cookie_path = $_SERVER['COOKIE_PATH'] ?? str_replace('.php', '', self::$config->url_path);
+            self::$config->url_path = $_SERVER['TINY_URL_PATH'] ?? str_replace('index.php', '', $_SERVER['SCRIPT_NAME']);
+            self::$config->cookie_domain = $_SERVER['TINY_COOKIE_DOMAIN'] ?? '.' . $_SERVER['HTTP_HOST'];
+            self::$config->cookie_path = $_SERVER['TINY_COOKIE_PATH'] ?? str_replace('.php', '', self::$config->url_path);
 
             self::cache()->set($cacheKey, self::$config, 3600);
         } else {
@@ -140,28 +145,26 @@ class tiny
      */
     private static function initDB(): void
     {
-        if (!isset($_SERVER['DB_TYPE']) || empty($_SERVER['DB_TYPE']) || isset(self::$db)) {
+        if (!isset($_SERVER['TINY_DB_TYPE']) || empty($_SERVER['TINY_DB_TYPE']) || isset(self::$db)) {
             return;
         }
 
-        $dbType = mb_strtolower($_SERVER['DB_TYPE']);
+        $dbType = mb_strtolower($_SERVER['TINY_DB_TYPE']);
 
         $dbConfig = [
-            'host'       => $_SERVER['DB_HOST'] ?? 'localhost',
-            'port'       => $_SERVER['DB_PORT'] ?? ($dbType === 'mysql' ? 3306 : 5432),
-            'dbname'     => $_SERVER['DB_NAME'] ?? 'tiny',
-            'user'       => $_SERVER['DB_USER'] ?? 'root',
-            'password'   => $_SERVER['DB_PASS'] ?? '',
-            'persistent' => $_SERVER['DB_PERSISTENT'] ?? false,
+            'host'       => $_SERVER['TINY_DB_HOST'] ?? 'localhost',
+            'port'       => $_SERVER['TINY_DB_PORT'] ?? ($dbType === 'mysql' ? 3306 : 5432),
+            'dbname'     => $_SERVER['TINY_DB_NAME'] ?? 'tiny',
+            'user'       => $_SERVER['TINY_DB_USER'] ?? 'root',
+            'password'   => $_SERVER['TINY_DB_PASS'] ?? '',
+            'persistent' => $_SERVER['TINY_DB_PERSISTENT'] ?? false,
         ];
 
         self::$db = match ($dbType) {
             'mysql', 'pgsql', 'postgresql' => new TinyDB($dbType, $dbConfig),
             'sqlite' => new TinyDB('sqlite', [
-                'db_path'   => $_SERVER['DB_SQLITE_FILE'] ?? (
-                    ($_SERVER['ENV'] ?? '') === 'test' ? ':memory:' : self::$config->app_path . '/database.db'
-                ),
-                'db_scheme' => $_SERVER['DB_SQLITE_SCHEMA'] ?? null
+                'db_path'   => $_SERVER['TINY_DB_SQLITE_FILE'] ?? self::$config->app_path . '/database.db',
+                'db_scheme' => $_SERVER['TINY_DB_SQLITE_SCHEMA'] ?? null
             ]),
             default => throw new \RuntimeException("Unsupported database type: $dbType"),
         };
@@ -190,30 +193,9 @@ class tiny
                 'query' => [],
             ];
 
-            foreach (@$_GET as $key => $value) {
-                if (!empty($value)) {
-                    $router['query'][$key] = $value;
-                }
-            }
-
-            // compensate for malform proxy requests
-            if (empty($router['query'])) {
-                $gets = explode('?', $_SERVER['REQUEST_URI']);
-                if (isset($gets[1])) {
-                    $gets = explode('&', $gets[1]);
-                    if (count($gets)) {
-                        foreach ($gets as $item) {
-                            @list($k, $v) = explode('=', $item);
-                            $router['query'][$k] = $v;
-                        }
-                    }
-                    unset($router['query'][$router['root']]);
-                }
-            }
-
             if ($url !== '/') {
                 $parts = explode('/', trim(rtrim($url, self::$config->url_path), '/'), 3);
-                $router['controller'] = $parts[0] ?: self::$config->homepage;
+                $router['controller'] = str_replace('.md', '', $parts[0]) ?: self::$config->homepage;
                 $router['section'] = $parts[1] ?? '';
                 $router['slug'] = $parts[2] ?? '';
             }
@@ -225,6 +207,33 @@ class tiny
 
             return (object)$router;
         });
+
+        foreach (@$_GET as $key => $value) {
+            if (!empty($value)) {
+                self::$router->query[$key] = is_string($value) ? urldecode(trim(htmlspecialchars($value))) : $value;
+            }
+        }
+
+        // compensate for malformed proxy requests
+        if (empty(self::$router->query)) {
+            $gets = explode('?', $_SERVER['REQUEST_URI'] ?? '');
+            if (count($gets) > 1) {
+                $gets = explode('&', $gets[1]);
+                if (count($gets)) {
+                    foreach ($gets as $item) {
+                        $parts = explode('=', $item);
+                        $k = $parts[0] ?? null;
+                        $v = $parts[1] ?? null;
+                        if ($k !== null && $v !== null) {
+                            self::$router->query[$k] = is_string($v) ? urldecode(trim(htmlspecialchars($v))) : $v;
+                        }
+                    }
+                }
+                if (isset(self::$router->root)) {
+                    unset(self::$router->query[self::$router->root]);
+                }
+            }
+        }
 
         self::$router->htmx = isset($_SERVER['HTTP_HX_REQUEST']);
     }
@@ -264,7 +273,7 @@ class tiny
     private static function loadHelpers(): void
     {
         // tiny::die('asd');
-        $helpers = $_SERVER['AUTOLOAD_HELPERS'] ?? '';
+        $helpers = $_SERVER['TINY_AUTOLOAD_HELPERS'] ?? '';
         if ($helpers === '*') {
             self::requireAll('/helpers/');
         } elseif ($helpers !== '') {
@@ -310,12 +319,65 @@ class tiny
 
     /**
      * Sets up components and layouts for views.
+     *
+     * This method initializes the component and layout systems by:
+     * 1. Creating instances of TinyComponent and TinyLayout with appropriate paths
+     * 2. Defining global constants for easy access in view files
+     *
+     * The component system allows for reusable UI elements across views,
+     * while layouts provide consistent page structure templates.
+     *
+     * @param string|null $path Optional custom path for components and layouts.
+     * If null, defaults to app_path/views/components and app_path/views/layouts.
+     * @return void
      */
-    private static function setupComponents(): void
+    private static function setupComponents(?string $path = null): void
     {
-        define('Component', new TinyComponent(self::$config->app_path . '/views/components'));
-        define('Layout', new TinyLayout(self::$config->app_path . '/views/layouts'));
+        // Initialize the component manager with the path to component files
+        // If no custom path is provided, use the default path from config
+        self::$components = new TinyComponent($path ?? self::$config->app_path . '/views/components');
+
+        // Initialize the layout manager with the path to layout files
+        // If no custom path is provided, use the default path from config
+        self::$layouts = new TinyLayout($path ?? self::$config->app_path . '/views/layouts');
+
+        // Define global constants for convenient access in view files
+        // This allows developers to use Component->name() and Layout->name() syntax
+        // These constants provide a cleaner API for template files
+        define('Component', self::$components);
+        define('Layout', self::$layouts);
     }
+
+    /**
+     * Returns the components instance for managing view components.
+     *
+     * This method provides access to the TinyComponent instance that was
+     * initialized during framework setup. It allows components to be
+     * registered, required, and rendered throughout the application.
+     *
+     * @return TinyComponent The components manager instance
+     */
+    public static function components(): TinyComponent
+    {
+        // Return the singleton components instance
+        return self::$components;
+    }
+
+    /**
+     * Returns the layout instance for managing view layouts.
+     *
+     * This method provides access to the TinyLayout instance that was
+     * initialized during framework setup. It allows layouts to be
+     * used for consistent page structure throughout the application.
+     *
+     * @return TinyLayout The layouts manager instance
+     */
+    public static function layout(): TinyLayout
+    {
+        // Return the singleton layouts instance
+        return self::$layouts;
+    }
+
 
     /**
      * Retrieves configuration values.
@@ -333,18 +395,29 @@ class tiny
      *
      * @return TinyCache The cache instance
      */
-    public static function cache(string $engine = 'apcu'): TinyCache
+    public static function cache(string $engine = 'apcu'): ?TinyCache
     {
-
         if (self::$cache === null) {
             $config = self::$config->memcached ?? [];
             self::$cache = new TinyCache(
                 $engine,
                 $config['host'] ?? 'localhost',
-                $config['port'] ?? 11211
+                $config['port'] ?? 11211,
+                ((@$_SERVER['ENV'] == 'local' && @$_SERVER['TINY_CACHE_DISABLED'] != false)|| @$_SERVER['TINY_CACHE_DISABLED'] == true)
             );
         }
         return self::$cache;
+    }
+
+    /**
+     * Returns the CMS instance.
+     *
+     * @param int $ttl The time to live for the cached content
+     * @return TinyCMS The CMS instance
+     */
+    public static function cms(int $ttl = 84600 * 30): TinyCMS
+    {
+        return self::$cms ??= new TinyCMS($ttl);
     }
 
     /**
@@ -468,6 +541,9 @@ class tiny
 
         try {
             $class = str_replace([' ', '-', '_', '.'], '', ucwords(str_replace('/', ' ', $file)));
+            if (is_numeric($class)) {
+                $class = "Class{$class}";
+            }
             $class = preg_replace('/Index$/', '', $class);
             if (class_exists($class)) {
                 $method = mb_strtolower($_SERVER['REQUEST_METHOD'] ?? 'GET');
@@ -504,6 +580,7 @@ class tiny
             }
         }
 
+        // Cleanup router worker
         if (count(self::$router->worker) > 1 && $file === end(self::$router->worker)) {
             array_pop(self::$router->worker);
         }
@@ -512,6 +589,64 @@ class tiny
         if ($die) {
             self::timer(true);
             tiny::exit();
+        }
+    }
+
+    /**
+     * Renders a view file.
+     *
+     * @param string $component The component to render
+     * @param array $props The props to pass to the component
+     * @param array $meta The meta data to pass to the component
+     * @param string|null $template The template to use for the component
+     */
+    public static function renderReact(string $component, array $props = [], array $meta = [], ?string $template = null): void
+    {
+        $params = [
+            'component' => $component,
+            'props' => [...$props, ...['meta' => $meta]],
+        ];
+
+        // Check if this is an SPA navigation request
+        $isSpaRequest = (isset($_SERVER['HTTP_X_SPA_REQUEST']) && $_SERVER['HTTP_X_SPA_REQUEST'] === 'true') ||
+            (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest');
+
+        if ($isSpaRequest) {
+            // Return JSON for SPA navigation requests
+            header('Content-Type: application/json');
+            echo json_encode($params);
+        } else {
+
+            $renderedHTML = '';
+
+            if ($template) {
+                $file = $template ?: end(self::$router->worker);
+                $filePath = self::$config->app_path . '/views/' . $file . '.php';
+                if (!file_exists($filePath)) {
+                    self::data()->error = "View for /$file cannot be found on the server";
+                    if (file_exists(self::$config->app_path . '/views/404.php')) {
+                        self::render('404', true);
+                    } else {
+                        tiny::die(self::data()->error);
+                    }
+                }
+
+                // Cleanup router worker
+                if (count(self::$router->worker) > 1 && $file === end(self::$router->worker)) {
+                    array_pop(self::$router->worker);
+                }
+
+                ob_start();
+                require $filePath;
+                $html = ob_get_contents();
+                ob_end_clean();
+
+                $renderedHTML = '<div id="prerenderd-html">' . $html . '</div>';
+            }
+
+            // Continue with the traditional approach - embed data in HTML
+            $params = json_encode($params); // used in app.php
+            include self::$config->app_path . '/src/app.php';
         }
     }
 
@@ -565,9 +700,6 @@ class tiny
      */
     public static function request(): TinyRequest
     {
-        if (self::$testMode) {
-            return new TinyRequest();
-        }
         static $request;
         return $request ??= new TinyRequest();
     }
@@ -579,66 +711,8 @@ class tiny
      */
     public static function response(): TinyResponse
     {
-        if (self::$testMode) {
-            return new TinyTestResponse();
-        }
         static $response;
         return $response ??= new TinyResponse();
-    }
-
-    /**
-     * Swap a framework singleton with a mock/stub in test mode.
-     * Only works when ENV is set to 'test'.
-     *
-     * @param string $name The singleton name: 'db', 'cache', or 'clickhouse'
-     * @param object $instance The replacement instance
-     * @return void
-     * @throws \RuntimeException if not in test env or name is invalid
-     */
-    public static function swap(string $name, object $instance): void
-    {
-        if (($_SERVER['ENV'] ?? '') !== 'test') {
-            throw new \RuntimeException('swap() only works in test env');
-        }
-        match ($name) {
-            'db' => self::$db = $instance,
-            'cache' => self::$cache = $instance,
-            'clickhouse' => self::$clickhouse = $instance,
-            default => throw new \RuntimeException("Cannot swap: $name"),
-        };
-    }
-
-    /**
-     * Load a controller in test mode and return the instance.
-     * Only works when ENV is set to 'test'.
-     *
-     * @param string $controller The controller path (e.g. 'users')
-     * @return object The controller instance
-     * @throws \RuntimeException if not in test env or controller not found
-     */
-    public static function test(string $controller): object
-    {
-        if (($_SERVER['ENV'] ?? '') !== 'test') {
-            throw new \RuntimeException('test() only works in test env');
-        }
-
-        self::$testMode = true;
-
-        $filePath = self::$config->app_path . '/controllers/' . $controller . '.php';
-        if (!file_exists($filePath)) {
-            throw new \RuntimeException("Controller not found: $controller");
-        }
-
-        require_once $filePath;
-
-        $class = str_replace([' ', '-', '_', '.'], '', ucwords(str_replace('/', ' ', $controller)));
-        $class = preg_replace('/Index$/', '', $class);
-
-        if (!class_exists($class)) {
-            throw new \RuntimeException("Controller class not found: $class");
-        }
-
-        return new $class();
     }
 
     /**
@@ -671,12 +745,12 @@ class tiny
     public static function clickhouse(): TinyClickhouse
     {
         return self::$clickhouse ??= new TinyClickhouse([
-            'host' => $_SERVER['CLICKHOUSE_HOST'],
-            'port' => $_SERVER['CLICKHOUSE_PORT'],
-            'username' => $_SERVER['CLICKHOUSE_USERNAME'],
-            'password' => $_SERVER['CLICKHOUSE_PASSWORD'],
-            'https' => $_SERVER['CLICKHOUSE_HTTPS'] ?? false,
-            'timeout' => $_SERVER['CLICKHOUSE_TIMEOUT'] ?? 30
+            'host' => $_SERVER['TINY_CLICKHOUSE_HOST'],
+            'port' => $_SERVER['TINY_CLICKHOUSE_PORT'],
+            'username' => $_SERVER['TINY_CLICKHOUSE_USERNAME'],
+            'password' => $_SERVER['TINY_CLICKHOUSE_PASSWORD'],
+            'https' => $_SERVER['TINY_CLICKHOUSE_HTTPS'] ?? false,
+            'timeout' => $_SERVER['TINY_CLICKHOUSE_TIMEOUT'] ?? 30
         ]);
     }
 
@@ -717,15 +791,16 @@ class tiny
      * Returns a model instance.
      *
      * @param string $model The name of the model
+     * @param mixed ...$args The arguments to pass to the model constructor
      * @return object The model instance
      */
-    public static function model(string $model): object
+    public static function model(string $model, ...$args): object
     {
 
         static $models = [];
         if (!isset($models[$model])) {
             require_once self::$config->app_path . '/models/' . $model . '.php';
-            $models[$model] = new $model();
+            $models[$model] = new $model(...$args);
         }
         return $models[$model];
     }
@@ -786,6 +861,72 @@ class tiny
         }
         $path = str_replace('//', '/', tiny::trim(tiny::config()->url_path, '/') . '/' . tiny::ltrim($path));
         return $scheme . $_SERVER['HTTP_HOST'] . '/' . tiny::ltrim($path, '/');
+    }
+
+    /**
+     * Normalizes a URL or path by resolving "." and ".." segments.
+     *
+     * @param string $url The URL or path to normalize
+     * @return string The normalized URL or path
+     */
+    public static function normalizeUrl(string $url): string
+    {
+        $parts = parse_url($url);
+        if ($parts === false) {
+            return $url;
+        }
+
+        $path = $parts['path'] ?? '';
+        $isAbsolute = $path !== '' && $path[0] === '/';
+        $segments = explode('/', $path);
+        $resolved = [];
+
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                if (!empty($resolved)) {
+                    array_pop($resolved);
+                } elseif (!$isAbsolute) {
+                    $resolved[] = '..';
+                }
+                continue;
+            }
+            $resolved[] = $segment;
+        }
+
+        $normalizedPath = ($isAbsolute ? '/' : '') . implode('/', $resolved);
+        if ($normalizedPath === '' && $isAbsolute) {
+            $normalizedPath = '/';
+        }
+
+        $normalized = '';
+        if (isset($parts['scheme'])) {
+            $normalized .= $parts['scheme'] . '://';
+        }
+        if (isset($parts['user'])) {
+            $normalized .= $parts['user'];
+            if (isset($parts['pass'])) {
+                $normalized .= ':' . $parts['pass'];
+            }
+            $normalized .= '@';
+        }
+        if (isset($parts['host'])) {
+            $normalized .= $parts['host'];
+        }
+        if (isset($parts['port'])) {
+            $normalized .= ':' . $parts['port'];
+        }
+        $normalized .= $normalizedPath;
+        if (isset($parts['query'])) {
+            $normalized .= '?' . $parts['query'];
+        }
+        if (isset($parts['fragment'])) {
+            $normalized .= '#' . $parts['fragment'];
+        }
+
+        return $normalized;
     }
 
     /**
@@ -895,9 +1036,6 @@ class tiny
 
     public static function die(mixed $data = null): void
     {
-        if (self::$testMode) {
-            throw new TinyTestExit($data ?? 'Test exit');
-        }
         if (self::isUsingSwoole()) {
             echo $data;
             throw new ExitException("Stopping coroutine");
@@ -908,9 +1046,6 @@ class tiny
 
     public static function exit(?int $code = 0): void
     {
-        if (self::$testMode) {
-            throw new TinyTestExit('Test exit', $code ?? 0);
-        }
         if (self::isUsingSwoole()) {
             throw new ExitException("Stopping coroutine", $code);
         } else {
@@ -944,17 +1079,20 @@ class tiny
             tiny::redirect('/');
         }
 
-        // Determine the jobs directory path by replacing '/controllers' with '/jobs' in current path
-        $JOBS_PATH = str_replace('/controllers', '/jobs', __DIR__);
-        $JOBS_PATH = str_replace('/tiny', '/app/jobs', __DIR__);
+        // Determine the jobs directory path
+        $JOBS_PATH = explode('/tiny', __DIR__)[0] . '/app/jobs';
 
         // Register an autoloader to automatically include job class files when referenced
         spl_autoload_register(function ($class) use ($JOBS_PATH) {
+
+            // Convert camel case to snake case
+            $class = mb_strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $class));
+
             // Convert class name to lowercase and build the full file path
             $classFile = $JOBS_PATH . '/' . mb_strtolower($class) . '.php';
 
             // Debug output to show which file is being loaded
-            // tiny::dd($classFile);
+            // tiny::debug($class, $classFile);
 
             // Include the file if it exists
             if (file_exists($classFile)) {
@@ -970,4 +1108,3 @@ header_remove('Server');
 header_remove('X-Powered-By');
 tiny::init();
 /* -------------------------------------- */
-

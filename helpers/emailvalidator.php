@@ -40,17 +40,19 @@ class EmailValidator
     public function __construct(string $email)
     {
         $this->email = filter_var(mb_strtolower($email), FILTER_SANITIZE_EMAIL);
-        [$this->user, $this->domain] = explode('@', $this->email, 2);
+        $parts = explode('@', $this->email, 2);
+        $this->user = $parts[0];
+        $this->domain = $parts[1] ?? '';
     }
 
-    public function isValid(bool $verbose = false): bool|array
+    public function isValid(bool $verbose = false, bool $has_mx_records = false, bool $server_alive = false, bool $bounced = false): bool|array
     {
         $record = [
             'valid_format' => $this->isValidFormat(),
             'disposable' => !$this->isDisposable(),
-            'has_mx_records' => true,
-            'server_alive' => false,
-            'bounced' => false,
+            'has_mx_records' => $has_mx_records,
+            'server_alive' => $server_alive,
+            'bounced' => $bounced,
         ];
 
         if (!$record['valid_format'] || !$record['disposable']) {
@@ -77,12 +79,12 @@ class EmailValidator
         return $verbose ? $record : !$record['bounced'];
     }
 
-    private function isValidFormat(): bool
+    public function isValidFormat(): bool
     {
         return filter_var($this->email, FILTER_VALIDATE_EMAIL) !== false;
     }
 
-    private function isKnownIsp(): bool
+    public function isKnownIsp(): bool
     {
         return str_starts_with($this->domain, 'yahoo.') ||
                str_starts_with($this->domain, 'hotmail.') ||
@@ -90,12 +92,12 @@ class EmailValidator
                in_array($this->domain, self::KNOWN_SERVERS, true);
     }
 
-    private function isServerHasMXRecords(): bool
+    public function isServerHasMXRecords(): bool
     {
         return !empty($this->mxhosts) || checkdnsrr($this->domain, 'MX');
     }
 
-    private function getMXRecords(int $max = 5): array
+    public function getMXRecords(int $max = 5): array
     {
         $mxhosts = [];
         $mxweights = [];
@@ -106,7 +108,7 @@ class EmailValidator
         return [];
     }
 
-    private function isServerMXRecordsAlive(): bool
+    public function isServerMXRecordsAlive(): bool
     {
         if ($this->isKnownIsp()) {
             return true;
@@ -135,7 +137,7 @@ class EmailValidator
         return false;
     }
 
-    private function isBouncing(): bool
+    public function isBouncing(): bool
     {
         if ($this->isKnownIsp() || $this->isGoogleOrOutlookHost($this->mxhosts[0] ?? '')) {
             return false;
@@ -157,18 +159,18 @@ class EmailValidator
         return in_array($code, ['250', '450', '451', '452', '554'], true);
     }
 
-    private function isDisposable(): bool
+    public function isDisposable(): bool
     {
         include_once 'emailvalidator_disposables.php';
         return defined('DISPOSABLE_DOMAINS') && in_array($this->domain, DISPOSABLE_DOMAINS, true);
     }
 
-    private function streamRequest(string $request): void
+    public function streamRequest(string $request): void
     {
         fwrite($this->stream, $request . self::CRLF);
     }
 
-    private function streamResponse(): string
+    public function streamResponse(): string
     {
         $response = '';
         while (($line = fgets($this->stream, 515)) !== false) {
@@ -178,13 +180,13 @@ class EmailValidator
         return $response;
     }
 
-    private function streamCode(string $str): string
+    public function streamCode(string $str): string
     {
         preg_match('/^(?<code>[0-9]{3})(\s|-)(.*)$/ims', $str, $matches);
         return $matches['code'] ?? '';
     }
 
-    private function isGoogleOrOutlookHost(string $host): bool
+    public function isGoogleOrOutlookHost(string $host): bool
     {
         return str_ends_with($host, 'google.com') ||
                str_ends_with($host, 'googlemail.com') ||

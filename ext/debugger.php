@@ -35,7 +35,7 @@ trait TinyDebugger
      * Determines if debugging is allowed based on the client's IP address and debug whitelist.
      *
      * This method checks if the client's IP address is allowed to access debugging features.
-     * It uses the DEBUG_WHITELIST server variable to control access. If DEBUG_WHITELIST
+     * It uses the TINY_DEBUG_WHITELIST server variable to control access. If TINY_DEBUG_WHITELIST
      * is set to '*', all IPs are allowed. Otherwise, it checks if the client's IP
      * is in the comma-separated list of allowed IPs.
      *
@@ -44,7 +44,7 @@ trait TinyDebugger
     private static function canDebug(): bool
     {
         $userIP = self::getClientRealIP();
-        $debugWhitelist = $_SERVER['DEBUG_WHITELIST'] ?? '*';
+        $debugWhitelist = $_SERVER['TINY_DEBUG_WHITELIST'] ?? '*';
         return $debugWhitelist === '*' || in_array($userIP, explode(',', $debugWhitelist));
     }
 
@@ -66,8 +66,9 @@ trait TinyDebugger
             $function = $func_caller['class'] . '::' . $function;
         }
 
+        $caller['file'] = $caller['file'] ?? 'unknown';
         return [
-            'file' => str_replace($path_prefix, '', $caller['file'] ?? 'unknown'),
+            'file' => $path_prefix == '/' ? $caller['file'] : str_replace($path_prefix, '', $caller['file']),
             'line' => $caller['line'] ?? 'unknown',
             'function' => !in_array($function, INTERNAL_FUNCTIONS) ? $function : '',
         ];
@@ -213,10 +214,46 @@ trait TinyDebugger
      */
     public static function log(mixed ...$vars): void
     {
-        $logFile = $_SERVER['LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
-        [$trace, $content] = self::dumpOrDebug($_SERVER['LOG_MODE'] ?? 'dump', ...$vars);
+        $logFile = $_SERVER['TINY_LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
+        [$trace, $content] = self::dumpOrDebug($_SERVER['TINY_LOG_LEVEL'] ?? 'dump', ...$vars);
 
         $output = self::formatOutput($trace, $content, false);
         file_put_contents($logFile, $output, FILE_APPEND);
+    }
+
+
+    /**
+     * Logs a simplified version of variable information to a file and outputs to console/browser.
+     *
+     * This method logs variables to a file like the standard log() method, but also
+     * outputs a simplified, more readable format to the console (in CLI mode) or
+     * to the browser (in web mode). It's designed for quick debugging with minimal output.
+     *
+     * @param mixed ...$vars Variables to be logged. Only the first variable is displayed in the simplified output.
+     * @return void
+     */
+    public static function logSimple(mixed ...$vars): void
+    {
+        $logFile = $_SERVER['TINY_LOG_FILE'] ?? sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'tiny.log';
+        [$trace, $content] = self::dumpOrDebug($_SERVER['TINY_LOG_LEVEL'] ?? 'dump', ...$vars);
+
+        $output = self::formatOutput($trace, $content, false);
+        file_put_contents($logFile, $output, FILE_APPEND);
+
+        $print = date('[Y-m-d H:i:s] ') . "{$trace['file']}:{$trace['line']}";
+        if ($trace['function']) {
+            $print .= PHP_EOL .'   ↳ in: ' . $trace['function'] . '()';
+        }
+        if ($trace['url']) {
+            $print .= PHP_EOL .'   ↳ via: ' . $trace['url'];
+        }
+        $print .= PHP_EOL .'   ↳ ' . $vars[0];
+        if (tiny::isCLI()) {
+            echo $print;
+        } else {
+            echo '<pre>';
+            echo $print;
+            echo '</pre>';
+        }
     }
 }

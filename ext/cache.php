@@ -26,6 +26,8 @@ declare(strict_types=1);
 class TinyCache
 {
     private \Memcached|null $memcached;
+    private bool $disabled = false;
+    private string $prefix = 'tiny_cache_';
 
     /**
      * Initializes the TinyCache with the specified caching engine.
@@ -38,8 +40,28 @@ class TinyCache
     public function __construct(
         private string $engine = 'apcu',
         ?string $memcached_host = 'localhost',
-        ?int $memcached_port = 11211
+        ?int $memcached_port = 11211,
+        ?bool $disable = false
     ) {
+
+        // check for disabled cache
+        $this->disabled = $disable ?? false;
+        if ($this->disabled) {
+            $this->disabled = true;
+            return;
+        }
+
+        // create a cache key prefix (no cross-site pollution on same engine)
+        $prefix = $_SERVER['TINY_CACHE_PREFIX']
+                  ?? $_SERVER['HTTP_X_FORWARDED_HOST']
+                  ?? $_SERVER['HTTP_HOST']
+                  ?? $_SERVER['SERVER_NAME']
+                  ?? dirname(__DIR__, 2);
+
+        $prefix = strtolower(trim($prefix));
+        $hash = base_convert(sprintf('%u', crc32($prefix)), 10, 36);
+        $this->prefix = "tiny:{$hash}:";
+
         match ($this->engine) {
             'apcu' => $this->initApcu(),
             'memcached' => $this->initMemcached($memcached_host, $memcached_port),
@@ -85,6 +107,13 @@ class TinyCache
      */
     public function get(string $key, ?callable $memcached_cb = null, int $get_flags = 0): mixed
     {
+        if ($this->disabled) {
+            return null;
+        }
+
+        // prepend cache prefix to key
+        $key = $this->prefix . $key;
+
         if ($this->engine === 'apcu') {
             return apcu_fetch($key, $success) ?: null;
         }
@@ -102,6 +131,13 @@ class TinyCache
      */
     public function set(string $key, mixed $value, int $ttl = 0): bool
     {
+        if ($this->disabled) {
+            return true;
+        }
+
+        // prepend cache prefix to key
+        $key = $this->prefix . $key;
+
         if ($this->engine === 'apcu') {
             return apcu_store($key, $value, $ttl);
         }
@@ -116,6 +152,13 @@ class TinyCache
      */
     public function delete(string $key): bool
     {
+        if ($this->disabled) {
+            return true;
+        }
+
+        // prepend cache prefix to key
+        $key = $this->prefix . $key;
+
         if ($this->engine === 'apcu') {
             return apcu_delete($key);
         }
@@ -130,12 +173,19 @@ class TinyCache
      */
     public function getByPrefix(string $prefix): array
     {
+        if ($this->disabled) {
+            return [];
+        }
+
         $matches = [];
+
+        // prepend cache prefix to key
+        $prefix = $this->prefix . $prefix;
 
         if ($this->engine === 'apcu') {
             $iterator = new \APCUIterator('/^' . preg_quote($prefix, '/') . '/');
             foreach ($iterator as $item) {
-                $matches[] = $item['key'];
+                $matches[] = substr($item['key'], strlen($this->prefix));
             }
         } else {
             $keys = $this->memcached->getAllKeys();
@@ -144,7 +194,7 @@ class TinyCache
             }
             foreach ($keys as $key) {
                 if (str_starts_with($key, $prefix)) {
-                    $matches[] = $key;
+                    $matches[] = substr($key, strlen($this->prefix));
                 }
             }
         }
@@ -159,6 +209,13 @@ class TinyCache
      */
     public function deleteByPrefix(string $prefix): void
     {
+        if ($this->disabled) {
+            return;
+        }
+
+        // prepend cache prefix to key
+        $prefix = $this->prefix . $prefix;
+
         if ($this->engine === 'apcu') {
             $iterator = new \APCUIterator('/^' . preg_quote($prefix, '/') . '/');
             foreach ($iterator as $item) {
@@ -197,6 +254,9 @@ class TinyCache
         }
 
         $value = $callback();
+        if ($this->disabled) {
+            return $value;
+        }
         $this->set($key, $value, $ttl);
         return $value;
     }
