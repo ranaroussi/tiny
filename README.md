@@ -29,10 +29,10 @@ Tiny is organized into focused branches. Pick the entry point that matches what 
 
 | Branch | What it is | Get started |
 |---|---|---|
-| **[`boilerplate`](https://github.com/ranaroussi/tiny/tree/boilerplate)** | Full app shell with Docker, Tailwind, build pipeline, tests, and migrations | `php tiny/cli create my-app` |
-| **[`tiny`](https://github.com/ranaroussi/tiny/tree/tiny)** | Framework code only — for submodules and drop-in use | `git submodule add -b tiny https://github.com/ranaroussi/tiny.git tiny` |
-| **[`docs`](https://github.com/ranaroussi/tiny/tree/docs)** | Full documentation, examples, and architecture writeups | Browse on GitHub |
 | **`main`** | This page — the landing page | You're here |
+| **[`tiny`](https://github.com/ranaroussi/tiny/tree/tiny)** | Framework code only — for submodules and drop-in use | `git submodule add -b tiny https://github.com/ranaroussi/tiny.git tiny` |
+| **[`boilerplate`](https://github.com/ranaroussi/tiny/tree/boilerplate)** | Full app shell with Docker, Tailwind, build pipeline, tests, and migrations | `php tiny/cli create my-app` |
+| **[`docs`](https://github.com/ranaroussi/tiny/tree/docs)** | Full documentation, examples, and architecture writeups | Browse on GitHub |
 
 ---
 
