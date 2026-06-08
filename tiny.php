@@ -44,6 +44,7 @@ class tiny
     private static array $instances = [];
     private static array $extensions = [];
     private static array $customHelpers = [];
+    private static bool $testMode = false;
 
     /**
      * Initializes the Tiny framework.
@@ -157,7 +158,9 @@ class tiny
         self::$db = match ($dbType) {
             'mysql', 'pgsql', 'postgresql' => new TinyDB($dbType, $dbConfig),
             'sqlite' => new TinyDB('sqlite', [
-                'db_path'   => $_SERVER['DB_SQLITE_FILE'] ?? self::$config->app_path . '/database.db',
+                'db_path'   => $_SERVER['DB_SQLITE_FILE'] ?? (
+                    ($_SERVER['ENV'] ?? '') === 'test' ? ':memory:' : self::$config->app_path . '/database.db'
+                ),
                 'db_scheme' => $_SERVER['DB_SQLITE_SCHEMA'] ?? null
             ]),
             default => throw new \RuntimeException("Unsupported database type: $dbType"),
@@ -562,6 +565,9 @@ class tiny
      */
     public static function request(): TinyRequest
     {
+        if (self::$testMode) {
+            return new TinyRequest();
+        }
         static $request;
         return $request ??= new TinyRequest();
     }
@@ -573,8 +579,66 @@ class tiny
      */
     public static function response(): TinyResponse
     {
+        if (self::$testMode) {
+            return new TinyTestResponse();
+        }
         static $response;
         return $response ??= new TinyResponse();
+    }
+
+    /**
+     * Swap a framework singleton with a mock/stub in test mode.
+     * Only works when ENV is set to 'test'.
+     *
+     * @param string $name The singleton name: 'db', 'cache', or 'clickhouse'
+     * @param object $instance The replacement instance
+     * @return void
+     * @throws \RuntimeException if not in test env or name is invalid
+     */
+    public static function swap(string $name, object $instance): void
+    {
+        if (($_SERVER['ENV'] ?? '') !== 'test') {
+            throw new \RuntimeException('swap() only works in test env');
+        }
+        match ($name) {
+            'db' => self::$db = $instance,
+            'cache' => self::$cache = $instance,
+            'clickhouse' => self::$clickhouse = $instance,
+            default => throw new \RuntimeException("Cannot swap: $name"),
+        };
+    }
+
+    /**
+     * Load a controller in test mode and return the instance.
+     * Only works when ENV is set to 'test'.
+     *
+     * @param string $controller The controller path (e.g. 'users')
+     * @return object The controller instance
+     * @throws \RuntimeException if not in test env or controller not found
+     */
+    public static function test(string $controller): object
+    {
+        if (($_SERVER['ENV'] ?? '') !== 'test') {
+            throw new \RuntimeException('test() only works in test env');
+        }
+
+        self::$testMode = true;
+
+        $filePath = self::$config->app_path . '/controllers/' . $controller . '.php';
+        if (!file_exists($filePath)) {
+            throw new \RuntimeException("Controller not found: $controller");
+        }
+
+        require_once $filePath;
+
+        $class = str_replace([' ', '-', '_', '.'], '', ucwords(str_replace('/', ' ', $controller)));
+        $class = preg_replace('/Index$/', '', $class);
+
+        if (!class_exists($class)) {
+            throw new \RuntimeException("Controller class not found: $class");
+        }
+
+        return new $class();
     }
 
     /**
@@ -831,6 +895,9 @@ class tiny
 
     public static function die(mixed $data = null): void
     {
+        if (self::$testMode) {
+            throw new TinyTestExit($data ?? 'Test exit');
+        }
         if (self::isUsingSwoole()) {
             echo $data;
             throw new ExitException("Stopping coroutine");
@@ -841,6 +908,9 @@ class tiny
 
     public static function exit(?int $code = 0): void
     {
+        if (self::$testMode) {
+            throw new TinyTestExit('Test exit', $code ?? 0);
+        }
         if (self::isUsingSwoole()) {
             throw new ExitException("Stopping coroutine", $code);
         } else {

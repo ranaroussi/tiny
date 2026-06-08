@@ -25,6 +25,10 @@ The conceptual tour of the framework. Read these in order if you're new to Tiny.
 8. **[Models](models.md)** — `TinyModel`, schema validation, caching patterns.
 9. **[Database](database.md)** — raw-SQL helpers for MySQL, PostgreSQL, SQLite.
 
+## Testing
+
+10. **[Testing](testing.md)** — built-in zero-ceremony test harness, `tiny::swap()`, `tiny::test()`, `TinyTestResponse`, `:memory:` SQLite.
+
 ## See also
 
 - [Extensions](../extensions/readme.md) — first-party modules (cache, CSRF, SSE, scheduler, CMS, ClickHouse, …)
