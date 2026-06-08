@@ -1,0 +1,2 @@
+# Run the scheduler every minute (send stdout to /dev/null, only log errors)
+* * * * * bash /var/www/app/scheduler.sh > /dev/null 2>> /var/log/cron/cron.error.log

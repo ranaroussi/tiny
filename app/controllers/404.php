@@ -1,0 +1,2 @@
+<?php
+tiny::render();

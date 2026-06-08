@@ -1,0 +1,27 @@
+{
+  "require": {
+    "ext-curl": "*",
+    "ext-dom": "*",
+    "ext-fileinfo": "*",
+    "ext-imagick": "*",
+    "ext-libxml": "*",
+    "ext-memcached": "*",
+    "ext-mysqli": "*",
+    "ext-openssl": "*",
+    "ext-pgsql": "*",
+    "ext-simplexml": "*",
+    "ext-sqlite3": "*",
+    "ext-zip": "*",
+    "ext-zlib": "*",
+    "vlucas/phpdotenv": "^5.5",
+    "dragonmantank/cron-expression": "^3.3",
+    "hybridauth/hybridauth": "^3.9",
+    "stripe/stripe-php": "^10.9",
+    "theiconic/name-parser": "^1.2"
+  },
+  "config": {
+    "allow-plugins": {
+      "php-http/discovery": true
+    }
+  }
+}
