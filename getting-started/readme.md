@@ -12,6 +12,8 @@ This section walks you from `git clone` to a running page in under five minutes.
 
 ## Quickstart
 
+The fastest way to get a full working project is via the [`boilerplate`](https://github.com/ranaroussi/tiny/tree/boilerplate) branch:
+
 ```bash
 # 1. Create the project directory
 mkdir my-app && cd my-app
@@ -19,24 +21,48 @@ mkdir my-app && cd my-app
 # 2. Clone the framework
 git clone https://github.com/ranaroussi/tiny.git
 
-# 3. Scaffold the application (unpacks the sample project)
+# 3. Scaffold from the boilerplate branch
 php tiny/cli create
 
-# 4. Install dependencies
-composer install
+# 4. Pull the framework submodule
+git submodule update --init
 
-# 5. Configure environment
-cp .env.example .env.local
+# 5. Install dependencies
+composer install
+cd buildtools && npm install
+
+# 6. Configure environment
+cp env.example .env.local
 # edit .env.local with your DB and integration credentials
 
-# 6. Serve ./html with your web server (Caddy, nginx, Apache, FrankenPHP, PHP-FPM)
+# 7. Start the dev stack
+docker-compose up
 ```
 
-Open `http://localhost` and you should see the sample landing page rendered by `app/controllers/home.php`.
+Visit http://localhost:8080.
+
+The boilerplate includes Docker, a Tailwind + Webpack build pipeline, sample tests, migrations, and a working app scaffold. See the [boilerplate branch README](https://github.com/ranaroussi/tiny/blob/boilerplate/README.md) for details.
+
+### Alternative: submodule (existing projects)
+
+If you already have a project and just want the framework as a submodule:
+
+```bash
+git submodule add -b tiny https://github.com/ranaroussi/tiny.git tiny
+git submodule update --init
+```
+
+Point your web server at `html/`.
+
+### Alternative: drop-in (quick experiments)
+
+```bash
+git clone -b tiny https://github.com/ranaroussi/tiny.git
+```
 
 ## Project layout
 
-After `php tiny/cli create` your tree looks like this:
+After `php tiny/cli create` (from the boilerplate branch) your tree looks like this:
 
 ```
 my-app/
@@ -54,9 +80,15 @@ my-app/
 ├── html/                  # ← document root
 │   └── index.php          # bootstraps tiny and dispatches to controllers
 ├── migrations/            # migration classes (managed by tiny/cli migrations)
-├── tiny/                  # the framework
+├── tests/                 # plain PHP test files (tiny::test() + TinyTestResponse)
+├── tiny/                  # the framework (git submodule → tiny branch)
 ├── vendor/                # composer dependencies
+├── buildtools/            # Tailwind CSS + Webpack build pipeline
+├── server-config/         # nginx, php-fpm, supervisord configs for Docker
+├── Dockerfile
+├── docker-compose.yml
 ├── .env.local             # per-env config (also .env.dev, .env.prod, ...)
+├── .env.test              # test env: sqlite, :memory:, cache disabled
 ├── composer.json
 └── env.php                # defines the ENV constant (local|dev|stage|prod)
 ```

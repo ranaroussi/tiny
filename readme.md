@@ -6,6 +6,12 @@ Tiny is a zero-config, batteries-included PHP framework. Your filesystem is the 
 
 This documentation covers everything from a 60-second quickstart through every extension and helper that ships with the framework.
 
+> **Repository branches:**
+> - [`main`](https://github.com/ranaroussi/tiny/tree/main) — landing page and project overview
+> - [`tiny`](https://github.com/ranaroussi/tiny/tree/tiny) — framework code only (use as a [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules))
+> - [`boilerplate`](https://github.com/ranaroussi/tiny/tree/boilerplate) — full app shell with Docker, Tailwind + Webpack build pipeline, tests, and migrations
+> - [`docs`](https://github.com/ranaroussi/tiny/tree/docs) — this documentation
+
 ## What's in the box
 
 **Core**
