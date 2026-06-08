@@ -33,21 +33,69 @@ if (PHP_SAPI === 'cli' && str_ends_with(__FILE__, $argv[0])) {
 
     $category = $argv[1];
     if ($category === 'create') {
-        $path = str_replace('tiny/tiny', 'tiny', __DIR__ . '/tiny');
-        foreach (['.git', '.github'] as $dir) {
-            print_r($path . '/' . $dir);
-            tiny::rrmdir($path . '/' . $dir);
+        $projectName = $argv[2] ?? null;
+        $targetDir = $projectName ? __DIR__ . '/../' . $projectName : __DIR__ . '/..';
+        $targetDir = realpath($targetDir) ?: $targetDir;
+
+        if ($projectName && !is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
         }
-        foreach (['.git', '.gitignore', 'GitVersion.yml'] as $file) {
-            unlink($path . '/' . $file);
+
+        echo "Fetching boilerplate branch...\n";
+
+        $tempDir = sys_get_temp_dir() . '/tiny-boilerplate-' . time();
+        $cmd = sprintf(
+            'git clone --depth 1 -b boilerplate https://github.com/ranaroussi/tiny.git %s 2>&1',
+            escapeshellarg($tempDir)
+        );
+        exec($cmd, $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            echo "[✗] Failed to fetch boilerplate branch.\n" . implode("\n", $output) . "\n";
+            exit(1);
         }
-        $zip = new ZipArchive();
-        if ($zip->open($path . '/sample-project.zip') === true) {
-            $zip->extractTo(__DIR__ . '/../');
-            unlink($path . '/sample-project.zip');
-            $zip->close();
+
+        // Copy boilerplate files to target (skip .git)
+        $items = new DirectoryIterator($tempDir);
+        foreach ($items as $item) {
+            if ($item->isDot()) continue;
+            $basename = $item->getBasename();
+            if ($basename === '.git') continue;
+
+            $src = $item->getPathname();
+            $dst = $targetDir . '/' . $basename;
+
+            if (is_dir($dst)) {
+                tiny::rrmdir($dst);
+            } elseif (file_exists($dst)) {
+                unlink($dst);
+            }
+            rename($src, $dst);
         }
-        echo "[✓] Project created successfully 🎉\n\nPlease run `composer install` to complete the setup.\n";
+
+        tiny::rrmdir($tempDir);
+
+        $displayPath = $projectName ?? basename(realpath(__DIR__ . '/..'));
+
+        if ($projectName) {
+            echo "[✓] Project created at {$displayPath}/ 🎉\n\n";
+            echo "Next steps:\n";
+            echo "  cd {$displayPath}\n";
+            echo "  git init\n";
+            echo "  git submodule add -b tiny https://github.com/ranaroussi/tiny.git tiny\n";
+            echo "  git submodule update --init\n";
+        } else {
+            echo "[✓] Project created successfully 🎉\n\n";
+            echo "Next steps:\n";
+            echo "  git init\n";
+            echo "  git submodule add -b tiny https://github.com/ranaroussi/tiny.git tiny\n";
+            echo "  git submodule update --init\n";
+        }
+
+        echo "  composer install\n";
+        echo "  cd buildtools && npm install\n";
+        echo "  cp env.example .env.local\n";
+        echo "  docker-compose up\n";
         exit(0);
     }
 
