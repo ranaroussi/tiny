@@ -1,84 +1,70 @@
 name: Auto-versioning
 permissions: write-all
 
-# Controls when the workflow will run
 on:
-
-  # On every code push
   push:
     branches:
-      - develop
-
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  pull_request:
-    branches:
-      - main
-    types:
-      - closed
-
-  # Allows you to run this workflow manually from the Actions tab
+      - tiny
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  create-version:
-    name: Create a new version and release
-
-    # Condition for the runner
-    # if: github.event.pull_request.merged == true
-
-    # The type of runner that the job will run on
+  version:
+    name: Calculate next ScalVer and release
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      sha: ${{ steps.sha.outputs.SHA }}
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v3.0.0
-        with:
-          versionSpec: '6.0.5'
-
-      - name: Checkout Code
+      - name: Checkout (tiny branch)
         uses: actions/checkout@v4
         with:
+          ref: tiny
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine Version
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v0 #.10.2
-        with:
-          useConfigFile: true
+      - name: Calculate next version (ScalVer)
+        id: version
+        run: |
+          CURRENT_VERSION=$(cat .version 2>/dev/null || echo "3.20000101.0")
+          MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
+          CURRENT_DATE=$(echo $CURRENT_VERSION | cut -d. -f2)
+          CURRENT_PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
+          TODAY=$(date +%Y%m%d)
+
+          if [ "$CURRENT_DATE" = "$TODAY" ]; then
+            NEXT_PATCH=$((CURRENT_PATCH + 1))
+            NEXT_VERSION="${MAJOR}.${TODAY}.${NEXT_PATCH}"
+          else
+            NEXT_VERSION="${MAJOR}.${TODAY}.0"
+          fi
+
+          echo "VERSION=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current: $CURRENT_VERSION -> Next: v$NEXT_VERSION"
 
       - name: Update version file
-        id: setversion-dev
-        if: github.ref == 'refs/heads/main'
         run: |
-            echo "Updating version file to ${{ steps.gitversion.outputs.semVer }}..."
-            git config user.email "no-reply@github.com"
-            git config user.name "Release Bot"
-            echo "${{ steps.gitversion.outputs.semVer }}"> .version
-            git add .version
-            git commit -m "Updated version file to ${{ steps.gitversion.outputs.semVer }}"
-            git push origin
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          echo "$VERSION" > .version
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .version
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: release v$VERSION"
+            git push origin tiny
+          fi
 
-      - name: Update version file
-        id: setversion-prod
-        if: github.ref == 'refs/heads/develop'
-        run: |
-            echo "Updating version file to ${{ steps.gitversion.outputs.semVer }}..."
-            git config user.email "no-reply@github.com"
-            git config user.name "Release Bot"
-            echo "${{ steps.gitversion.outputs.FullSemVer }}+${{ steps.gitversion.outputs.ShortSha }}"> .version
-            git add .version
-            git commit -m "Updated version file to ${{ steps.gitversion.outputs.FullSemVer }}"
-            git push origin
+      - name: Output release commit SHA
+        id: sha
+        run: echo "SHA=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        if: github.ref == 'refs/heads/main'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create ${{ steps.gitversion.outputs.semVer }} \
-            --title=${{ steps.gitversion.outputs.semVer }} \
-            --notes="Build: ${{ steps.gitversion.outputs.FullSemVer }}+${{ steps.gitversion.outputs.ShortSha }}" \
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          gh release create "v$VERSION" \
+            --title="v$VERSION" \
+            --notes="ScalVer release v$VERSION" \
             --latest=true \
-            --generate-notes
+            --target=tiny
