@@ -2,11 +2,11 @@
 
 [![PHP](https://img.shields.io/badge/php-8.3%2B-777bb4)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](#license)
-[![Version](https://img.shields.io/badge/version-2.8.x-brightgreen)](.version)
+[![Version](https://img.shields.io/badge/version-3.x-brightgreen)](.version)
 
 Zero-config, batteries-included PHP framework. Filesystem-based routing, raw SQL helpers, HTMX-native, React hybrid renderer, scheduler, CMS, and 30+ integrations. Runs on PHP-FPM, Swoole, or FrankenPHP without changes.
 
-> **Status:** v2.8.x — feature-complete, in active production use. Public API is stable; semver applies after 3.0.
+> **Status:** v3.x — feature-complete, in active production use. Public API is stable; ScalVer applies.
 
 ---
 
