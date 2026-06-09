@@ -1,4 +1,4 @@
-<img width="1200" height="300" alt="image" src="https://github.com/user-attachments/assets/e935397f-2e40-46fb-a2ab-5c8e1cd6b5c3" />
+<img width="2000" height="500" alt="image" src="https://github.com/user-attachments/assets/0a3545ee-9b64-4045-9393-37d8373454a5" />
 
 # Tiny — PHP Framework
 
