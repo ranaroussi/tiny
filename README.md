@@ -1,12 +1,14 @@
+<img width="1200" height="300" alt="image" src="https://github.com/user-attachments/assets/e935397f-2e40-46fb-a2ab-5c8e1cd6b5c3" />
+
 # Tiny — PHP Framework
+
+> Zero-config, batteries-included PHP framework. Your filesystem **is** the router. Your SQL is just SQL. You stay in PHP. Runs unchanged on PHP-FPM, Swoole, or FrankenPHP.
 
 [![PHP](https://img.shields.io/badge/php-8.3%2B-777bb4)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](#license)
 [![Version](https://img.shields.io/badge/version-3.x-brightgreen)](https://github.com/ranaroussi/tiny/blob/tiny/.version)
 
-Zero-config, batteries-included PHP framework. Your filesystem **is** the router. Your SQL is just SQL. You stay in PHP. Runs unchanged on PHP-FPM, Swoole, or FrankenPHP.
-
-> **Status:** v3.x — feature-complete, in active production use. Public API is stable; ScalVer applies.
+**Status:** v3.x — feature-complete, in active production use. Public API is stable; ScalVer applies.
 
 ---
 
