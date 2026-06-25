@@ -403,7 +403,7 @@ class tiny
                 $engine,
                 $config['host'] ?? 'localhost',
                 $config['port'] ?? 11211,
-                ((@$_SERVER['ENV'] == 'local' && @$_SERVER['TINY_CACHE_DISABLED'] != false)|| @$_SERVER['TINY_CACHE_DISABLED'] == true)
+                ((@$_SERVER['ENV'] == 'local' && !tiny::isFalse(@$_SERVER['TINY_CACHE_DISABLED'])) || tiny::isTrue(@$_SERVER['TINY_CACHE_DISABLED']))
             );
         }
         return self::$cache;
@@ -1099,6 +1099,16 @@ class tiny
                 include $classFile;
             }
         });
+    }
+
+    public static function isTrue(mixed $value): bool
+    {
+        return in_array($value, [true, 1, '1', 'true', 'on', 'yes'], true);
+    }
+
+    public static function isFalse(mixed $value): bool
+    {
+        return in_array($value, [false, 0, '0', 'false', 'off', 'no'], true);
     }
 }
 
