@@ -525,6 +525,10 @@ class TinyCMS
         // Return cached page if it exists
         return tiny::cache()->remember($key, $ttl, function () use ($filePath, $file, $path) {
 
+            if (!is_file($filePath) || !is_readable($filePath)) {
+                return null; // Skip if file is not readable
+            }
+
             // Read file contents
             $content = file_get_contents($filePath);
 
@@ -606,7 +610,7 @@ class TinyCMS
 
                 $filename = str_replace('/', '-', trim(str_replace('posts/', '', str_replace('.md', '', $path ? $path . '/'. $file :$file)), '/')) . '.webp';
                 $opengraph->render(80, tiny::config()->public_path . '/' . tiny::config()->static_dir . '/og/' . $filename);
-                $metadata['ogimage'] = tiny::getStaticURL('/og/' . $filename, true);                
+                $metadata['ogimage'] = tiny::getStaticURL('/og/' . $filename, true);
             }
 
             // generate html and excerpt from article body
