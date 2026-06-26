@@ -552,16 +552,46 @@ trait TinyUtils
     }
 
     /**
-     * Converts a string to title case.
+     * Converts a string to headline-style title case.
+     *
+     * Capitalizes each word like ucwords(), but keeps minor words
+     * (articles, short conjunctions/prepositions) lowercase. The first
+     * and last words, and the first word after a colon, are always
+     * capitalized.
      *
      * @param string $str The string to convert
      * @return string The title-cased string
      */
     public static function titleize(string $str): string
     {
+        // Minor words kept lowercase unless first/last or after a colon
+        static $minor = [
+            'a', 'an', 'and', 'as', 'at', 'but', 'by', 'en', 'for', 'if',
+            'in', 'nor', 'of', 'on', 'or', 'per', 'the', 'to', 'v', 'v.',
+            'via', 'vs', 'vs.', 'with',
+        ];
+
         $str = stripslashes($str);
         $str = str_replace(['_', '-'], ' ', $str);
-        return ucwords(mb_strtolower($str));
+        $str = preg_replace('/\s+/', ' ', trim(mb_strtolower($str)));
+
+        if ($str === '') {
+            return '';
+        }
+
+        $words = explode(' ', $str);
+        $last = count($words) - 1;
+        $forceCap = true; // first word is always capitalized
+
+        foreach ($words as $i => $word) {
+            if ($forceCap || $i === $last || !in_array($word, $minor, true)) {
+                $words[$i] = mb_strtoupper(mb_substr($word, 0, 1)) . mb_substr($word, 1);
+            }
+            // capitalize the first word of a subtitle following a colon
+            $forceCap = str_ends_with($word, ':');
+        }
+
+        return implode(' ', $words);
     }
 
     /**
